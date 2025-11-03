@@ -1,0 +1,9 @@
+jQuery(document).ready(function($) {
+    $('#submitted_form').DataTable({
+        "paging": true,
+        "ordering": true,
+        "searching": true,
+        "pageLength": 10, // Number of rows per page
+        "order": [[2, "desc"]] // Default sorting by submitted date column (index 2)
+    });
+});

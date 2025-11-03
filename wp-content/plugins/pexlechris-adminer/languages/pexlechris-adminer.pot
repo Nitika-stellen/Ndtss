@@ -1,0 +1,112 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Database Management tool - Adminer\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-04-06 16:05+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: \n"
+"Language: \n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Loco https://localise.biz/\n"
+"X-Loco-Version: 2.4.6; wp-5.9"
+
+#: pexlechris-adminer.php:354
+msgid "-> Current Order"
+msgstr ""
+
+#: pexlechris-adminer.php:371
+msgid "-> Current Orders meta"
+msgstr ""
+
+#: pexlechris-adminer.php:392
+msgid "-> Current Post"
+msgstr ""
+
+#: pexlechris-adminer.php:409
+msgid "-> Current Postmeta"
+msgstr ""
+
+#: pexlechris-adminer.php:432
+msgid "-> Current User"
+msgstr ""
+
+#: pexlechris-adminer.php:450
+msgid "-> Current Usermeta"
+msgstr ""
+
+#. Name of the plugin
+msgid "Database Manager - WP Adminer"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://www.pexlechris.dev"
+msgstr ""
+
+#. Description of the plugin
+msgid "Manage the database from your WordPress Dashboard using Adminer."
+msgstr ""
+
+#: pexlechris-adminer.php:220
+msgid "Open Adminer in a new tab"
+msgstr ""
+
+#: pexlechris-adminer.php:46
+msgid "Open WP Adminer"
+msgstr ""
+
+#: pexlechris-adminer.php:421
+msgid "Options Table"
+msgstr ""
+
+#: pexlechris-adminer.php:365
+msgid "Orders meta Table"
+msgstr ""
+
+#: pexlechris-adminer.php:348
+msgid "Orders Table"
+msgstr ""
+
+#. Author of the plugin
+msgid "Pexle Chris"
+msgstr ""
+
+#: pexlechris-adminer.php:403
+msgid "Postmeta Table"
+msgstr ""
+
+#: pexlechris-adminer.php:386
+msgid "Posts Table"
+msgstr ""
+
+#: pexlechris-adminer.php:444
+msgid "Usermeta Table"
+msgstr ""
+
+#: pexlechris-adminer.php:426
+msgid "Users Table"
+msgstr ""
+
+#: pexlechris-adminer.php:463
+msgid "Variable Inspector Table"
+msgstr ""
+
+#: pexlechris-adminer.php:168 pexlechris-adminer.php:204
+#: pexlechris-adminer.php:205
+msgid "WP Adminer"
+msgstr ""
+
+#: inc/class-pexlechris-adminer.php:78
+msgid "You are connecting to the database..."
+msgstr ""
+
+#: pexlechris-adminer.php:243
+msgid ""
+"You haven't access to any database other than the site's database. In order "
+"to enable access, you need to add the following line code in the wp-config."
+"php file"
+msgstr ""

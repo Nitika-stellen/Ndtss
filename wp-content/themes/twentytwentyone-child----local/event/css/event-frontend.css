@@ -1,0 +1,278 @@
+/**
+ * Event Frontend CSS
+ * Styles for frontend event functionality
+ */
+
+/* Event Registration Modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    padding: 40px;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #888;
+    max-width: 680px;
+    position: relative;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.close {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.close:hover,
+.close:focus {
+    color: #000;
+    text-decoration: none;
+}
+
+/* Event Buttons */
+.event_btns {
+    margin: 20px 0;
+    text-align: center;
+}
+
+#join-event-btn {
+    background-color: #0073aa;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+#join-event-btn:hover {
+    background-color: #005a87;
+}
+
+/* Event Status Messages */
+.event-status-message {
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.event-status-message.pending {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+}
+
+.event-status-message.approved {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.event-status-message.rejected {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+/* Event Pricing */
+.tribe-events-cost {
+    font-size: 18px;
+    font-weight: bold;
+    color: #0073aa;
+    margin: 10px 0;
+}
+
+/* Event Registration Form */
+.gform_wrapper {
+    margin: 0;
+}
+
+.gform_wrapper .gform_body {
+    margin-bottom: 20px;
+}
+
+.gform_wrapper .gform_footer {
+    text-align: center;
+}
+
+/* Loading States */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #0073aa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Notifications */
+.event-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 4px;
+    color: white;
+    font-weight: bold;
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+}
+
+.event-notification.success {
+    background-color: #46b450;
+}
+
+.event-notification.error {
+    background-color: #dc3232;
+}
+
+.event-notification.warning {
+    background-color: #ffb900;
+    color: #000;
+}
+
+.event-notification.info {
+    background-color: #0073aa;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .modal-content {
+        margin: 20px;
+        padding: 15px;
+        max-width: none;
+    }
+    
+    .event_btns {
+        text-align: left;
+    }
+    
+    #join-event-btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}
+
+/* Event List Styles */
+.event-list {
+    max-width: 100%;
+}
+
+.single-event {
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+}
+
+.event_data {
+    margin-bottom: 5px;
+}
+
+.toggle-events {
+    color: #0073aa;
+    text-decoration: none;
+    font-size: 12px;
+}
+
+.toggle-events:hover {
+    text-decoration: underline;
+}
+
+/* Button Styles */
+.button {
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
+
+.button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Form Styles */
+.gform_wrapper input[type="text"],
+.gform_wrapper input[type="email"],
+.gform_wrapper input[type="tel"],
+.gform_wrapper textarea,
+.gform_wrapper select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.gform_wrapper .gfield_label {
+    font-weight: bold;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.gform_wrapper .gfield_required {
+    color: #dc3232;
+}
+
+/* Error States */
+.gform_wrapper .gfield_error input,
+.gform_wrapper .gfield_error textarea,
+.gform_wrapper .gfield_error select {
+    border-color: #dc3232;
+}
+
+.gform_wrapper .gfield_error .gfield_label {
+    color: #dc3232;
+}
+
+.gform_wrapper .validation_message {
+    color: #dc3232;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+

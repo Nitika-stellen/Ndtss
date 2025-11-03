@@ -1,0 +1,414 @@
+/**
+ * Event Admin CSS
+ * Styles for admin event management interface
+ */
+
+/* Admin Notice */
+.event-admin-notice {
+    margin: 20px 0;
+    padding: 15px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.event-admin-notice.notice-success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.event-admin-notice.notice-error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.event-admin-notice.notice-warning {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+}
+
+.event-admin-notice.notice-info {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+/* Status Indicators */
+.status-approved {
+    color: #46b450;
+    font-weight: bold;
+    padding: 4px 8px;
+    background-color: #d4edda;
+    border-radius: 3px;
+}
+
+.status-rejected {
+    color: #dc3232;
+    font-weight: bold;
+    padding: 4px 8px;
+    background-color: #f8d7da;
+    border-radius: 3px;
+}
+
+.status-pending {
+    color: #ffb900;
+    font-weight: bold;
+    padding: 4px 8px;
+    background-color: #fff3cd;
+    border-radius: 3px;
+}
+
+/* Payment Status */
+.payment-paid {
+    color: #46b450;
+    font-weight: bold;
+    padding: 4px 8px;
+    background-color: #d4edda;
+    border-radius: 3px;
+}
+
+.payment-pending {
+    color: #ffb900;
+    font-weight: bold;
+    padding: 4px 8px;
+    background-color: #fff3cd;
+    border-radius: 3px;
+}
+
+.payment-failed {
+    color: #dc3232;
+    font-weight: bold;
+    padding: 4px 8px;
+    background-color: #f8d7da;
+    border-radius: 3px;
+}
+
+.payment-na {
+    color: #666;
+    font-weight: bold;
+    padding: 4px 8px;
+    background-color: #f8f9fa;
+    border-radius: 3px;
+}
+
+/* Admin Actions */
+.event-admin-actions {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.event-admin-actions .button {
+    margin-right: 10px;
+    margin-bottom: 5px;
+}
+
+/* DataTable Customizations */
+#event_submitted_form,
+#eventTable {
+    margin-top: 20px;
+}
+
+.dataTables_wrapper {
+    margin-top: 20px;
+}
+
+.dataTables_length,
+.dataTables_filter,
+.dataTables_info,
+.dataTables_paginate {
+    margin-bottom: 10px;
+}
+
+/* Event List in Attendee Management */
+.event-list {
+    max-width: 100%;
+}
+
+.single-event {
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.event_data {
+    flex: 1;
+    margin-right: 10px;
+}
+
+.edit-cpd {
+    margin-left: 10px;
+}
+
+.toggle-events {
+    color: #0073aa;
+    text-decoration: none;
+    font-size: 12px;
+    display: block;
+    margin-top: 5px;
+}
+
+.toggle-events:hover {
+    text-decoration: underline;
+}
+
+.extra-event {
+    display: none;
+}
+
+/* Button States */
+.button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.button.loading {
+    position: relative;
+    color: transparent;
+}
+
+.button.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #0073aa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Log Viewer */
+.log-viewer {
+    background: #f1f1f1;
+    border: 1px solid #ccd0d4;
+    padding: 10px;
+    margin-top: 20px;
+    max-height: 600px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 12px;
+    border-radius: 4px;
+}
+
+.log-entry {
+    margin-bottom: 5px;
+    padding: 5px;
+    border-left: 4px solid #ddd;
+    background-color: #fff;
+}
+
+.log-entry:hover {
+    background-color: #f8f9fa;
+}
+
+.log-error {
+    border-left-color: #dc3232 !important;
+    background-color: #fbeaea;
+}
+
+.log-warning {
+    border-left-color: #ffb900 !important;
+    background-color: #fff8e5;
+}
+
+.log-info {
+    border-left-color: #00a0d2 !important;
+    background-color: #e5f3ff;
+}
+
+.log-debug {
+    border-left-color: #666 !important;
+    background-color: #f5f5f5;
+}
+
+/* Statistics Box */
+.notice-info h3 {
+    margin-top: 0;
+}
+
+.notice-info p {
+    margin-bottom: 5px;
+}
+
+/* Filter Controls */
+.tablenav {
+    margin-bottom: 20px;
+}
+
+.tablenav .button {
+    margin-left: 5px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .event-admin-actions {
+        text-align: center;
+    }
+    
+    .event-admin-actions .button {
+        display: block;
+        width: 100%;
+        margin: 5px 0;
+    }
+    
+    .single-event {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .event_data {
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+    
+    .edit-cpd {
+        margin-left: 0;
+        width: 100%;
+    }
+    
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter {
+        text-align: center;
+        margin-bottom: 10px;
+    }
+}
+
+/* SweetAlert2 Customizations */
+.swal2-popup {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.swal2-title {
+    color: #333;
+}
+
+.swal2-content {
+    color: #666;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #0073aa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* CPD Points Display */
+.cpd-points {
+    font-weight: bold;
+    color: #0073aa;
+}
+
+/* Event Table Enhancements */
+.wp-list-table th {
+    background-color: #f1f1f1;
+    font-weight: bold;
+}
+
+.wp-list-table td {
+    vertical-align: middle;
+}
+
+.wp-list-table .button {
+    margin: 2px;
+}
+
+/* Bulk Actions */
+.bulk-actions {
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.bulk-actions select {
+    margin-right: 10px;
+}
+
+/* Export Options */
+.export-options {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.export-options .button {
+    margin-right: 10px;
+}
+
+/* Error Messages */
+.error-message {
+    color: #dc3232;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.success-message {
+    color: #46b450;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Tooltips */
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 120px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -60px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+
+

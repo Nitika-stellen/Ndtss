@@ -1,0 +1,106 @@
+ .pro_disable::after {
+    content: "Pro";
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: red;
+    padding: 3px;
+    font-size: 11px;
+    color: #fff;
+    border-radius: 5px 0 0 0;
+}
+.pro_disable {
+    position: relative;
+}
+.pro_disable_padding{
+    padding: 10px !important;
+}
+.pro_text_style{
+    color:#9f9e9e;
+}
+body .pro_disable_fff {
+    background: transparent;
+}
+.cf7-container-bundle {
+    border: 1px solid #e7e7e7;
+    padding: 10px;
+    text-align: center;
+    background: #fff;
+    border-radius: 5px;
+}
+.cf7-container-bundle-h {
+    font-size: 30px;
+    font-weight: bold;
+    text-align: center;
+}
+.cf7-container-bundle-h p{
+    font-size: 30px;
+    font-weight: bold;
+    padding: 0;
+    margin: 0;
+}
+.list-addons-container {
+    display: flex;
+    flex-flow: row wrap;
+    padding: 10px;
+}
+.add-ons-box {
+    margin: 0 0 20px;
+    width: 400px;
+    position: relative;
+    margin-right: 30px;
+    border: 1px solid #f7f7f7;
+    padding: 14px;
+    background: #fff;
+    border-radius: 10px;
+}
+.add-ons-box-actions-button-live {
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-block;
+    font-size: 17px;
+    padding: 10px 30px;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background: #fff;
+    border: 1px solid #1ea9ea;
+    color: #1ea9ea;
+    margin-right:50px;
+}
+.add-ons-box-actions-button-download {
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-block;
+    font-size: 17px;
+    padding: 10px 30px;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background: #fff;
+    border: 1px solid #1ea9ea;
+    color: #1ea9ea;
+    background: #1ea9ea;
+    border: 1px solid #1ea9ea;
+    color: #fff;
+}
+.add-ons-box-actions {
+    text-align:center;
+}
+.add-ons-box-actions a:hover {
+    opacity: 0.8;
+}
+.plugins_page_yeekit-manager .notice{
+    display: none !important;
+}
+.color-red {
+    color: red;
+}

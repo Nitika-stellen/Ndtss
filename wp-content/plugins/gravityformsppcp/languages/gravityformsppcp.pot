@@ -1,0 +1,906 @@
+# Copyright (C) 2025 Gravity Forms
+# This file is distributed under the GPL-3.0+.
+msgid ""
+msgstr ""
+"Project-Id-Version: Gravity Forms PayPal Checkout Add-On 3.9.0\n"
+"Report-Msgid-Bugs-To: https://gravityforms.com/support\n"
+"Last-Translator: Gravity Forms <support@gravityforms.com>\n"
+"Language-Team: Gravity Forms <support@gravityforms.com>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2025-03-06T19:45:42+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.11.0\n"
+"X-Domain: gravityformsppcp\n"
+
+#. Plugin Name of the plugin
+msgid "Gravity Forms PayPal Checkout Add-On"
+msgstr ""
+
+#. Plugin URI of the plugin
+#. Author URI of the plugin
+msgid "https://gravityforms.com"
+msgstr ""
+
+#. Description of the plugin
+msgid "Integrates Gravity Forms with PayPal, enabling end users to purchase goods and services through Gravity Forms."
+msgstr ""
+
+#. Author of the plugin
+msgid "Gravity Forms"
+msgstr ""
+
+#. translators: %1$s opens link tag, Second %2$s closes link tag.
+#: class-gf-ppcp.php:302
+msgid "%1$sConnect your PayPal account%2$s to start accepting payments on your website."
+msgstr ""
+
+#. translators: 1: Open link tag 2: Close link tag
+#: class-gf-ppcp.php:331
+msgid "PayPal has sent a confirmation email to your email address. You need to confirm your email to use the Gravity Forms PayPal Checkout add-on. %1$sLearn more here%2$s."
+msgstr ""
+
+#. translators: 1: Open link tag 2: Close link tag
+#: class-gf-ppcp.php:338
+msgid "Your PayPal account currently cannot receive payments. Please contact PayPal for more details. %1$sLearn more here%2$s."
+msgstr ""
+
+#. translators: 1: Open link tag 2: Close link tag
+#: class-gf-ppcp.php:346
+msgid "PayPal is currently reviewing your application to enable the Credit Card Field feature. You can %1$sset up the PayPal Checkout add-on%2$s and start with PayPal Checkout first. Once the application is approved, the Credit Card Field will be enabled automatically."
+msgstr ""
+
+#: class-gf-ppcp.php:672
+msgid "We cannot finish the onboarding process. Please try again later."
+msgstr ""
+
+#: class-gf-ppcp.php:675
+msgid "There was an error while connecting with PayPal. Please try again."
+msgstr ""
+
+#: class-gf-ppcp.php:677
+msgid "Are you sure you want to disconnect from PayPal for this website?"
+msgstr ""
+
+#: class-gf-ppcp.php:678
+msgid "Are you sure you want to disconnect from PayPal for this feed?"
+msgstr ""
+
+#: class-gf-ppcp.php:679
+msgid "Are you sure you want to disconnect all Gravity Forms sites connected to this PayPal account?"
+msgstr ""
+
+#: class-gf-ppcp.php:681
+msgid "Please wait while we complete the onboarding process with PayPal. This may take a few seconds."
+msgstr ""
+
+#: class-gf-ppcp.php:683
+msgid "An error occurred while trying to activate the webhook, please try setting the webhook ID manually or tr again later."
+msgstr ""
+
+#: class-gf-ppcp.php:684
+msgid "Please wait, communicating with PayPal..."
+msgstr ""
+
+#: class-gf-ppcp.php:685
+#: class-gf-ppcp.php:4279
+msgid "Automatically activate the webhook"
+msgstr ""
+
+#: class-gf-ppcp.php:687
+msgid "An error occurred while trying to save the webhook ID, please try again later."
+msgstr ""
+
+#: class-gf-ppcp.php:688
+msgid "Saving..."
+msgstr ""
+
+#: class-gf-ppcp.php:689
+msgid "Webhook is active"
+msgstr ""
+
+#: class-gf-ppcp.php:690
+msgid "Webhook is not active"
+msgstr ""
+
+#: class-gf-ppcp.php:705
+#: class-gf-ppcp.php:3493
+msgid "Cannot complete request, please contact us for further assistance."
+msgstr ""
+
+#: class-gf-ppcp.php:707
+msgid "Are you sure you want to refund this payment?"
+msgstr ""
+
+#: class-gf-ppcp.php:741
+msgid "Active"
+msgstr ""
+
+#: class-gf-ppcp.php:742
+msgid "Inactive"
+msgstr ""
+
+#: class-gf-ppcp.php:743
+msgid "Show"
+msgstr ""
+
+#: class-gf-ppcp.php:745
+msgid "Payment Method Required"
+msgstr ""
+
+#: class-gf-ppcp.php:746
+msgid "You must select at least one payment method."
+msgstr ""
+
+#: class-gf-ppcp.php:747
+msgid "A form can only contain one PayPal field."
+msgstr ""
+
+#: class-gf-ppcp.php:761
+msgid "is not supported. Please enter one of the supported credit cards."
+msgstr ""
+
+#: class-gf-ppcp.php:762
+msgid "Your credit card information is invalid. Please check it and try again."
+msgstr ""
+
+#: class-gf-ppcp.php:763
+msgid "You have not passed the 3-D secure authentication. Please try again."
+msgstr ""
+
+#: class-gf-ppcp.php:764
+msgid "Are you sure to skip the 3-D secure authentication?"
+msgstr ""
+
+#: class-gf-ppcp.php:765
+msgid "An error occurred, please try again."
+msgstr ""
+
+#: class-gf-ppcp.php:903
+msgid "Credit card fields are not currently supported for subscriptions and will not display on your form, but the user can still pay using the card option via the PayPal Checkout Modal."
+msgstr ""
+
+#: class-gf-ppcp.php:1001
+msgid "PayPal Account"
+msgstr ""
+
+#. translators: $1$s opens a link tag, %2$s closes link tag.
+#: class-gf-ppcp.php:1024
+msgid "PayPal Checkout is an all-in-one global solution, you can accept payments from 286 million PayPal customers, in over 100 currencies and across 200 markets, with advanced Fraud Protection and unprecedented control. %1$sLearn more%2$s."
+msgstr ""
+
+#. translators: 1. Open paragraph tag 2. Close paragraph tag 3. Open strong tag 4. Close strong tag
+#: class-gf-ppcp.php:1065
+msgid "%1$sYou can only use the PayPal Checkout add-on if the Email Confirmed and Payment Receivable status is %3$sYes%4$s.%2$s%1$sIf the Credit Card field support is %3$sSUBSCRIBED%4$s, you can use both PayPal Checkout and Credit Card, otherwise you can only use PayPal Checkout to accept payments.%2$s"
+msgstr ""
+
+#. translators: 1. Open paragraph tag 2. Close paragraph tag.
+#: class-gf-ppcp.php:1074
+msgid "%1$sWebhooks are notifications that PayPal sends to your website whenever specific events happen, such as processing a subscription, issuing a refund, or approving a payment.%2$s"
+msgstr ""
+
+#: class-gf-ppcp.php:1082
+#: class-gf-ppcp.php:1095
+msgid "Environment"
+msgstr ""
+
+#: class-gf-ppcp.php:1086
+msgid "Live"
+msgstr ""
+
+#: class-gf-ppcp.php:1090
+msgid "Sandbox"
+msgstr ""
+
+#: class-gf-ppcp.php:1095
+msgid "Start with the Sandbox environment if you are still testing the integration. Use the Live environment on your production site."
+msgstr ""
+
+#: class-gf-ppcp.php:1108
+#: class-gf-ppcp.php:1109
+#: class-gf-ppcp.php:1114
+#: class-gf-ppcp.php:1115
+msgid "Account Status"
+msgstr ""
+
+#: class-gf-ppcp.php:1120
+#: class-gf-ppcp.php:1121
+#: class-gf-ppcp.php:1126
+#: class-gf-ppcp.php:1127
+msgid "Webhook"
+msgstr ""
+
+#: class-gf-ppcp.php:1168
+msgid "Hostname localhost is not allowed"
+msgstr ""
+
+#. translators: %1$s Opens code tag, %2$s Closes code tag.
+#: class-gf-ppcp.php:1171
+msgid "PayPal does not allow connections from %1$slocalhost%2$s. To test locally, you need to use a top-level domain such as %1$s.local%2$s."
+msgstr ""
+
+#: class-gf-ppcp.php:1198
+msgid "Click here to connect to PayPal"
+msgstr ""
+
+#: class-gf-ppcp.php:1211
+msgid "SSL Certificate Required"
+msgstr ""
+
+#. translators: %1$s opens link, %1$s closes link.
+#: class-gf-ppcp.php:1214
+msgid "Make sure you have an SSL certificate installed and enabled, then %1$sclick here to continue%2$s."
+msgstr ""
+
+#: class-gf-ppcp.php:1246
+msgid "Your merchant ID on PayPal: "
+msgstr ""
+
+#: class-gf-ppcp.php:1249
+msgid "Connected to PayPal."
+msgstr ""
+
+#: class-gf-ppcp.php:1252
+msgid "Disconnect from PayPal"
+msgstr ""
+
+#. translators: 1. Email confirmation status 2. Payment receivable status 3. Credit Card field support status 4. Open strong tag 5. Close strong tag
+#: class-gf-ppcp.php:1290
+msgid "Email confirmed: %4$s%1$s%5$s. Payment Receivable: %4$s%2$s%5$s. Credit Card field support: %4$s%3$s%5$s."
+msgstr ""
+
+#: class-gf-ppcp.php:1291
+#: class-gf-ppcp.php:1292
+msgid "Yes"
+msgstr ""
+
+#: class-gf-ppcp.php:1291
+#: class-gf-ppcp.php:1292
+#: class-gf-ppcp.php:1293
+msgid "No"
+msgstr ""
+
+#: class-gf-ppcp.php:1366
+#: class-gf-ppcp.php:1459
+msgid "Access denied."
+msgstr ""
+
+#: class-gf-ppcp.php:1376
+msgid "No authCode or sharedId returned from PayPal."
+msgstr ""
+
+#: class-gf-ppcp.php:1389
+msgid "Could not get access token from PayPal."
+msgstr ""
+
+#: class-gf-ppcp.php:1400
+msgid "Could not get REST API credentials from PayPal."
+msgstr ""
+
+#: class-gf-ppcp.php:1414
+#: class-gf-ppcp.php:4170
+msgid "Could not create webhooks in PayPal."
+msgstr ""
+
+#. translators: %1$s opens link tag, %2$s closes link tag.
+#: class-gf-ppcp.php:1639
+msgid "You must add a PayPal field to your form before creating a feed. Let's go %1$sadd one%2$s!"
+msgstr ""
+
+#: class-gf-ppcp.php:1681
+#: class-gf-ppcp.php:1699
+msgid "Subscription Product Type"
+msgstr ""
+
+#: class-gf-ppcp.php:1685
+msgid "Digital"
+msgstr ""
+
+#: class-gf-ppcp.php:1689
+msgid "Physical"
+msgstr ""
+
+#: class-gf-ppcp.php:1693
+msgid "Service"
+msgstr ""
+
+#: class-gf-ppcp.php:1700
+msgid "Indicate the type of product that this subscription is for."
+msgstr ""
+
+#: class-gf-ppcp.php:1721
+msgid "Trial"
+msgstr ""
+
+#: class-gf-ppcp.php:1722
+msgid "Enable a trial period. The user's recurring payment will not begin until after this trial period."
+msgstr ""
+
+#: class-gf-ppcp.php:1732
+#: class-gf-ppcp.php:1737
+msgid "Trial Price"
+msgstr ""
+
+#: class-gf-ppcp.php:1738
+msgid "Indicates the price of the subscription during the trial period."
+msgstr ""
+
+#: class-gf-ppcp.php:1749
+#: class-gf-ppcp.php:1754
+msgid "Trial Period"
+msgstr ""
+
+#: class-gf-ppcp.php:1755
+msgid "Duration for the trial subscription until the regular price is charged."
+msgstr ""
+
+#: class-gf-ppcp.php:1780
+msgid "First Name"
+msgstr ""
+
+#: class-gf-ppcp.php:1786
+msgid "Last Name"
+msgstr ""
+
+#: class-gf-ppcp.php:1809
+#: class-gf-ppcp.php:1821
+msgid "Recurring Retry"
+msgstr ""
+
+#: class-gf-ppcp.php:1814
+msgid "Try to bill again after failed attempt."
+msgstr ""
+
+#: class-gf-ppcp.php:1822
+msgid "Turn on or off whether to try to bill again after failed attempt."
+msgstr ""
+
+#: class-gf-ppcp.php:1924
+msgid "Enabled"
+msgstr ""
+
+#: class-gf-ppcp.php:1971
+msgid "Free trial"
+msgstr ""
+
+#: class-gf-ppcp.php:1975
+msgid "Enter an amount..."
+msgstr ""
+
+#: class-gf-ppcp.php:2041
+msgid "Do not prompt buyer to include a shipping address."
+msgstr ""
+
+#: class-gf-ppcp.php:2060
+msgid "Authorize only"
+msgstr ""
+
+#: class-gf-ppcp.php:2062
+msgid "Authorize Only"
+msgstr ""
+
+#: class-gf-ppcp.php:2062
+msgid "Enable this option if you would like to only authorize payments when the user submits the form, you will be able to capture the payment by clicking the capture button from the entry details page."
+msgstr ""
+
+#: class-gf-ppcp.php:2111
+msgid "Payment Completed"
+msgstr ""
+
+#: class-gf-ppcp.php:2112
+msgid "Payment Refunded"
+msgstr ""
+
+#: class-gf-ppcp.php:2113
+msgid "Payment Failed"
+msgstr ""
+
+#: class-gf-ppcp.php:2114
+msgid "Payment Pending"
+msgstr ""
+
+#: class-gf-ppcp.php:2115
+msgid "Payment Authorized"
+msgstr ""
+
+#: class-gf-ppcp.php:2116
+msgid "Authorization Voided"
+msgstr ""
+
+#: class-gf-ppcp.php:2117
+msgid "Subscription Created"
+msgstr ""
+
+#: class-gf-ppcp.php:2118
+msgid "Subscription Payment Added"
+msgstr ""
+
+#: class-gf-ppcp.php:2119
+msgid "Subscription Payment Failed"
+msgstr ""
+
+#: class-gf-ppcp.php:2120
+msgid "Subscription Canceled"
+msgstr ""
+
+#: class-gf-ppcp.php:2121
+msgid "Subscription Expired"
+msgstr ""
+
+#: class-gf-ppcp.php:2165
+msgid "Failed to initialize the API. Cannot authorize the payment."
+msgstr ""
+
+#: class-gf-ppcp.php:2174
+msgid "No order ID available, cannot create a new payment."
+msgstr ""
+
+#: class-gf-ppcp.php:2190
+msgid "The order total from PayPal does not match the payment amount of the submission."
+msgstr ""
+
+#: class-gf-ppcp.php:2204
+msgid "Failed to authorize the payment."
+msgstr ""
+
+#. translators: %s represents the order status.
+#: class-gf-ppcp.php:2213
+msgid "Cannot authorize the payment. The order status: %s."
+msgstr ""
+
+#. translators: Placeholder is system-generated order ID.
+#: class-gf-ppcp.php:2247
+msgid "Cannot find order ID %s. It no longer exists."
+msgstr ""
+
+#: class-gf-ppcp.php:2323
+msgid "Cannot add entry ID to the custom id in the order."
+msgstr ""
+
+#: class-gf-ppcp.php:2336
+msgid "Cannot capture the payment."
+msgstr ""
+
+#. translators: Placeholder represents order status.
+#: class-gf-ppcp.php:2350
+msgid "Cannot capture the payment. The order status: %s."
+msgstr ""
+
+#. translators: Placeholder is the reason code value.
+#: class-gf-ppcp.php:2356
+msgid " Reason code: %s."
+msgstr ""
+
+#. translators: %1$s is the Subscription Amount, %2$s is the Subscription ID and %3$s is the Transaction ID.
+#: class-gf-ppcp.php:2618
+msgid "Subscription has been paid. Amount: %1$s. Subscription Id: %2$s, Transaction Id: %3$s"
+msgstr ""
+
+#: class-gf-ppcp.php:2782
+msgid "Failed to initialize the API. Cannot process the webhook."
+msgstr ""
+
+#: class-gf-ppcp.php:2814
+msgid "Cannot verify the webhook signature."
+msgstr ""
+
+#: class-gf-ppcp.php:2824
+msgid "Webhook verification failed."
+msgstr ""
+
+#: class-gf-ppcp.php:3030
+msgid "Vertical"
+msgstr ""
+
+#: class-gf-ppcp.php:3034
+msgid "Horizontal"
+msgstr ""
+
+#: class-gf-ppcp.php:3042
+msgid "Responsive"
+msgstr ""
+
+#: class-gf-ppcp.php:3046
+msgid "Large"
+msgstr ""
+
+#: class-gf-ppcp.php:3050
+msgid "Medium"
+msgstr ""
+
+#: class-gf-ppcp.php:3054
+msgid "Small"
+msgstr ""
+
+#: class-gf-ppcp.php:3062
+msgid "Rectangle"
+msgstr ""
+
+#: class-gf-ppcp.php:3066
+msgid "Pill"
+msgstr ""
+
+#: class-gf-ppcp.php:3074
+msgid "Gold"
+msgstr ""
+
+#: class-gf-ppcp.php:3078
+msgid "Blue"
+msgstr ""
+
+#: class-gf-ppcp.php:3082
+msgid "Silver"
+msgstr ""
+
+#: class-gf-ppcp.php:3086
+msgid "White"
+msgstr ""
+
+#: class-gf-ppcp.php:3090
+msgid "Black"
+msgstr ""
+
+#: class-gf-ppcp.php:3185
+#: includes/class-gf-field-paypal.php:703
+#: includes/class-gf-field-paypal.php:848
+#: includes/class-gf-field-paypal.php:979
+#: includes/class-gf-field-paypal.php:987
+msgid "PayPal Checkout"
+msgstr ""
+
+#. translators: Placeholder is the debug id.
+#: class-gf-ppcp.php:3234
+msgid " PayPal Debug ID: %s"
+msgstr ""
+
+#. translators: %1$s is the type, %2$s is the id.
+#: class-gf-ppcp.php:3256
+msgid "Entry for %1$s id: %2$s was not found. Webhook cannot be processed."
+msgstr ""
+
+#: class-gf-ppcp.php:3405
+msgid "Cannot create a new order on PayPal. If the error persists, please contact us for further assistance."
+msgstr ""
+
+#: class-gf-ppcp.php:3419
+msgid "The payment total must be greater than 0."
+msgstr ""
+
+#: class-gf-ppcp.php:3453
+msgid "Cannot create a new subscription on PayPal. If the error persists, please contact us for further assistance."
+msgstr ""
+
+#: class-gf-ppcp.php:3460
+msgid "Unauthorized request, please refresh the form and try again."
+msgstr ""
+
+#: class-gf-ppcp.php:3565
+msgid "Cannot capture payment. If the error persists, please contact us for further assistance."
+msgstr ""
+
+#: class-gf-ppcp.php:3587
+msgid "Cannot refund payment. If the error persists, please contact us for further assistance."
+msgstr ""
+
+#: class-gf-ppcp.php:3597
+msgid "Refund request is pending"
+msgstr ""
+
+#: class-gf-ppcp.php:3600
+msgid "Refund request failed"
+msgstr ""
+
+#: class-gf-ppcp.php:3649
+msgid "There was a problem with your submission."
+msgstr ""
+
+#: class-gf-ppcp.php:3920
+msgid "Capture Payment"
+msgstr ""
+
+#: class-gf-ppcp.php:3924
+msgid "Refund Payment"
+msgstr ""
+
+#: class-gf-ppcp.php:4025
+msgid "Invalid form configuration. PayPal does not support creating subscriptions using the Credit Card field."
+msgstr ""
+
+#: class-gf-ppcp.php:4165
+#: class-gf-ppcp.php:4197
+msgid "Please complete onboarding process before trying to create the webhook"
+msgstr ""
+
+#: class-gf-ppcp.php:4207
+msgid "Invalid Webhook ID."
+msgstr ""
+
+#: class-gf-ppcp.php:4280
+msgid "Manually set the webhook ID"
+msgstr ""
+
+#: class-gf-ppcp.php:4288
+msgid "Save Webhook ID"
+msgstr ""
+
+#: class-gf-ppcp.php:4292
+msgid "Learn more about how to generate a webhook ID."
+msgstr ""
+
+#. translators: %s is the label of the PayPal field
+#: class-gf-ppcp.php:4318
+msgid "%s (Card Number)"
+msgstr ""
+
+#: class-gf-ppcp.php:4319
+msgid "%s (Card Type)"
+msgstr ""
+
+#: class-gf-ppcp.php:4320
+msgid "%s (Cardholder Name)"
+msgstr ""
+
+#: class-gf-ppcp.php:4321
+msgid "%s (Expiration Date)"
+msgstr ""
+
+#: class-gf-ppcp.php:4322
+msgid "%s (Security Code)"
+msgstr ""
+
+#: class-gf-ppcp.php:4323
+msgid "%s (Payment Method)"
+msgstr ""
+
+#: includes/api/class-message-parser.php:114
+msgid "Cannot submit data to PayPal. If the error persists, please contact us for further assistance."
+msgstr ""
+
+#: includes/api/class-message-parser.php:129
+msgid "You must provide a valid city for this country."
+msgstr ""
+
+#: includes/api/class-message-parser.php:131
+msgid "You must provide a valid postal code for this country."
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:42
+msgid "PayPal"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:123
+#: includes/class-gf-field-paypal.php:129
+msgid "Payment Method"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:124
+#: includes/class-gf-field-paypal.php:522
+msgid "Card Number"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:125
+#: includes/class-gf-field-paypal.php:545
+msgid "Expiration Date"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:126
+#: includes/class-gf-field-paypal.php:569
+msgid "Security Code"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:127
+msgid "Card Type"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:128
+#: includes/class-gf-field-paypal.php:596
+msgid "Cardholder Name"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:257
+msgid "Please enter a valid credit card number."
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:316
+msgid "This field requires additional configuration"
+msgstr ""
+
+#. translators: 1. Open div tag 2. Close div tag 3. Open link tag 4. Close link tag
+#: includes/class-gf-field-paypal.php:341
+msgid "Configuration Required%1$sTo use the PayPal Checkout field, please configure your %3$sPayPal Checkout Settings%4$s.%2$s"
+msgstr ""
+
+#. translators: 1. Open div tag 2. Close div tag 3. Open link tag 4. Close link tag
+#: includes/class-gf-field-paypal.php:341
+msgid "%1$sConfiguration Required: To use the PayPal Checkout field, please configure your %3$sPayPal Checkout Settings%4$s.%2$s"
+msgstr ""
+
+#. translators: 1. Open div tag 2. Close div tag 3. Open link tag 4. Close link tag
+#: includes/class-gf-field-paypal.php:358
+msgid "Feed Required%1$sTo use the PayPal Checkout field, please create a %3$sPayPal Checkout feed%4$s for this form.%2$s"
+msgstr ""
+
+#. translators: 1. Open div tag 2. Close div tag 3. Open link tag 4. Close link tag
+#: includes/class-gf-field-paypal.php:358
+msgid "%1$sFeed Required: To use the PayPal Checkout field, please create a %3$sPayPal Checkout feed%4$s for this form.%2$s"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:381
+msgid "The Credit Card field is not supported for subscriptions and will not display on your form. Users can still pay with a credit card by using the card option in the PayPal Checkout Modal."
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:400
+msgid "PayPal Checkout is enabled for your form. The PayPal Smart Payment Buttons will replace the Submit button of your form when it is the selected or only payment method."
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:486
+msgid "Supported Credit Cards:"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:684
+msgid "This page is unsecured. Do not enter a real credit card number! Use this field only for testing purposes."
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:711
+#: includes/class-gf-field-paypal.php:859
+#: includes/class-gf-field-paypal.php:988
+msgid "Credit Card"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:840
+#: includes/class-gf-field-paypal.php:977
+msgid "Supported Payment Methods"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:853
+msgid "Display Other Payment Buttons"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:867
+#: includes/class-gf-field-paypal.php:978
+msgid "Default Payment Method"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:915
+#: includes/class-gf-field-paypal.php:991
+msgid "PayPal Smart Payment Buttons Customization"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:922
+msgid "Layout"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:923
+msgid "Size"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:924
+msgid "Shape"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:925
+msgid "Color"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:932
+msgid "PayPal Credit messages"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:977
+msgid "Enable the payment methods."
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:978
+msgid "Set the default payment method."
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:979
+msgid "The PayPal Smart Payment Buttons can be customized in the Appearance settings. The PayPal logo will be displayed on the button."
+msgstr ""
+
+#. translators: 1.List of funding sources. 2.Open link tag 3.Close link tag
+#: includes/class-gf-field-paypal.php:982
+msgid "Enable this setting to allow PayPal to display a variety of funding sources based on a buyer’s eligibility. The available funding sources are: %1$s. %2$sLearn more.%3$s"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:987
+msgid "PayPal Credit is a revolving line of credit that your buyers can use to buy now and pay over time. You can display credit messages on your website to promote special financing offers, which help increase sales."
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:988
+msgid "The credit card field is white-labeled so no PayPal branding will be displayed on the page."
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:989
+msgid "Credit Card Sub-Labels"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:989
+msgid "Enter values in this setting to override the Sub-Label for each field. You can also turn off the Cardholder Name."
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:990
+msgid "Supported Credit Cards"
+msgstr ""
+
+#: includes/class-gf-field-paypal.php:990
+msgid "This provides a visual indicator to your credit card fields when users are filling in their payment details. Your payment gateway may still reject the card types they do not support. Please refer to the add-on documentation for more details."
+msgstr ""
+
+#. translators: 1. Open paragraph tag 2. Close paragraph tag 3. Open link tag 4. Close link tag
+#: includes/class-gf-field-paypal.php:994
+msgid "%1$sCustomize the Smart Payment Buttons for this form. Besides the default PayPal button, you may see additional buttons for other funding sources.%2$s%1$s%3$sLearn more about funding sources%4$s.%2$s"
+msgstr ""
+
+#: includes/class-paypal-subscriptions-handler.php:435
+msgid "An unknown error has occurred."
+msgstr ""
+
+#: includes/models/class-plan.php:181
+msgid "Gravity Forms PayPal Checkout: Missing Plan Recurring Amount."
+msgstr ""
+
+#: includes/models/class-plan.php:209
+msgid "Gravity Forms PayPal Checkout: Invalid Plan Name parameter."
+msgstr ""
+
+#: includes/models/class-plan.php:213
+msgid "Gravity Forms PayPal Checkout: Invalid Plan Product ID parameter."
+msgstr ""
+
+#: includes/models/class-plan.php:217
+msgid "Gravity Forms PayPal Checkout: Invalid Plan Billing Cycles parameter."
+msgstr ""
+
+#: includes/models/class-plan.php:221
+msgid "Gravity Forms PayPal Checkout: Invalid Plan Payment Preferences parameter."
+msgstr ""
+
+#: includes/models/class-plan.php:230
+msgid "Gravity Forms PayPal Checkout: Invalid Plan Description parameter."
+msgstr ""
+
+#: includes/models/class-plan.php:235
+msgid "Gravity Forms PayPal Checkout: Invalid Plan Status parameter."
+msgstr ""
+
+#: includes/models/class-plan.php:239
+msgid "Gravity Forms PayPal Checkout: Invalid Plan Taxes parameter."
+msgstr ""
+
+#: includes/models/class-product.php:152
+msgid "Gravity Forms PayPal Checkout: Invalid Product Name parameter."
+msgstr ""
+
+#: includes/models/class-product.php:156
+msgid "Gravity Forms PayPal Checkout: Invalid Product Type parameter."
+msgstr ""
+
+#: includes/models/class-product.php:161
+msgid "Gravity Forms PayPal Checkout: Invalid Product ID parameter."
+msgstr ""
+
+#: includes/models/class-product.php:165
+msgid "Gravity Forms PayPal Checkout: Invalid Product Description parameter."
+msgstr ""
+
+#: includes/models/class-product.php:169
+msgid "Gravity Forms PayPal Checkout: Invalid Product Image URL parameter."
+msgstr ""
+
+#: includes/models/class-product.php:173
+msgid "Gravity Forms PayPal Checkout: Invalid Product Home URL parameter."
+msgstr ""
+
+#: includes/models/class-subscription.php:208
+msgid "Gravity Forms PayPal Checkout: Invalid Subscription Plan ID parameter."
+msgstr ""
+
+#: includes/models/class-subscription.php:213
+msgid "Gravity Forms PayPal Checkout: Invalid Subscription Quantity parameter."
+msgstr ""
+
+#: includes/models/class-subscription.php:217
+msgid "Gravity Forms PayPal Checkout: Invalid Subscription Custom ID parameter."
+msgstr ""

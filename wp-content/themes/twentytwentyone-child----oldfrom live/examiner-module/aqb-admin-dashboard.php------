@@ -1,0 +1,22 @@
+<?php
+$entries = GFAPI::get_entries(15);
+
+echo '<h2>Certificate Generation</h2>';
+
+foreach ($entries as $entry) {
+    if (gform_get_meta($entry['id'], 'center_approved')) {
+        $student_name = rgar($entry, '1');
+        $exam_id = rgar($entry, '2');
+
+        echo "<div class='cert-entry'><strong>$student_name ($exam_id)</strong><br>";
+        echo "<form method='post'><input type='hidden' name='verify_id' value='{$entry['id']}'><button type='submit'>Generate Certificate</button></form>";
+        echo "</div>";
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_id'])) {
+    $id = intval($_POST['verify_id']);
+    gform_update_meta($id, 'cert_generated', current_time('mysql'));
+    echo "<p>Certificate generated for entry $id.</p>";
+}
+?>

@@ -1,0 +1,69 @@
+ .email-settings-container {
+    max-width: 100%;
+    margin: auto;
+    padding: 20px;
+    background: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.nav-tab-wrapper {
+    display: flex;
+    border-bottom: 0px solid #ccc;
+}
+
+.nav-tab {
+    padding: 10px 20px;
+    margin: 0 10px 0 0;
+    cursor: pointer;
+    background: #f8f8f8;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    transition: 0.3s;
+}
+
+.nav-tab-active {
+    background: #0073aa;
+    color: white;
+}
+.email-settings-container a.nav-tab:hover { background-color: #00385e; color: #ffffff; }
+
+.tab-title {
+    font-size: 18px;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.email-template-card {
+    background: #f9f9f9;
+    padding: 0px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    transition: 0.3s;
+}
+
+.toggle-btn {
+    width: 100%;
+    text-align: left;
+    background: #0073aa;
+    color: white;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    border-radius: 5px;
+    transition: 0.3s;
+}
+
+.toggle-btn:hover {
+    background: #005a87;
+}
+
+.email-content {
+    padding: 10px;
+    display: none;
+}
+
+.email-settings-container .button-primary { padding: 8px 10px; font-size: 16px; line-height: 1.5; font-weight: 500; }
+.email-settings-container .submit { text-align: right; }

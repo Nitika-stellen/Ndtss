@@ -1,0 +1,1280 @@
+jQuery(function($){
+    // CPD Categories with max points for validation
+    var cpdCategories = {
+        'A1': { max: 95, maxPerYear: 25, title: 'Performing NDT Activity' },
+        'A2': { max: 15, maxPerYear: 5, title: 'Theoretical Training' },
+        'A3': { max: 25, maxPerYear: 10, title: 'Practical Training' },
+        'A4': { max: 75, maxPerYear: 15, title: 'Delivery of Training' },
+        'A5': { max: 60, maxPerYear: 15, title: 'Research Activities' },
+        '6': { max: 10, maxPerYear: 2, title: 'Technical Seminar/Paper' },
+        '7': { max: 15, maxPerYear: 3, title: 'Presenting Technical Seminar' },
+        '8': { max: 5, maxPerYear: 2, title: 'Society Membership' },
+        '9': { max: 40, maxPerYear: 10, title: 'Technical Oversight' },
+        '10': { max: 20, maxPerYear: 4, title: 'Committee Participation' },
+        '11': { max: 40, maxPerYear: 10, title: 'Certification Body Role' }
+    };
+    
+    // Initialize the CPD table functionality
+    function initializeCPDTable() {
+        // Bind input events for real-time calculation and validation
+        $(document).on('input change', '.cpd-input-table', function() {
+            var $input = $(this);
+            var category = $input.data('category');
+            var year = $input.data('year');
+            var maxAllowed = parseFloat($input.data('max')) || 0;
+            var value = parseFloat($input.val()) || 0;
+            
+            // Real-time validation
+            validateInput($input, value, maxAllowed);
+            
+            // Update calculations with debouncing
+            clearTimeout(window.cpdUpdateTimeout);
+            window.cpdUpdateTimeout = setTimeout(updateAllCalculations, 200);
+        });
+        
+        // Focus and blur effects
+        $(document).on('focus', '.cpd-input-table', function() {
+            $(this).closest('.category-row').addClass('focused');
+        });
+        
+        $(document).on('blur', '.cpd-input-table', function() {
+            $(this).closest('.category-row').removeClass('focused');
+        });
+        
+        // Initialize calculations
+        updateAllCalculations();
+    }
+    
+    // Make functions globally available
+    window.initializeCPDTable = initializeCPDTable;
+    window.initializeFileUploads = initializeFileUploads;
+    window.updateAllCalculations = updateAllCalculations;
+    
+    // Initialize on page load
+    initializeCPDTable();
+    initializeFileUploads();
+        
+        function validateInput($input, value, maxAllowed) {
+            var $validationMsg = $input.siblings('.validation-message');
+            
+            // Remove existing classes
+            $input.removeClass('error valid');
+            
+            if (value > maxAllowed && maxAllowed > 0) {
+                $input.addClass('error');
+                $validationMsg.text('Max: ' + maxAllowed).show();
+            } else if (value > 0) {
+                $input.addClass('valid');
+                $validationMsg.hide();
+            } else {
+                $validationMsg.hide();
+            }
+        }
+        
+        function updateAllCalculations() {
+            var grandTotal = 0;
+            var categoryTotals = {};
+            var yearTotals = {};
+            
+            // Initialize totals
+            $.each(cpdCategories, function(category) {
+                categoryTotals[category] = 0;
+            });
+            
+            for (var year = 1; year <= 5; year++) {
+                yearTotals[year] = 0;
+            }
+            
+            // Calculate category and year totals
+            $('.cpd-input-table').each(function() {
+                var $input = $(this);
+                var category = $input.data('category');
+                var year = $input.data('year');
+                var value = parseFloat($input.val()) || 0;
+                
+                if (value > 0) {
+                    categoryTotals[category] += value;
+                    yearTotals[year] += value;
+                    grandTotal += value;
+                }
+            });
+            
+            // Update category totals in the table
+            $.each(categoryTotals, function(category, total) {
+                var $totalDisplay = $('#total-' + category);
+                var $categoryConfig = cpdCategories[category];
+                
+                // Add animation class
+                $totalDisplay.addClass('updated');
+                setTimeout(function() {
+                    $totalDisplay.removeClass('updated');
+                }, 800);
+                
+                $totalDisplay.text(total.toFixed(1));
+                
+                // Color code based on limits
+                if (total > $categoryConfig.max) {
+                    $totalDisplay.css({color: '#dc3545', fontWeight: 'bold'});
+                } else if (total > 0) {
+                    $totalDisplay.css({color: '#28a745', fontWeight: 'bold'});
+                } else {
+                    $totalDisplay.css({color: '#6c757d', fontWeight: 'normal'});
+                }
+            });
+            
+            // Update yearly totals
+            for (var year = 1; year <= 5; year++) {
+                $('#year-total-' + year).text(yearTotals[year].toFixed(1));
+            }
+            
+            // Update grand total
+            $('#grand-total').text(grandTotal.toFixed(1));
+            
+            // Update progress indicators
+            updateProgressIndicators(grandTotal);
+            
+            // Update summary section
+            updateCPDSummary(grandTotal);
+        }
+        
+        function updateProgressIndicators(grandTotal) {
+            var percentage = Math.min(100, (grandTotal / 150) * 100);
+            var $progressBar = $('.cpd-progress-fill');
+            var $progressText = $('.progress-text');
+            
+            if ($progressBar.length) {
+                $progressBar.css('width', percentage + '%');
+                
+                // Change color based on progress
+                if (percentage >= 100) {
+                    $progressBar.removeClass('cpd-status-insufficient');
+                } else {
+                    $progressBar.addClass('cpd-status-insufficient');
+                }
+            }
+            
+            if ($progressText.length) {
+                $progressText.text(percentage.toFixed(1) + '% Complete (' + grandTotal.toFixed(1) + '/150 points)');
+            }
+        }
+        
+        function updateCPDSummary(grandTotal) {
+            // Update summary in the summary section if it exists
+            var $totalAllYears = $('#total-all-years');
+            var $cpdStatus = $('#cpd-status');
+            
+            if ($totalAllYears.length) {
+                $totalAllYears.text(grandTotal.toFixed(1));
+            }
+            
+            if ($cpdStatus.length) {
+                if (grandTotal >= 150) {
+                    $cpdStatus.text('Sufficient').removeClass('insufficient').addClass('sufficient');
+                } else {
+                    var needed = (150 - grandTotal).toFixed(1);
+                    $cpdStatus.text('Insufficient (' + needed + ' more needed)').removeClass('sufficient').addClass('insufficient');
+                }
+            }
+            
+            // Update Part A total for level-based validation
+            var $partATotal = $('#part-a-total');
+            if ($partATotal.length) {
+                var partACategories = ['A1', 'A2', 'A3', 'A4', 'A5'];
+                var partATotal = 0;
+                
+                $('.cpd-input-table').each(function() {
+                    var $input = $(this);
+                    var category = $input.data('category');
+                    var value = parseFloat($input.val()) || 0;
+                    
+                    if (partACategories.indexOf(category) !== -1 && value > 0) {
+                        partATotal += value;
+                    }
+                });
+                
+                $partATotal.text(partATotal.toFixed(1));
+                
+                // Color code based on level requirement
+                var $levelField = $('[name="level"]');
+                if ($levelField.length && $levelField.val()) {
+                    var level = $levelField.val().toUpperCase().trim();
+                    var requiredPartA = 0;
+                    
+                    // Determine required minimum based on level
+                    if (level.match(/^(LEVEL\s*1|L\s*1|1)$/i) || level === 'LEVEL 1' || level === 'L1') {
+                        requiredPartA = 75;
+                    } else if (level.match(/^(LEVEL\s*2|L\s*2|2)$/i) || level === 'LEVEL 2' || level === 'L2') {
+                        requiredPartA = 50;
+                    } else if (level.match(/^(LEVEL\s*3|L\s*3|3)$/i) || level === 'LEVEL 3' || level === 'L3') {
+                        requiredPartA = 50;
+                    }
+                    
+                    // Update status indicator if requirement exists
+                    if (requiredPartA > 0) {
+                        var $partAStatus = $('#part-a-status');
+                        if ($partAStatus.length) {
+                            if (partATotal >= requiredPartA) {
+                                $partAStatus.text('Sufficient').removeClass('insufficient').addClass('sufficient');
+                            } else {
+                                var needed = (requiredPartA - partATotal).toFixed(1);
+                                $partAStatus.text('Insufficient (' + needed + ' more needed)').removeClass('sufficient').addClass('insufficient');
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        
+        // Form validation function with enhanced error highlighting
+        function validateForm() {
+            var errors = [];
+            var isValid = true;
+            var firstErrorElement = null;
+            
+            // Clear previous validation messages and highlights
+            $('.validation-message').hide().text('');
+            $('#validation-summary').hide();
+            $('#validation-errors').empty();
+            $('.form-section').removeClass('error-section error-flash');
+            $('.field-group').removeClass('error-highlight');
+            $('.upload-group').removeClass('error-highlight');
+            $('input').removeClass('error');
+            
+            // Validate required fields
+            var requiredFields = {
+                'name': 'Full Name',
+                'level': 'Certification Level',
+                'sector': 'Sector'
+            };
+            
+            $.each(requiredFields, function(field, label) {
+                var $field = $('[name="' + field + '"]');
+                var value = $field.val() ? $field.val().trim() : '';
+                
+                if (!value) {
+                    errors.push(label + ' is required');
+                    $field.addClass('error');
+                    $field.closest('.field-group').addClass('error-highlight');
+                    $field.closest('.form-section').addClass('error-section');
+                    if (!firstErrorElement) firstErrorElement = $field.closest('.form-section');
+                    isValid = false;
+                } else {
+                    $field.removeClass('error');
+                }
+            });
+            
+            // Define CPD Categories with their maximum points locally
+            var cpdCategories = {
+                'A1': { title: 'Performing NDT Activity', max: 95 },
+                'A2': { title: 'Theoretical Training', max: 15 },
+                'A3': { title: 'Practical Training', max: 25 },
+                'A4': { title: 'Delivery of Training', max: 75 },
+                'A5': { title: 'Research Activities', max: 60 },
+                '6': { title: 'Technical Seminar/Paper', max: 10 },
+                '7': { title: 'Presenting Technical Seminar', max: 15 },
+                '8': { title: 'Society Membership', max: 5 },
+                '9': { title: 'Technical Oversight', max: 40 },
+                '10': { title: 'Committee Participation', max: 20 },
+                '11': { title: 'Certification Body Role', max: 40 }
+            };
+            
+            // Validate CPD points - check both per-year and total limits
+            var totalPoints = 0;
+            var hasAnyPoints = false;
+            var categoryTotals = {};
+            var cpdErrorFound = false;
+            
+            // Initialize category totals
+            $.each(cpdCategories, function(category) {
+                categoryTotals[category] = 0;
+            });
+            
+            // Check each input
+            $('.cpd-input-table').each(function() {
+                var $input = $(this);
+                var category = $input.data('category');
+                var year = $input.data('year');
+                var maxPerYear = parseFloat($input.data('max')) || 0;
+                var value = parseFloat($input.val()) || 0;
+                
+                if (value > 0) {
+                    hasAnyPoints = true;
+                    totalPoints += value;
+                    if (categoryTotals[category] !== undefined) {
+                        categoryTotals[category] += value;
+                    }
+                    
+                    // Check max points per year for this category
+                    if (value > maxPerYear && maxPerYear > 0) {
+                        var errorMsg = 'Category ' + category + ' Year ' + year + ': Maximum ' + maxPerYear + ' points allowed per year';
+                        errors.push(errorMsg);
+                        $input.addClass('error');
+                        $input.siblings('.validation-message').text('Max: ' + maxPerYear).show();
+                        if (!cpdErrorFound) {
+                            $input.closest('.form-section').addClass('error-section');
+                            if (!firstErrorElement) firstErrorElement = $input.closest('.form-section');
+                            cpdErrorFound = true;
+                        }
+                        isValid = false;
+                    }
+                }
+            });
+            
+            // Check category total limits
+            $.each(categoryTotals, function(category, total) {
+                var categoryConfig = cpdCategories[category];
+                if (categoryConfig && total > categoryConfig.max) {
+                    var errorMsg = 'Category ' + category + ' (' + categoryConfig.title + '): Total exceeds maximum ' + categoryConfig.max + ' points (Current: ' + total.toFixed(1) + ')';
+                    errors.push(errorMsg);
+                    if (!cpdErrorFound) {
+                        $('.cpd-points-section').addClass('error-section');
+                        if (!firstErrorElement) firstErrorElement = $('.cpd-points-section');
+                        cpdErrorFound = true;
+                    }
+                    isValid = false;
+                }
+            });
+            
+            // Check minimum total points
+            if (!hasAnyPoints) {
+                errors.push('At least some CPD points must be entered');
+                $('.cpd-points-section').addClass('error-section');
+                if (!firstErrorElement) firstErrorElement = $('.cpd-points-section');
+                isValid = false;
+            } else {
+                if (totalPoints < 150) {
+                    errors.push('Minimum 150 total CPD points required over 5 years (Current: ' + totalPoints.toFixed(1) + ')');
+                    $('.cpd-points-section').addClass('error-section');
+                    if (!firstErrorElement) firstErrorElement = $('.cpd-points-section');
+                    isValid = false;
+                }
+            }
+            
+            // Level-based validation: Different levels require different minimum Part A points
+            var $levelField = $('[name="level"]');
+            if ($levelField.length && $levelField.val()) {
+                var level = $levelField.val().toUpperCase().trim();
+                
+                // Calculate total Part A points (A1 + A2 + A3 + A4 + A5)
+                var partACategories = ['A1', 'A2', 'A3', 'A4', 'A5'];
+                var partATotal = 0;
+                
+                $.each(partACategories, function(index, category) {
+                    if (categoryTotals[category] !== undefined) {
+                        partATotal += categoryTotals[category];
+                    }
+                });
+                
+                // Determine required minimum based on level
+                var requiredPartA = 0;
+                var detectedLevel = '';
+                
+                // Check for Level 1 (minimum 75 points)
+                if (level.match(/^(LEVEL\s*1|L\s*1|1)$/i) || level === 'LEVEL 1' || level === 'L1') {
+                    requiredPartA = 75;
+                    detectedLevel = 'Level 1';
+                }
+                // Check for Level 2 (minimum 50 points)
+                else if (level.match(/^(LEVEL\s*2|L\s*2|2)$/i) || level === 'LEVEL 2' || level === 'L2') {
+                    requiredPartA = 50;
+                    detectedLevel = 'Level 2';
+                }
+                // Check for Level 3 (minimum 50 points)
+                else if (level.match(/^(LEVEL\s*3|L\s*3|3)$/i) || level === 'LEVEL 3' || level === 'L3') {
+                    requiredPartA = 50;
+                    detectedLevel = 'Level 3';
+                }
+                
+                // Validate if a level requirement was detected
+                if (requiredPartA > 0 && partATotal < requiredPartA) {
+                    errors.push(detectedLevel + ' certification requires minimum ' + requiredPartA + ' points from Part A categories (A1-A5 combined). Current Part A total: ' + partATotal.toFixed(1) + ' points');
+                    $('.cpd-points-section').addClass('error-section');
+                    if (!firstErrorElement) firstErrorElement = $('.cpd-points-section');
+                    isValid = false;
+                }
+            }
+            
+            // Validate file uploads
+            var $cpdFiles = $('#cpd_files')[0];
+            var $certFiles = $('#previous_certificates')[0];
+            
+            if (!$cpdFiles || !$cpdFiles.files.length) {
+                errors.push('CPD Proof Documents are required');
+                var $cpdUploadGroup = $('#cpd_files').closest('.upload-group');
+                $cpdUploadGroup.addClass('error-highlight');
+                $cpdUploadGroup.closest('.form-section').addClass('error-section');
+                if ($cpdFiles) $('#cpd_files').addClass('error');
+                if (!firstErrorElement) firstErrorElement = $cpdUploadGroup.closest('.form-section');
+                isValid = false;
+            } else {
+                if ($cpdFiles) $('#cpd_files').removeClass('error');
+            }
+            
+            if (!$certFiles || !$certFiles.files.length) {
+                errors.push('Previous Certificates are required');
+                var $certUploadGroup = $('#previous_certificates').closest('.upload-group');
+                $certUploadGroup.addClass('error-highlight');
+                $certUploadGroup.closest('.form-section').addClass('error-section');
+                if ($certFiles) $('#previous_certificates').addClass('error');
+                if (!firstErrorElement) firstErrorElement = $certUploadGroup.closest('.form-section');
+                isValid = false;
+            } else {
+                if ($certFiles) $('#previous_certificates').removeClass('error');
+            }
+            
+            // Validate file sizes and types
+            var maxSize = 10 * 1024 * 1024; // 10MB
+            var allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/jpg', 'image/png'];
+            
+            $('input[type="file"]').each(function() {
+                var files = this.files;
+                for (var i = 0; i < files.length; i++) {
+                    var file = files[i];
+                    if (file.size > maxSize) {
+                        errors.push('File "' + file.name + '" is too large (max 10MB)');
+                        $(this).closest('.upload-group').addClass('error-highlight');
+                        $(this).closest('.form-section').addClass('error-section');
+                        if (!firstErrorElement) firstErrorElement = $(this).closest('.form-section');
+                        isValid = false;
+                    }
+                    if (allowedTypes.indexOf(file.type) === -1) {
+                        errors.push('File "' + file.name + '" has invalid format');
+                        $(this).closest('.upload-group').addClass('error-highlight');
+                        $(this).closest('.form-section').addClass('error-section');
+                        if (!firstErrorElement) firstErrorElement = $(this).closest('.form-section');
+                        isValid = false;
+                    }
+                }
+            });
+            
+            // Show validation errors with enhanced highlighting
+            if (errors.length > 0) {
+                $.each(errors, function(index, error) {
+                    $('#validation-errors').append('<li>' + error + '</li>');
+                });
+                $('#validation-summary').show();
+                
+                // Scroll to first error section with highlighting animation
+                if (firstErrorElement && firstErrorElement.length) {
+                    $('html, body').animate({
+                        scrollTop: firstErrorElement.offset().top - 100
+                    }, 800, function() {
+                        // Flash animation for error section
+                        firstErrorElement.addClass('error-flash');
+                        setTimeout(function() {
+                            firstErrorElement.removeClass('error-flash');
+                        }, 2000);
+                    });
+                } else {
+                    // Fallback scroll to validation summary
+                    $('html, body').animate({
+                        scrollTop: $('#validation-summary').offset().top - 100
+                    }, 800);
+                }
+            }
+            
+            return isValid;
+        }
+        
+        // Initialize form if it exists
+        var $form = $('#cpd-renew-form');
+        if ($form.length) {
+            console.log('CPD form found and initialized');
+        }
+        
+        // Use event delegation for form submission to handle dynamically loaded forms
+        $(document).on('submit', '#cpd-renew-form', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Form submit prevented, processing AJAX submission...');
+            
+            // Check if AJAX variables are available
+            if (typeof RenewAjax === 'undefined') {
+                console.error('RenewAjax not defined!');
+                showMessage('Error: JavaScript not properly initialized. Please refresh the page and try again.', 'error');
+                return false;
+            }
+            
+            console.log('RenewAjax available:', RenewAjax);
+            
+            // Validate form first
+            if (!validateForm()) {
+                return false;
+            }
+            
+            // Show loading state
+            showLoadingState(true);
+            
+            var formData = new FormData(this);
+            formData.append('action', 'submit_cpd_form');
+            formData.append('nonce', RenewAjax.nonce);
+
+            $.ajax({
+                url: RenewAjax.ajax_url,
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                timeout: 60000, // 60 seconds timeout
+                xhr: function() {
+                    var xhr = new window.XMLHttpRequest();
+                    xhr.upload.addEventListener("progress", function(evt) {
+                        if (evt.lengthComputable) {
+                            var percentComplete = (evt.loaded / evt.total) * 100;
+                            updateProgress(Math.min(90, 10 + percentComplete * 0.8));
+                        }
+                    }, false);
+                    return xhr;
+                }
+            }).done(function(resp){
+                console.log('AJAX Response:', resp);
+                updateProgress(100);
+                
+                setTimeout(function() {
+                    hideLoadingState();
+                    
+                    if (resp && resp.success) {
+                        // Show success message
+                        var successMsg = resp.data.message || 'Application submitted successfully!';
+                        if (resp.data.submission_id) {
+                            successMsg += ' (Submission ID: #' + resp.data.submission_id + ')';
+                        }
+                        
+                        // Check if form should be hidden and show success details
+                        if (resp.data.hide_form && resp.data.success_data) {
+                            showSuccessPage(resp.data.success_data);
+                        } else {
+                            showMessage(successMsg, 'success');
+                            // Reset form
+                            resetForm();
+                        }
+                        
+                        // Scroll to success message
+                        scrollToMessage();
+                        
+                    } else {
+                        var errorMsg = 'Error submitting application';
+                        if (resp && resp.data) {
+                            if (resp.data.message) {
+                                errorMsg = resp.data.message;
+                            } else if (resp.data.errors) {
+                                errorMsg = 'Validation errors: ' + Object.values(resp.data.errors).join(', ');
+                            }
+                        }
+                        showMessage(errorMsg, 'error');
+                        scrollToMessage();
+                    }
+                }, 800);
+                
+            }).fail(function(xhr, status, error){
+                console.log('AJAX Error:', {xhr: xhr, status: status, error: error, responseText: xhr.responseText});
+                updateProgress(100);
+                
+                setTimeout(function() {
+                    hideLoadingState();
+                    
+                    var errorMsg = 'Request failed';
+                    if (status === 'timeout') {
+                        errorMsg = 'Request timed out. Please check your internet connection and try again.';
+                    } else if (xhr.status === 0) {
+                        errorMsg = 'Network error. Please check your internet connection.';
+                    } else if (xhr.status >= 500) {
+                        errorMsg = 'Server error. Please try again later.';
+                    } else {
+                        errorMsg += ': ' + error + '. Please try again.';
+                    }
+                    
+                    showMessage(errorMsg, 'error');
+                    scrollToMessage();
+                }, 800);
+            });
+        });
+        
+        // Enhanced loading state management
+        function showLoadingState(show) {
+            var $submitBtn = $('#submit-renewal');
+            var $buttonText = $submitBtn.find('.button-text, .submit-text');
+            var $loadingSpinner = $submitBtn.find('.loading-spinner');
+            var $progress = $('#form-progress');
+            var $overlay = $('#loading-overlay');
+            
+            if (show) {
+                // Disable submit button
+                $submitBtn.prop('disabled', true).addClass('loading');
+                
+                // Show spinner in button
+                if ($buttonText.length) {
+                    $buttonText.hide();
+                }
+                if ($loadingSpinner.length) {
+                    $loadingSpinner.show();
+                } else {
+                    // Create spinner if it doesn't exist
+                    $submitBtn.prepend('<span class="loading-spinner"><i class="dashicons dashicons-update-alt spinning"></i></span>');
+                }
+                
+                // Show progress bar
+                if ($progress.length) {
+                    $progress.show();
+                    updateProgress(10);
+                } else {
+                    // Create progress bar if it doesn't exist
+                    $submitBtn.after('<div id="form-progress" class="form-progress"><div class="progress-bar"><div class="progress-fill"></div></div><div class="progress-text">Submitting your application...</div></div>');
+                    updateProgress(10);
+                }
+                
+                // Show full-screen overlay for better UX
+                if ($overlay.length === 0) {
+                    $('body').append('<div id="loading-overlay" class="loading-overlay"><div class="loading-content"><div class="spinner-large"></div><h3>Submitting Your Application</h3><p>Please wait while we process your renewal request...</p></div></div>');
+                }
+                $overlay.fadeIn(300);
+                
+                // Hide any existing messages
+                $('#renewal-message').hide();
+                
+            } else {
+                hideLoadingState();
+            }
+        }
+        
+        function hideLoadingState() {
+            var $submitBtn = $('#submit-renewal');
+            var $buttonText = $submitBtn.find('.button-text, .submit-text');
+            var $loadingSpinner = $submitBtn.find('.loading-spinner');
+            var $progress = $('#form-progress');
+            var $overlay = $('#loading-overlay');
+            
+            // Re-enable submit button
+            $submitBtn.prop('disabled', false).removeClass('loading');
+            
+            // Hide spinner, show text
+            $loadingSpinner.hide();
+            $buttonText.show();
+            
+            // Hide progress bar
+            $progress.hide();
+            
+            // Hide overlay
+            $overlay.fadeOut(300);
+        }
+        
+        function updateProgress(percent) {
+            var $progressFill = $('#form-progress .progress-fill');
+            var $progressText = $('#form-progress .progress-text');
+            
+            if ($progressFill.length) {
+                $progressFill.css('width', percent + '%');
+            }
+            
+            if ($progressText.length) {
+                if (percent < 30) {
+                    $progressText.text('Preparing submission...');
+                } else if (percent < 70) {
+                    $progressText.text('Uploading files...');
+                } else if (percent < 95) {
+                    $progressText.text('Processing data...');
+                } else {
+                    $progressText.text('Finalizing submission...');
+                }
+            }
+        }
+        
+        function showSuccessPage(successData) {
+            // Hide the entire form
+            var $form = $('#cpd-renew-form');
+            var $formContainer = $form.closest('.renew-form-container, .form-container');
+            
+            if ($formContainer.length === 0) {
+                $formContainer = $form.parent();
+            }
+            
+            // Create success page HTML
+            var successHtml = `
+                <div class="renewal-success-page">
+                    <div class="success-header">
+                        <div class="success-icon">
+                            <i class="dashicons dashicons-yes-alt"></i>
+                        </div>
+                        <h2>Application Submitted Successfully!</h2>
+                        <p class="success-subtitle">Your renewal/recertification application has been received and is under review.</p>
+                    </div>
+                    
+                    <div class="success-details">
+                        <div class="detail-card">
+                            <h3><i class="dashicons dashicons-admin-page"></i> Submission Details</h3>
+                            <div class="detail-grid">
+                                <div class="detail-row">
+                                    <span class="label">Submission ID:</span>
+                                    <span class="value">#${successData.submission_id}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">Applicant Name:</span>
+                                    <span class="value">${successData.name}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">Certification Level:</span>
+                                    <span class="value">${successData.level}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">Sector:</span>
+                                    <span class="value">${successData.sector}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">Total CPD Points:</span>
+                                    <span class="value highlight">${successData.total_points}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="label">Submitted:</span>
+                                    <span class="value">${successData.submission_date}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="next-steps-card">
+                            <h3><i class="dashicons dashicons-clock"></i> What Happens Next?</h3>
+                            <ol class="next-steps-list">
+                                <li>
+                                    <strong>Email Confirmation:</strong>
+                                    You will receive an email confirmation shortly with your submission details.
+                                </li>
+                                <li>
+                                    <strong>Admin Review:</strong>
+                                    Our team will review your application and supporting documents.
+                                </li>
+                                <li>
+                                    <strong>Status Updates:</strong>
+                                    You will be notified via email about any status changes to your application.
+                                </li>
+                                <li>
+                                    <strong>Certificate Generation:</strong>
+                                    Once approved, your renewed certificate will be generated and sent to you.
+                                </li>
+                            </ol>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button type="button" class="button button-primary" onclick="window.location.reload();">Submit Another Application</button>
+                            <button type="button" class="button" onclick="window.print();">Print This Page</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <style>
+                .renewal-success-page {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                }
+                
+                .success-header {
+                    text-align: center;
+                    margin-bottom: 40px;
+                    padding: 40px 20px;
+                    background: linear-gradient(135deg, #e8f5e8 0%, #f0f9f0 100%);
+                    border-radius: 12px;
+                    border: 2px solid #28a745;
+                }
+                
+                .success-icon {
+                    width: 80px;
+                    height: 80px;
+                    margin: 0 auto 20px;
+                    background: #28a745;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    animation: successPulse 1.5s ease-in-out;
+                }
+                
+                .success-icon i {
+                    font-size: 40px;
+                    color: white;
+                }
+                
+                @keyframes successPulse {
+                    0% { transform: scale(0.8); opacity: 0; }
+                    50% { transform: scale(1.1); }
+                    100% { transform: scale(1); opacity: 1; }
+                }
+                
+                .success-header h2 {
+                    color: #28a745;
+                    font-size: 28px;
+                    margin: 0 0 10px 0;
+                    font-weight: 600;
+                }
+                
+                .success-subtitle {
+                    color: #666;
+                    font-size: 16px;
+                    margin: 0;
+                }
+                
+                .success-details {
+                    display: grid;
+                    gap: 30px;
+                }
+                
+                .detail-card, .next-steps-card {
+                    background: #fff;
+                    border: 1px solid #e0e0e0;
+                    border-radius: 8px;
+                    padding: 25px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }
+                
+                .detail-card h3, .next-steps-card h3 {
+                    color: #0073aa;
+                    font-size: 18px;
+                    margin: 0 0 20px 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                
+                .detail-grid {
+                    display: grid;
+                    gap: 12px;
+                }
+                
+                .detail-row {
+                    display: grid;
+                    grid-template-columns: 150px 1fr;
+                    gap: 15px;
+                    padding: 8px 0;
+                    border-bottom: 1px solid #f0f0f0;
+                }
+                
+                .detail-row:last-child {
+                    border-bottom: none;
+                }
+                
+                .detail-row .label {
+                    font-weight: 600;
+                    color: #555;
+                }
+                
+                .detail-row .value {
+                    color: #333;
+                }
+                
+                .detail-row .value.highlight {
+                    color: #28a745;
+                    font-weight: 700;
+                    font-size: 18px;
+                }
+                
+                .next-steps-list {
+                    margin: 0;
+                    padding-left: 20px;
+                }
+                
+                .next-steps-list li {
+                    margin-bottom: 15px;
+                    line-height: 1.6;
+                }
+                
+                .next-steps-list li:last-child {
+                    margin-bottom: 0;
+                }
+                
+                .action-buttons {
+                    text-align: center;
+                    margin-top: 30px;
+                    display: flex;
+                    gap: 15px;
+                    justify-content: center;
+                    flex-wrap: wrap;
+                }
+                
+                @media (max-width: 600px) {
+                    .detail-row {
+                        grid-template-columns: 1fr;
+                        gap: 5px;
+                    }
+                    
+                    .action-buttons {
+                        flex-direction: column;
+                        align-items: center;
+                    }
+                    
+                    .action-buttons button {
+                        width: 100%;
+                        max-width: 300px;
+                    }
+                }
+                </style>
+            `;
+            
+            // Replace form with success page
+            $formContainer.fadeOut(300, function() {
+                $formContainer.html(successHtml).fadeIn(500);
+                // Scroll to top of success page
+                $('html, body').animate({
+                    scrollTop: $formContainer.offset().top - 50
+                }, 500);
+            });
+        }
+        
+        function showMessage(message, type) {
+            var $msg = $('#renewal-message');
+            
+            if ($msg.length === 0) {
+                // Create message container if it doesn't exist
+                $('#cpd-renew-form').prepend('<div id="renewal-message" class="renewal-message"></div>');
+                $msg = $('#renewal-message');
+            }
+            
+            // Clear existing classes
+            $msg.removeClass('success error warning info');
+            
+            // Set appropriate icon and styling
+            var icon = '';
+            switch(type) {
+                case 'success':
+                    icon = '<i class="dashicons dashicons-yes-alt"></i>';
+                    $msg.addClass('success');
+                    break;
+                case 'error':
+                    icon = '<i class="dashicons dashicons-warning"></i>';
+                    $msg.addClass('error');
+                    break;
+                case 'warning':
+                    icon = '<i class="dashicons dashicons-info"></i>';
+                    $msg.addClass('warning');
+                    break;
+                default:
+                    icon = '<i class="dashicons dashicons-info"></i>';
+                    $msg.addClass('info');
+            }
+            
+            // Set message content and show with animation
+            $msg.html(icon + ' ' + message).hide().fadeIn(500);
+            
+            // Auto-hide success messages after 8 seconds
+            if (type === 'success') {
+                setTimeout(function() {
+                    $msg.fadeOut(1000);
+                }, 8000);
+            }
+        }
+        
+        function scrollToMessage() {
+            var $msg = $('#renewal-message');
+            if ($msg.length && $msg.is(':visible')) {
+                $('html, body').animate({
+                    scrollTop: $msg.offset().top - 100
+                }, 800);
+            }
+        }
+        
+        function resetForm() {
+            // Reset the form
+            var $form = $('#cpd-renew-form');
+            if ($form.length) {
+                $form[0].reset();
+            }
+            
+            // Reset calculations
+            updateAllCalculations();
+            
+            // Reset file uploads
+            resetFileUploads();
+            
+            // Clear validation states
+            $('.error-section').removeClass('error-section');
+            $('.error-highlight').removeClass('error-highlight');
+            $('.field-group').removeClass('error-highlight');
+            $('.upload-group').removeClass('error-highlight');
+            $('input, select, textarea').removeClass('error valid');
+            $('.validation-message').hide();
+            $('#validation-summary').hide();
+        }
+
+        
+        // Enhanced CPD point calculations with category validation
+        function updateYearTotals() {
+            // This function is kept for backward compatibility
+            // All calculations are now handled by updateAllCalculations()
+            updateAllCalculations();
+        }
+
+        // Update totals when inputs change - using new table inputs
+        $(document).on('input change', '.cpd-input-table', function() {
+            updateAllCalculations();
+        });
+
+        // Enhanced file upload handling with preview and delete
+        function handleFileUpload(input, listId) {
+            var $input = $(input);
+            var $list = $('#' + listId);
+            
+            console.log('Initializing file upload for:', input, 'List:', listId, 'Input found:', $input.length, 'List found:', $list.length);
+            
+            // Initialize immediately if element exists
+            if ($input.length && $list.length) {
+                // Remove any existing event handlers to prevent duplicates
+                $input.off('change.fileupload');
+                
+                $input.on('change.fileupload', function(){
+                    console.log('File input changed:', this.files.length, 'files');
+                    updateFileList(this, $list);
+                });
+                
+                // Trigger initial update to show any existing files
+                updateFileList($input[0], $list);
+            } else {
+                console.warn('File upload elements not found:', input, listId);
+            }
+        }
+        
+        // Initialize file uploads with delay and retry mechanism
+        function initializeFileUploads() {
+            console.log('Initializing file uploads...');
+            
+            // Try immediate initialization
+            var uploadConfigs = [
+                { input: '#cpd_files', list: 'cpd-files-list' },
+                { input: '#previous_certificates', list: 'previous-certificates-list' },
+                { input: '#support_docs', list: 'support-files-list' }
+            ];
+            
+            uploadConfigs.forEach(function(config) {
+                handleFileUpload(config.input, config.list);
+            });
+            
+            // Delayed retry for dynamically loaded content
+            setTimeout(function() {
+                console.log('Retrying file upload initialization...');
+                uploadConfigs.forEach(function(config) {
+                    if ($(config.input).length && $('#' + config.list).length) {
+                        handleFileUpload(config.input, config.list);
+                    }
+                });
+                
+                // Also initialize any file inputs that might have been missed
+                $('input[type="file"]').each(function() {
+                    var $this = $(this);
+                    if (!$this.data('file-initialized')) {
+                        $this.data('file-initialized', true);
+                        var inputId = $this.attr('id');
+                        var listId = inputId + '-list';
+                        if ($('#' + listId).length) {
+                            console.log('Auto-initializing file input:', inputId);
+                            handleFileUpload('#' + inputId, listId);
+                        }
+                    }
+                });
+            }, 500);
+        }
+        
+        function updateFileList(input, $list) {
+            console.log('Updating file list for:', input, 'Files:', input.files.length);
+            
+            $list.empty();
+            var files = input.files;
+            
+            if (files.length === 0) {
+                $list.append('<div class="no-files">No files selected</div>');
+                return;
+            }
+            
+            for (var i = 0; i < files.length; i++) {
+                (function(idx){
+                    var file = files[idx];
+                    var size = Math.round(file.size / 1024);
+                    var sizeText = size > 1024 ? (size / 1024).toFixed(1) + ' MB' : size + ' KB';
+                    var fileType = file.type;
+                    var isImage = fileType.startsWith('image/');
+                    
+                    console.log('Creating file item for:', file.name, 'Size:', sizeText);
+                    
+                    var $item = $('<div class="file-item" data-index="' + idx + '">');
+                    
+                    // File icon based on type
+                    var iconClass = 'dashicons-media-default';
+                    if (fileType.includes('pdf')) iconClass = 'dashicons-pdf';
+                    else if (fileType.includes('word')) iconClass = 'dashicons-media-document';
+                    else if (isImage) iconClass = 'dashicons-format-image';
+                    
+                    var fileInfo = '<div class="file-info">' +
+                        '<i class="dashicons ' + iconClass + '"></i>' +
+                        '<div class="file-details">' +
+                        '<span class="file-name" title="' + file.name + '">' + file.name + '</span>' +
+                        '<span class="file-size">' + sizeText + '</span>' +
+                        '</div>' +
+                        '</div>';
+                    
+                    $item.append(fileInfo);
+                    
+                    // Add preview for images
+                    if (isImage && file.size < 5 * 1024 * 1024) { // Only preview images under 5MB
+                        var reader = new FileReader();
+                        reader.onload = function(e) {
+                            var $preview = $('<div class="file-preview"><img src="' + e.target.result + '" alt="Preview"></div>');
+                            $item.find('.file-info').append($preview);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                    
+                    // Remove button with enhanced styling
+                    var $remove = $('<button type="button" class="remove-file" title="Remove file">' +
+                        '<i class="dashicons dashicons-no-alt"></i>' +
+                        '</button>');
+                    
+                    $remove.on('click', function(e){
+                        e.preventDefault();
+                        console.log('Removing file:', file.name);
+                        
+                        // Create new FileList without this file
+                        try {
+                            var dt = new DataTransfer();
+                            for (var j = 0; j < files.length; j++) {
+                                if (j !== idx) {
+                                    dt.items.add(files[j]);
+                                }
+                            }
+                            input.files = dt.files;
+                            updateFileList(input, $list);
+                            
+                            // Trigger validation update
+                            $(input).removeClass('error');
+                        } catch (error) {
+                            console.error('Error removing file:', error);
+                            // Fallback: clear all files
+                            input.value = '';
+                            updateFileList(input, $list);
+                        }
+                    });
+                    
+                    $item.append($remove);
+                    $list.append($item);
+                    
+                    // Smooth fade in animation
+                    $item.hide().fadeIn(300);
+                    
+                    console.log('File item created and added to list');
+                })(i);
+            }
+        }
+        
+        function resetFileUploads() {
+            $('input[type="file"]').each(function() {
+                this.value = '';
+                $(this).trigger('change');
+            });
+        }
+
+        // Initialize enhanced file uploads
+        initializeFileUploads();
+
+        // Enhanced drag and drop functionality
+        $('.file-upload-wrapper').on('dragover', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            $(this).addClass('drag-over');
+        }).on('dragleave', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            // Only remove drag-over if leaving the wrapper entirely
+            if (!$(this).has(e.relatedTarget).length) {
+                $(this).removeClass('drag-over');
+            }
+        }).on('drop', function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            $(this).removeClass('drag-over');
+            
+            var files = e.originalEvent.dataTransfer.files;
+            var input = $(this).find('input[type="file"]')[0];
+            
+            if (files.length > 0) {
+                // For multiple file inputs, append to existing files
+                if (input.multiple) {
+                    var dt = new DataTransfer();
+                    
+                    // Add existing files
+                    for (var i = 0; i < input.files.length; i++) {
+                        dt.items.add(input.files[i]);
+                    }
+                    
+                    // Add new files
+                    for (var i = 0; i < files.length; i++) {
+                        dt.items.add(files[i]);
+                    }
+                    
+                    input.files = dt.files;
+                } else {
+                    // For single file inputs, replace
+                    var dt = new DataTransfer();
+                    dt.items.add(files[0]);
+                    input.files = dt.files;
+                }
+                
+                // Trigger change event
+                $(input).trigger('change');
+            }
+        });
+        
+        // Form validation button
+        // Enhanced validation button with visual feedback
+        $(document).on('click', '#validate-form', function() {
+            var $button = $(this);
+            var originalText = $button.html();
+            
+            // Show validating state
+            $button.html('<i class="dashicons dashicons-update-alt spinning"></i> Validating...').prop('disabled', true);
+            
+            setTimeout(function() {
+                if (validateForm()) {
+                    // Validation passed
+                    $button.html('<i class="dashicons dashicons-yes-alt"></i> Validation Passed!').addClass('button-primary').prop('disabled', false);
+                    
+                    // Show success message
+                    showMessage('Form validation passed! You can now submit your application.', 'success');
+                    
+                    setTimeout(function() {
+                        $button.html(originalText).removeClass('button-primary');
+                    }, 3000);
+                } else {
+                    // Validation failed - errors are already displayed by validateForm()
+                    $button.html('<i class="dashicons dashicons-warning"></i> Validation Failed').addClass('button-secondary').prop('disabled', false);
+                    
+                    setTimeout(function() {
+                        $button.html(originalText).removeClass('button-secondary');
+                    }, 3000);
+                }
+            }, 500); // Small delay to show the validating state
+        });
+        
+        // Enhanced real-time updates with debouncing
+        var updateTimeout;
+        $(document).on('input change', '.cpd-input-table', function() {
+            clearTimeout(updateTimeout);
+            updateTimeout = setTimeout(updateAllCalculations, 300);
+        });
+        
+        // Legacy compatibility function
+        function updateYearTotals() {
+            updateAllCalculations();
+        }
+
+        // Initialize calculations and file displays
+        updateAllCalculations();
+        
+        // Initialize file uploads with proper handling
+        initializeFileUploads();
+        
+        // Also listen for dynamic content loading
+        $(document).on('DOMNodeInserted', function(e) {
+            if ($(e.target).find('#cpd-renew-form').length || $(e.target).is('#cpd-renew-form')) {
+                initializeFileUploads();
+                updateAllCalculations();
+            }
+        });
+});
+
+

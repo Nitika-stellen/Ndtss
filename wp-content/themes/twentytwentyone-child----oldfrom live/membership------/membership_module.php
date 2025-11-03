@@ -1,0 +1,295 @@
+<?php
+
+function ul_add_membership_menu() {
+    // Add top-level admin menu
+    add_menu_page(
+        'Membership Management',  // Page title
+        'Membership',             // Menu title
+        'manage_options',         // Capability required to access the menu
+        'membership-management',  // Menu slug
+        'ul_membership_form_users_page', // Function to display the dashboard page
+        'dashicons-groups',       // Menu icon (dashicons)
+        25                        // Position in the menu
+    );
+
+    // Add submenu for Individual Membership Forms
+    add_submenu_page(
+        'membership-management',   // Parent slug
+        'Individual Membership Forms', // Page title
+        'Individual Membership Forms', // Submenu title
+        'manage_options',          // Capability required to access
+        'individual-membership-forms', // Unique menu slug for the individual forms page
+        'ul_membership_form_users_page' // Function to display the individual forms page
+    );
+
+    // Add submenu for Corporate Membership Forms
+    add_submenu_page(
+        'membership-management',   // Parent slug
+        'Corporate Membership Forms', // Page title
+        'Corporate Membership Forms', // Submenu title
+        'manage_options',          // Capability required to access
+        'corporate-membership-forms', // Unique menu slug for the corporate forms page
+        'ul_corporate_membership_form_users_page' // Function to display the corporate forms page
+    );
+
+    add_submenu_page(
+        'membership-management', // parent slug
+        'Membership Email Templates', // page title
+        'Membership Email Templates', // menu title
+        'manage_options',  // capability
+        'membership-email-templates', // menu slug
+        'render_email_template_settings_page' // callback
+    );
+
+    // Remove the top-level "Membership" menu from the submenu list
+    remove_submenu_page('membership-management', 'membership-management');
+}
+add_action('admin_menu', 'ul_add_membership_menu');
+
+function ul_enqueue_membership_scripts() {
+    // Enqueue DataTables and SweetAlert2 only once
+    wp_enqueue_style('datatables-css', 'https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css', [], '1.11.5');
+    wp_enqueue_script('datatables-js', 'https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js', ['jquery'], '1.11.5', true);
+    wp_enqueue_script('sweetalert2', 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js', [], '11', true);
+
+    // Enqueue custom script
+    wp_enqueue_script('membership-custom-js',  get_stylesheet_directory_uri() . '/membership/js/membership-custom.js', ['jquery', 'datatables-js', 'sweetalert2'], '1.0', true);
+
+    // Localize script for AJAX
+    wp_localize_script('membership-custom-js', 'membershipCertificates', [
+        'ajaxurl' => admin_url('admin-ajax.php'),
+        'nonce'   => wp_create_nonce('generate_certificate_nonce')
+    ]);
+}
+
+function ul_corporate_membership_form_users_page() {
+    global $wpdb;
+
+    // Enqueue scripts
+    ul_enqueue_membership_scripts();
+
+    $form_id = 4; // Corporate Membership Form ID
+    $search_criteria = array();
+    $sorting = array(
+        'key'       => 'date_created',  // Sort by the entry creation date
+        'direction' => 'DESC' // Latest first
+    );
+    $paging = array(
+        'offset'    => 0,
+        'page_size' => 1000 // Adjust as needed
+    );
+
+    $entries = GFAPI::get_entries($form_id, $search_criteria, $sorting, $paging);
+    $displayed_users = [];
+
+    ?>
+    <div class="wrap">
+        <h1>Corporate Membership</h1>
+        <table id="corp_mem_submitted_form" class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th>User Name</th>
+                    <th>User Email</th>
+                    <th>User Phone</th>
+                    <th>Membership Duration</th>
+                    <th>Status</th>
+                    <th>Payment Status</th>
+                    <th>Submitted Date</th>
+                    <th>Expiry Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php  
+                if (is_wp_error($entries)) {
+                    echo '<tr><td colspan="8">Error: ' . $entries->get_error_message() . '</td></tr>';
+                } else {
+                    foreach ($entries as $entry) {
+                        $entry_id = $entry['id'];
+                        $user_id = rgar($entry, 'created_by');
+
+                        // Skip duplicate users
+                        if (in_array($user_id, $displayed_users)) {
+                            continue;
+                        }
+                        $displayed_users[] = $user_id;
+
+                        $user_info = get_userdata($user_id);
+                        $date_created = $entry['date_created'];
+                        $payment_status = rgar($entry, 'payment_status');
+                        $membership_type = $entry[31];
+                        $membership_type_parts = explode('|', $membership_type);
+                        $membership_label = $membership_type_parts[0];
+
+                        $status = get_user_meta($user_id, 'membership_approval_status', true);
+                        $expiry_date = get_user_meta($user_id, 'membership_expiry_date', true) ?: 'N/A';
+
+                        $status_colors = array(
+                            'approved'  => 'green',
+                            'rejected'  => 'red',
+                            'pending'   => 'gray',
+                            'cancelled' => 'orange',
+                        );
+                        ?>
+                        <tr>
+                            <td><?php echo ($user_info) ? esc_html($user_info->display_name) : 'Unknown User'; ?></td>
+                            <td><?php echo ($user_info) ? esc_html($user_info->user_email) : 'Unknown Email'; ?></td>
+                            <td><?php echo esc_html($entry[7]); ?></td>
+                            <td><?php echo esc_html($membership_label); ?></td>
+                            <td>
+                                <?php
+                                echo '<span style="color: ' . esc_attr($status_colors[$status] ?? 'black') . ';">' . ucfirst($status ?: 'Unknown') . '</span>';
+                                ?>
+                            </td>
+                            <td>
+                                <?php
+                                if ($payment_status == 'Paid') {
+                                    echo '<span style="color: green;">Paid</span>';
+                                } elseif ($payment_status == 'Pending') {
+                                    echo '<span style="color: orange;">Pending</span>';
+                                } elseif ($payment_status == 'Failed') {
+                                    echo '<span style="color: red;">Failed</span>';
+                                } else {
+                                    echo '<span style="color: gray;">N/A</span>';
+                                }
+                                ?>
+                            </td>
+                            <td><?php echo esc_html(date('d/m/Y', strtotime($date_created))); ?></td>
+                            <td><?php echo esc_html(date('d/m/Y', strtotime($expiry_date))); ?></td>
+                            <td>
+                                <a href="<?php echo esc_url(admin_url("admin.php?page=gf_entries&view=entry&id=4&lid={$entry_id}")); ?>" class="button-primary">View</a>
+                                <?php if ($status === 'approved') : ?>
+                                    <button class="button generate-cert" data-user-id="<?php echo esc_attr($user_id); ?>" data-member-id="<?php echo esc_attr($entry_id); ?>"
+                                            data-user-name="<?php echo esc_attr($user_info ? $user_info->display_name : 'Unknown User'); ?>"
+                                            data-membership-type="Corporate">
+                                        Generate Certificate
+                                    </button>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php
+                    }
+                }
+                ?>
+            </tbody>
+        </table>
+    </div>
+    <?php
+}
+
+function ul_membership_form_users_page() {
+    // Enqueue scripts
+    ul_enqueue_membership_scripts();
+
+    $form_id = 5;
+    $search_criteria = array();
+    $sorting = array(
+        'key'       => 'date_created',
+        'direction' => 'DESC'
+    );
+    $paging = array(
+        'offset'    => 0,
+        'page_size' => 1000
+    );
+
+    // Retrieve form entries
+    $entries = GFAPI::get_entries($form_id, $search_criteria, $sorting, $paging);
+    $displayed_users = [];
+
+    ?>
+    <div class="wrap">
+        <h1>Individual Membership</h1>
+        <table id="ind_mem_submitted_form" class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th>User Name</th>
+                    <th>User Email</th>
+                    <th>User Phone</th>
+                    <th>Membership Duration</th>
+                    <th>Member Category</th>
+                    <th>Status</th>
+                    <th>Payment Status</th>
+                    <th>Submitted Date</th>
+                    <th>Expire Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                if (is_wp_error($entries)) {
+                    echo '<tr><td colspan="9">Error: ' . esc_html($entries->get_error_message()) . '</td></tr>';
+                } else {
+                    foreach ($entries as $entry) {
+                        $entry_id = $entry['id'];
+                        $user_id = rgar($entry, 'created_by');
+
+                        // Skip if this user was already shown
+                        if (in_array($user_id, $displayed_users)) {
+                            continue;
+                        }
+                        $displayed_users[] = $user_id;
+
+                        $user_info = get_userdata($user_id);
+                        $date_created = $entry['date_created'];
+                        $payment_status = rgar($entry, 'payment_status');
+                        $membership_type = $entry[27];
+                        $membership_type_parts = explode('|', $membership_type);
+                        $member_type = get_user_meta($user_id, 'member_type', true);
+
+                        $membership_label = $membership_type_parts[0];
+                        $status = get_user_meta($user_id, 'membership_approval_status', true);
+                        $expiry_date = get_user_meta($user_id, 'membership_expiry_date', true) ?: 'N/A';
+
+                        $status_colors = array(
+                            'approved'  => 'green',
+                            'rejected'  => 'red',
+                            'pending'   => 'gray',
+                            'cancelled' => 'orange',
+                        );
+                        ?>
+                        <tr>
+                            <td><?php echo ($user_info) ? esc_html($user_info->display_name) : 'Unknown User'; ?></td>
+                            <td><?php echo ($user_info) ? esc_html($user_info->user_email) : 'Unknown Email'; ?></td>
+                            <td><?php echo esc_html($entry[7]); ?></td>
+                            <td><?php echo esc_html($membership_label); ?></td>
+                            <td><?php echo esc_html($member_type); ?></td>
+                            <td>
+                                <?php
+                                echo '<span style="color: ' . esc_attr($status_colors[$status] ?? 'black') . ';">' . ucfirst($status ?: 'Unknown') . '</span>';
+                                ?>
+                            </td>
+                            <td>
+                                <?php
+                                if ($payment_status == 'Paid') {
+                                    echo '<span style="color: green;">Paid</span>';
+                                } elseif ($payment_status == 'Pending') {
+                                    echo '<span style="color: orange;">Pending</span>';
+                                } elseif ($payment_status == 'Failed') {
+                                    echo '<span style="color: red;">Failed</span>';
+                                } else {
+                                    echo '<span style="color: gray;">N/A</span>';
+                                }
+                                ?>
+                            </td>
+                            <td><?php echo esc_html(date('d/m/Y', strtotime($date_created))); ?></td>
+                            <td><?php echo esc_html(date('d/m/Y', strtotime($expiry_date))); ?></td>
+                            <td>
+                                <a href="<?php echo esc_url(admin_url("admin.php?page=gf_entries&view=entry&id=5&lid={$entry_id}")); ?>" class="button-primary">View</a>
+                                <?php if ($status === 'approved') : ?>
+                                    <button class="button generate-cert" data-user-id="<?php echo esc_attr($user_id); ?>" data-member-id="<?php echo esc_attr($entry_id); ?>"
+                                            data-user-name="<?php echo esc_attr($user_info ? $user_info->display_name : 'Unknown User'); ?>"
+                                            data-membership-type="Individual">
+                                        Generate Certificate
+                                    </button>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php
+                    }
+                }
+                ?>
+            </tbody>
+        </table>
+    </div>
+    <?php
+}

@@ -1,0 +1,27 @@
+<?php
+$entries = GFAPI::get_entries(15);
+
+echo '<h2>Results to Review</h2>';
+
+foreach ($entries as $entry) {
+    $exam_id = rgar($entry, '2');
+    $student_name = rgar($entry, '1');
+
+    echo "<div class='review-entry'><strong>$student_name ($exam_id)</strong><br>";
+
+    foreach ($entry['meta'] as $key => $value) {
+        if (strpos($key, 'marks_') === 0) {
+            $subject = str_replace('marks_', '', $key);
+            $data = maybe_unserialize($value);
+            echo "Subject: $subject | Marks: {$data['obtained']}/{$data['total']} | Grade: {$data['grade']} ";
+            echo "<form method='post' style='display:inline;'><input type='hidden' name='approve_entry' value='{$entry['id']}'><button type='submit'>Approve</button></form><br>";
+        }
+    }
+    echo "</div>";
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['approve_entry'])) {
+    gform_update_meta(intval($_POST['approve_entry']), 'center_approved', true);
+    echo "<p>Marks Approved.</p>";
+}
+?>

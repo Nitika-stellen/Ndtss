@@ -1,0 +1,592 @@
+/* User Profile Styles */
+
+/* Certificate Lifecycle Styles */
+.certificate-lifecycle-info {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+
+
+
+.lifecycle-description {
+    margin: 0;
+    color: #495057;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.lifecycle-description strong {
+    color: #212529;
+}
+.certificat_table-wrapper { width: 100%; overflow-y: hidden; }
+
+/* Enhanced Status Display */
+.renewal-status-wrapper {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 5px 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.renewal-status-wrapper.status-applied {
+    border-left: 4px solid #ffc107;
+    background: #fffbf0;
+}
+
+.renewal-status-wrapper.status-approved {
+    border-left: 4px solid #28a745;
+    background: #f0fff4;
+}
+
+.renewal-status-wrapper.status-renewed {
+    border-left: 4px solid #17a2b8;
+    background: #f0f8ff;
+}
+
+.renewal-status-wrapper.status-rejected {
+    border-left: 4px solid #dc3545;
+    background: #fff5f5;
+}
+
+.renewal-status-wrapper.status-issued {
+    border-left: 4px solid #6f42c1;
+    background: #f8f6ff;
+}
+
+.status-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.status-icon {
+    font-size: 18px;
+    margin-right: 8px;
+}
+
+.status-text {
+    font-weight: 600;
+    color: #212529;
+}
+
+.status-details {
+    font-size: 13px;
+    color: #6c757d;
+}
+
+.status-details small {
+    display: block;
+    margin-bottom: 2px;
+}
+
+.status-note {
+    font-style: italic;
+    color: #868e96;
+}
+
+.renewal-method-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+    background-color: #6c757d;
+    color: white;
+    text-transform: uppercase;
+}
+
+/* Action Buttons */
+.action-cell-wrapper {
+    text-align: center;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.action-button {
+    display: inline-block;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.action-button.renewal-button {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.action-button.renewal-button:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+    color: white;
+}
+
+.action-button.recertification-button {
+    background-color: #28a745;
+    color: white;
+    border-color: #28a745;
+}
+
+.action-button.recertification-button:hover {
+    background-color: #1e7e34;
+    border-color: #1e7e34;
+    color: white;
+}
+
+/* Certificate Number Display */
+.certificate-number-display {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.cert-number {
+    font-weight: 600;
+    color: #212529;
+}
+
+.renewal-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-top: 2px;
+}
+
+.renewal-badge.renewed {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.validity-indicator {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-top: 2px;
+}
+
+.validity-indicator.validity-valid {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.validity-indicator.validity-eligible {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.validity-indicator.validity-expired {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Renewed Certificate Row */
+.renewed-certificate {
+    background-color: #f8f9fa;
+}
+
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .action-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .action-button {
+        width: 100%;
+        max-width: 200px;
+        text-align: center;
+    }
+    
+    .certificate-lifecycle-info {
+        padding: 12px;
+    }
+    
+    .lifecycle-description {
+        font-size: 13px;
+    }
+}
+.download-btn, .retest-btn { 
+    display: inline-block; 
+    padding: 6px 12px; 
+    font-size: 13px; 
+    color: white; 
+    text-decoration: none; 
+    border-radius: 4px; 
+    margin: 2px; 
+}
+
+.download-btn { 
+    background-color: #e39e38; 
+}
+
+.download-btn:hover { 
+    background-color: #d57f00; 
+}
+
+.retest-btn { 
+    background-color: #d9534f; 
+}
+
+.retest-btn:hover { 
+    background-color: #c9302c; 
+}
+
+.retest-btn.disabled { 
+    background-color: #cccccc; 
+    cursor: not-allowed; 
+    text-decoration: none; 
+}
+
+.status-pass { 
+    color: green; 
+    font-weight: bold; 
+}
+
+.status-fail { 
+    color: red; 
+    font-weight: bold; 
+}
+
+.failed-subjects { 
+    color: red; 
+    position: relative; 
+}
+
+.failed-subjects ul { 
+    list-style: none; 
+    padding: 0; 
+    margin: 0; 
+}
+
+.failed-subjects li { 
+    margin: 5px 0; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    gap: 10px; 
+}
+
+
+.tooltip { 
+    display: none; 
+    position: absolute; 
+    background-color: #333; 
+    color: white; 
+    padding: 8px; 
+    border-radius: 4px; 
+    font-size: 12px; 
+    z-index: 1000; 
+    width: 200px; 
+    text-align: left; 
+    top: 100%; 
+    left: 50%; 
+    transform: translateX(-100%); 
+}
+
+.failed-subjects:hover .tooltip { 
+    display: block; 
+}
+
+/* Renewed Certificate Styling */
+.renewed-certificate { 
+    background-color: #e8f5e9 !important; 
+}
+
+.renewed-certificate td { 
+    border-left: 2px solid #28a745 !important; 
+}
+
+.renewal-badge { 
+    background: linear-gradient(45deg, #28a745, #20c997); 
+    color: white; 
+    padding: 2px 8px; 
+    border-radius: 12px; 
+    font-size: 10px; 
+    font-weight: bold; 
+    text-transform: uppercase;
+    display: inline-block;
+    margin-left: 5px;
+}
+
+.renewal-status-wrapper {
+    padding: 8px;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    text-align: center;
+    font-size: 12px;
+}
+
+.status-pending {
+    color: #fd7e14;
+    font-weight: bold;
+}
+
+.status-applied {
+    color: #007bff;
+    font-weight: bold;
+}
+
+.status-reviewing {
+    color: #fd7e14;
+    font-weight: bold;
+}
+
+.status-issued {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.status-approved {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.status-renewed {
+    color: #28a745;
+    font-weight: bold;
+    background: linear-gradient(45deg, #28a745, #20c997);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.status-rejected {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.certificate-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.certificate-table th,
+.certificate-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.certificate-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+/* User Profile Header */
+.user-profile-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.user-profile-header-info h2 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.user-profile-email {
+    color: #666;
+    margin: 0;
+}
+
+/* Tab Styles */
+.user-profile-tabs ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.user-profile-tabs li {
+    margin-right: 10px;
+}
+
+.tab-link {
+    display: block;
+    padding: 12px 20px;
+    text-decoration: none;
+    color: #666;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    transition: all 0.3s ease;
+}
+
+.tab-link:hover {
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+.tab-link.active-tab {
+    background-color: #fff;
+    color: #007cba;
+    border-color: #e9ecef;
+    border-bottom: 2px solid #fff;
+    margin-bottom: -2px;
+}
+
+/* Filter Container */
+.filter-container {
+    margin: 20px 0;
+    padding: 15px 0;
+    background: #f8f9fa;
+    border-radius: 4px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-container select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;min-width:140px;
+}
+
+.filter-container button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+/* Action Buttons */
+.action-button {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: #007cba;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 13px;
+    transition: background-color 0.3s ease;
+}
+
+.action-button:hover {
+    background-color: #005a87;
+    color: white;
+}
+
+.action-cell-wrapper {
+    text-align: center;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* Event Cards */
+.event-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.event-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.event-card h4 {
+    margin-top: 0;
+    color: #333;
+}
+
+.event-card p {
+    margin: 10px 0;
+    color: #666;
+}
+
+/* Status Badges */
+.status.badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.status.badge.blue {
+    background-color: #007bff;
+    color: white;
+}
+
+.status.badge.green {
+    background-color: #28a745;
+    color: white;
+}
+
+.status.badge.red {
+    background-color: #dc3545;
+    color: white;
+}
+
+.status.badge.grey {
+    background-color: #6c757d;
+    color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .user-profile-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .user-profile-tabs ul {
+        flex-direction: column;
+    }
+    
+    .filter-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .certificate-table {
+        font-size: 12px;
+    }
+    
+    .certificate-table th,
+    .certificate-table td {
+        padding: 8px 4px;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+}

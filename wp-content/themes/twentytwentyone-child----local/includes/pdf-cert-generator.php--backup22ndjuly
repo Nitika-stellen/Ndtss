@@ -1,0 +1,716 @@
+<?php
+require_once get_stylesheet_directory() . '/TCPDF/tcpdf.php';
+
+function generate_exam_certificate_pdf($exam_entry_id, $marks_entry_id, $method) {
+    ob_start();
+    $exam_entry = GFAPI::get_entry($exam_entry_id);
+    if (is_wp_error($exam_entry)) {
+        ob_end_clean();
+        wp_die('Exam entry not found.');
+    }
+
+    $exam_form = GFAPI::get_form($exam_entry['form_id']);
+    $marks_entry = GFAPI::get_entry($marks_entry_id);
+    if (is_wp_error($marks_entry)) {
+        ob_end_clean();
+        wp_die('Marks entry not found.');
+    }
+    $exam_level = strtolower(trim($marks_entry['1'] ?? ''));
+    $sector = '';  
+    $exam_status = ''; 
+
+    foreach ($exam_form['fields'] as $field) {
+        $field_id = $field->id;
+        $label    = trim($field->label);
+        $value    = $exam_entry[$field_id] ?? '';    
+
+        if (stripos($label, 'sector for ' . strtolower(trim($method))) !== false) {
+            $sector = $value;
+        }
+
+        if (stripos($label, 'exam status for ' . strtolower(trim($method))) !== false) {
+            $exam_status = $value;
+        }
+
+        if ($sector && $exam_status) {
+        break; // optional optimization
+    }
+}
+
+$method_slug = sanitize_title($method);
+$overall_result = strtoupper(esc_html($marks_entry['24'] ?? 'PASS'));
+$retest = esc_html($marks_entry['26'] ?? 'NA');
+$issue_date = date('d.m.Y');
+
+$address_parts = array_filter([
+    $exam_entry['728'] ?? '',
+    $exam_entry['787.1'] ?? '',
+    $exam_entry['787.2'] ?? '',
+    $exam_entry['731'] ?? '',
+    $exam_entry['788'] ?? '',
+]);
+$full_address = implode(', ', $address_parts);
+
+$assigned_examiners = (array) gform_get_meta($exam_entry_id, '_assigned_examiners');
+$examiner_names = [];
+
+foreach ($assigned_examiners as $examiner_id) {
+    $user = get_userdata($examiner_id);
+    if ($user) {
+        $first_name = get_user_meta($examiner_id, 'first_name', true);
+        $last_name = get_user_meta($examiner_id, 'last_name', true);
+        $full_name = trim("{$first_name} {$last_name}");
+        $examiner_names[] = $full_name ?: $user->display_name;
+    }
+}
+
+// Output names as comma-separated list
+$examiner_list = implode(', ', $examiner_names);
+
+$assigned_invigilators = (array) gform_get_meta($exam_entry_id, '_assigned_invigilators');
+$invigilator_names = [];
+
+foreach ($assigned_invigilators as $invigilator_id) {
+    $user = get_userdata($invigilator_id);
+    if ($user) {
+        $first_name = get_user_meta($invigilator_id, 'first_name', true);
+        $last_name = get_user_meta($invigilator_id, 'last_name', true);
+        $full_name = trim("{$first_name} {$last_name}");
+        $invigilator_names[] = $full_name ?: $user->display_name;
+    }
+}
+
+// Output comma-separated names
+$invigilator_list = implode(', ', $invigilator_names);
+$invigilator_data = gform_get_meta($exam_entry_id, '_invigilator_update_record');
+$exam_dates = get_exam_dates_by_method($invigilator_data, $method);
+$exam_date = $exam_dates[0] ?? 'N/A';
+
+$pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+$pdf->SetMargins(10, 8, 10);
+$pdf->SetAutoPageBreak(true, 8);
+$pdf->setPrintHeader(false);
+$pdf->setPrintFooter(false);
+$pdf->SetCreator('NDTSS');
+$pdf->SetAuthor('NDTSS Certification Body');
+$pdf->SetTitle('SGNDT Examination Certificate');
+$pdf->SetFont('times', '', 12);
+$pdf->AddPage();
+
+$pdf->SetAlpha(0.05);
+$pdf->Image(get_stylesheet_directory() . '/assets/logos/ndtss_logo.png', 40, 80, 120, 120, '', '', '', false, 300);
+$pdf->SetAlpha(1);
+$pdf->Image(get_stylesheet_directory() . '/assets/logos/sgndt_logo.png', 12, 5, 30);
+    // After logos are placed
+$pdf->Ln(5); // Add spacing below logo if needed
+//$pdf->SetFont('times', 'B', 12);
+$pdf->SetTextColor(255, 0, 0); // Set text color to red (RGB)
+$pdf->Cell(0, 6, 'NON-DESTRUCTIVE TESTING SOCIETY (SINGAPORE)', 0, 1, 'C');
+$pdf->SetTextColor(0, 0, 0); // Reset to black after (optional)
+//$pdf->SetFont('times', '', 10);
+$pdf->Cell(0, 6, '(SGNDT SCHEME IN ACCORDANCE WITH ISO 9712:2021)', 0, 1, 'C');
+//$pdf->SetFont('times', 'BU', 10);
+$pdf->Cell(0, 7, 'NOTIFICATION OF SGNDT EXAMINATION RESULTS', 0, 1, 'C');
+$pdf->Ln(3);
+
+
+$marks_form = GFAPI::get_form($marks_entry['form_id']);
+$marks_combined = [];
+
+foreach ($marks_form['fields'] as $field) {
+
+   $field_id = $field->id;
+   $label    = trim($field->label);
+   $value    = $marks_entry[$field_id] ?? '';
+
+
+   if (in_array($field->type, ['html', 'hidden']) || empty($marks_entry[$field->id])) continue;
+
+
+
+   if ($field_id == 18 && !empty($value)) {
+
+
+    $upload_dir = wp_upload_dir();
+    $signature_url = $upload_dir['baseurl'] . '/gravity_forms/signatures/' . $value;
+
+    $signature_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $signature_url);
+
+}
+
+$base = stripos($label, 'Marks Obtained') !== false
+? trim(str_ireplace('Marks Obtained', '', $label))
+: (stripos($label, 'Total Marks') !== false ? trim(str_ireplace('Total Marks', '', $label)) : null);
+if ($base) {
+    $marks_combined[$base]['label'] = $base;
+    $marks_combined[$base][stripos($label, 'Marks Obtained') !== false ? 'obtained' : 'total'] = $marks_entry[$field->id];
+}
+
+
+
+}
+
+$total_obtained = 0;
+$total_marks = 0;
+$marks_html = '<table border="1" cellpadding="2" cellspacing="0" style="font-size: 12pt; width: 100%; border-color: #ccc;"><thead><tr style="background-color: #eaeaea; text-align: center; font-weight: bold; color: #333;"><th>Subject</th><th>Obtained</th><th>Total</th><th>%</th></tr></thead><tbody>';
+foreach ($marks_combined as $data) {
+    $label = esc_html($data['label']);
+    $obtained = floatval($data['obtained'] ?? 0);
+    $total = floatval($data['total'] ?? 0);
+    $percent = $total > 0 ? round(($obtained / $total) * 100, 2) : '-';
+    $total_obtained += $obtained;
+    $total_marks += $total;
+}
+$overall_percent = $total_marks > 0 ? round(($total_obtained / $total_marks) * 100, 2) : '-';
+
+if (in_array($exam_level, ['level 1', 'level 2'])) {
+    $marks_html = generate_level_2_table($marks_entry, $overall_result, $overall_percent, $retest);
+} elseif ($exam_level === 'level 3') {
+    $marks_html = generate_level_3_table($marks_entry, $overall_result, $overall_percent, $retest);
+} else {
+    $marks_html = '<p>No marks structure available for this level.</p>';
+}
+
+$css = "<style>
+body { font-family: Times, serif; font-size: 10pt; line-height: 1.5; }
+h1 { font-size: 14pt; font-weight: bold; }
+h2 { font-size: 13pt; }
+h3 { font-size: 11pt; margin: 4px 0; }
+th, td { font-size: 12pt; padding: 2px 4px; }
+.footer-note { font-size: 7pt; font-style: italic; }
+table { border-collapse: collapse; width: 100%; } th, td { border: 1px solid #000; padding: 1px; } th { background: #f0f0f0; }
+</style>";
+
+
+$content = $css;
+
+
+$content .= "<h3>CANDIDATE INFORMATION</h3><table>
+<tr><th>Name</th><td>{$exam_entry['1']}</td></tr>
+<tr><th>ID of Candidate</th><td>{$exam_entry['789']}</td></tr>
+<tr><th>Date of Birth</th><td>{$exam_entry['3']}</td></tr>
+<tr><th>Result Ref. No.</th><td>{$marks_entry['21']}</td></tr>
+<tr><th>Organization</th><td>{$exam_entry['17']}</td></tr>
+<tr><th>Address</th><td>{$full_address}</td></tr></table>";
+
+$content .= "<h3>EXAMINATION DETAILS</h3><table>
+<tr><th>Date of Exam</th><td>{$exam_date}</td></tr>
+<tr><th>Exam Center</th><td>{$exam_entry['833']}</td></tr>
+<tr><th>Method</th><td>{$method}</td></tr>
+<tr><th>Level / Sector</th><td>{$marks_entry['1']} / {$sector}</td></tr>
+<tr><th>Initial / Retest</th><td>{$exam_status}</td></tr></table>";
+
+$content .= "<h3>RESULTS OF EXAMINATION</h3>{$marks_html}";
+
+$content .= "<h3>EXAMINATION AUTHORITY</h3>
+<p><strong>EXAMINATION AUTHORITY:</strong> NDTSS CERTIFICATION BODY</p>";
+$content .= "<p><strong>EXAMINER:</strong> {$examiner_list}</p>
+<p><strong>INVIGILATOR:</strong> {$invigilator_list}</p>
+<div style='border-top:1px solid #000; width:200px; margin-top:5px;'></div>
+<p>____________________ (Authorized Signatory)</p>
+<p><strong>DATE OF ISSUE:</strong> {$issue_date}</p>
+<p class='footer-note'>This is a notification of Results only. An official Certificate bearing SGNDT Logo & Accreditation Mark will be issued within 30 days from this notification for successful candidates.</p>";
+       // Insert cropped signature image
+
+
+$pdf->writeHTML($content, true, false, true, false, '');
+
+if (!empty($signature_path) && file_exists($signature_path)) {
+    $signature_cropped_path = str_replace('.png', '_cropped.png', $signature_path);
+    crop_signature_image($signature_path, $signature_cropped_path);
+}
+
+
+    // Page 2 – Employer Auth + Interpretation
+$pdf->AddPage();
+$pdf->SetAlpha(0.05);
+$pdf->Image(get_stylesheet_directory() . '/assets/logos/ndtss_logo.png', 40, 80, 120, 120, '', '', '', false, 300);
+$pdf->SetAlpha(1);
+$pdf->Image(get_stylesheet_directory() . '/assets/logos/sgndt_logo.png', 12, 5, 30);
+    $pdf->Ln(15); // Add spacing below logo if needed
+    $pdf->SetFont('times', '', 12);
+
+    $employer_auth = '';
+    if (strtoupper($overall_result) === 'PASS') {
+        $employer_auth = "<h3>EMPLOYER AUTHORIZATION</h3>
+        <p style='margin-bottom: 4px;'>The Employer shall authorize the holder of NDTSS SGNDT certificate to carry out testing on his behalf...</p>";
+        for ($i = 0; $i < 5; $i++) {
+            $employer_auth .= " <table><tr><th>Name of Employer</th><th>Authorization</th><th>Signature</th><th>Date</th></tr><tr><td height='22'></td><td></td><td></td><td></td></tr></table><br><br>";
+        }
+
+    }
+
+
+    $interpretation = "
+    <h3 style='text-align:center;'>INTERPRETATION OF EXAMINATION RESULTS</h3>
+
+    <ul style='padding-left: 20px; font-size: 11pt;'>
+    <li>To be eligible for certification, the candidate shall obtain a minimum grade of 70% in each examination part, and a minimum composite grade of 70%.</li>
+    <li>Candidate shall be able to score 70% in Instruction writing and examination specimens in order to pass the practical examination.</li>
+    <li>Candidate shall obtain a minimum pass in parent metal sample in order to pass the ultrasonic practical examination.</li>
+    <li>Failure to obtain the minimum 70% in one specimen shall be retested for all specimens in that sector. Candidates appearing in the industrial sector will attempt a mixture of weld(s), casting, and/or forged specimens; failure in any one specimen would require reappearing for all the specimens. The product sector would require passing a minimum of two specimens in the sector.</li>
+    <li>Failure to detect a mandatory defect in practical will lead to failure in the entire practical examination.</li>
+    <li>Candidates should pass Level 2 practical before appearing for basic and method examinations. A candidate is eligible to appear for reexamination on the failed part from one month of the examination date up to a maximum of two years from the examination date.</li>
+    <li>The results of the passed parts will be valid only for two years from the examination date.</li>
+    </ul>";
+
+
+    $pdf->writeHTML($css . $employer_auth . $interpretation, true, false, true, false, '');
+
+
+    // Save PDF
+    $upload_dir = wp_upload_dir();
+    $dir = $upload_dir['basedir'] . '/certificates';
+    wp_mkdir_p($dir);
+    $file_name = "certificate_{$exam_entry_id}_{$method_slug}.pdf";
+    $file_path = "{$dir}/{$file_name}";
+    $file_url = $upload_dir['baseurl'] . "/certificates/{$file_name}?v=" . time();
+    $certificate_data = [
+        'url'           => $file_url,
+        'path'          => $file_path,
+        'generated_at'  => current_time('mysql'),
+        'exam_entry_id' => $exam_entry_id,
+        'marks_entry_id'=> $marks_entry_id,
+        'method'        => $method,
+        'issued_by'     => get_current_user_id(),
+    ];
+    gform_update_meta($marks_entry_id, '_notification_meta_' . $method, $certificate_data);
+
+    if (file_exists($file_path)) unlink($file_path);
+    $pdf->Output($file_path, 'F');
+    ob_end_clean();
+
+    // if (file_exists($file_path)) {
+    //     wp_redirect($file_url);
+    //     exit;
+    // } else {
+    //     wp_die('Certificate could not be generated.');
+    // }
+
+    $center_name = $exam_entry['833']; 
+    $center_post = get_page_by_title($center_name, OBJECT, 'exam_center');
+
+    if ($center_post) {
+        gform_update_meta($exam_entry_id, '_linked_exam_center', $center_post->ID);
+        send_certification_notification($exam_entry_id, $marks_entry_id, $center_post, $certificate_data, $method, $overall_result);
+    }
+}
+
+function send_certification_notification($entry_id, $marks_entry_id, $center_post, $certificate_data, $method, $result) {
+    $entry = GFAPI::get_entry($entry_id);
+    if (is_wp_error($entry)) return;
+
+    $log = [];
+
+    $candidate_name = rgar($entry, '1');
+    $candidate_email = rgar($entry, '12');
+    $certificate_url = $certificate_data['url'] ?? '';
+    $issue_date = date('d.m.Y', strtotime($certificate_data['generated_at'] ?? 'now'));
+
+    $center_name = get_the_title($center_post->ID);
+    $center_admin_id = get_post_meta($center_post->ID, '_center_admin_id', true);
+    $center_admin = get_userdata($center_admin_id);
+
+    $admin_users = get_users([
+        'role'   => 'administrator',
+        'fields' => ['user_email'],
+    ]);
+
+    // -------------------------
+    // 1. Candidate Email
+    // -------------------------
+    $sent_to_candidate = false;
+    if (is_email($candidate_email)) {
+        $subject = 'SGNDT Examination Result Notification';
+        $body = '
+        Dear ' . esc_html($candidate_name) . ',<br><br>
+        Your examination result has been released.<br><br>
+        <strong>Method:</strong> ' . esc_html($method) . '<br>
+        <strong>Result:</strong> ' . esc_html($result) . '<br>
+        <strong>Date of Issue:</strong> ' . esc_html($issue_date) . '<br><br>
+        <a href="' . esc_url($certificate_url) . '" target="_blank">Download Certificate</a><br><br>
+        Best regards,<br>
+        NDTSS Certification Team
+        ';
+        $message = get_email_template($subject, $body);
+
+        add_filter('wp_mail_content_type', function () { return 'text/html'; });
+        $sent_to_candidate = wp_mail($candidate_email, $subject, $message);
+        remove_filter('wp_mail_content_type', function () { return 'text/html'; });
+
+        $log['candidate_email'] = [
+            'email' => $candidate_email,
+            'status' => $sent_to_candidate ? 'sent' : 'failed',
+            'timestamp' => current_time('mysql'),
+        ];
+    }
+
+    // -------------------------
+    // 2. Admin Emails
+    // -------------------------
+    $admin_emails = [];
+
+    // Add Center Admin
+    if ($center_admin && is_email($center_admin->user_email)) {
+        $admin_emails[] = $center_admin->user_email;
+    }
+
+    // Add Super Admins
+    foreach ($admin_users as $admin_user) {
+        if (is_email($admin_user->user_email)) {
+            $admin_emails[] = $admin_user->user_email;
+        }
+    }
+
+    $manager_admins = get_users([
+        'role'   => 'manager_admin', // Adjust role slug if needed
+        'fields' => ['user_email'],
+    ]);
+
+    foreach ($manager_admins as $manager_admin) {
+        if (is_email($manager_admin->user_email)) {
+            $admin_emails[] = $manager_admin->user_email;
+        }
+    }
+
+    $admin_emails = array_unique($admin_emails);
+   
+    $sent_admin_emails = [];
+
+    if (!empty($admin_emails)) {
+        $subject = '📢 Candidate Result Notification – ' . esc_html($candidate_name);
+        $body = '
+        <p><strong>Candidate Name:</strong> ' . esc_html($candidate_name) . '</p>
+        <p><strong>Method:</strong> ' . esc_html($method) . '</p>
+        <p><strong>Result:</strong> ' . esc_html($result) . '</p>
+        <p><strong>Exam Center:</strong> ' . esc_html($center_name) . '</p>
+        <p><strong>Date of Issue:</strong> ' . esc_html($issue_date) . '</p>
+        <p><a href="' . esc_url($certificate_url) . '" target="_blank">Download Certificate</a></p>
+        ';
+
+        add_filter('wp_mail_content_type', function () { return 'text/html'; });
+        $sent_to_admins = wp_mail($admin_emails, $subject, get_email_template($subject, $body));
+        remove_filter('wp_mail_content_type', function () { return 'text/html'; });
+
+        foreach ($admin_emails as $email) {
+            $sent_admin_emails[] = [
+                'email' => $email,
+                'status' => $sent_to_admins ? 'sent' : 'failed',
+                'timestamp' => current_time('mysql'),
+            ];
+        }
+
+        $log['admin_emails'] = $sent_admin_emails;
+    }
+
+    // -------------------------
+    // 3. Save Mail Log to Entry Meta
+    // -------------------------
+    $meta_key = '_result_notification_email_log_' . sanitize_title($method);
+    gform_update_meta($marks_entry_id, $meta_key, $log);
+}
+
+
+
+
+function get_exam_dates_by_method($schedule_data, $method) {
+    $dates = [];
+    foreach ((array) $schedule_data as $key => $slot) {
+        if (strpos($key, $method . '|') === 0 && !empty($slot['checkin_time']) &&
+            ($date = DateTime::createFromFormat('Y-m-d', substr($slot['checkin_time'], 0, 10)))) {
+            $dates[] = $date->format('d/m/Y');
+    }
+}
+sort($dates);
+return $dates;
+}
+
+function crop_signature_image($source_path, $target_path) {
+    if (!extension_loaded('gd')) return false;
+
+    $image = imagecreatefrompng($source_path);
+    imagesavealpha($image, true);
+    imagealphablending($image, false);
+
+    $width = imagesx($image);
+    $height = imagesy($image);
+
+    $top = $left = 0;
+    $bottom = $height;
+    $right = $width;
+
+    // Get bounds
+    $found = false;
+    for ($y = 0; $y < $height; $y++) {
+        for ($x = 0; $x < $width; $x++) {
+            $alpha = (imagecolorat($image, $x, $y) >> 24) & 0x7F;
+            if ($alpha < 127) {
+                $top = $y;
+                $found = true;
+                break 2;
+            }
+        }
+    }
+
+    for ($y = $height - 1; $y >= 0; $y--) {
+        for ($x = 0; $x < $width; $x++) {
+            $alpha = (imagecolorat($image, $x, $y) >> 24) & 0x7F;
+            if ($alpha < 127) {
+                $bottom = $y;
+                break 2;
+            }
+        }
+    }
+
+    for ($x = 0; $x < $width; $x++) {
+        for ($y = $top; $y <= $bottom; $y++) {
+            $alpha = (imagecolorat($image, $x, $y) >> 24) & 0x7F;
+            if ($alpha < 127) {
+                $left = $x;
+                break 2;
+            }
+        }
+    }
+
+    for ($x = $width - 1; $x >= 0; $x--) {
+        for ($y = $top; $y <= $bottom; $y++) {
+            $alpha = (imagecolorat($image, $x, $y) >> 24) & 0x7F;
+            if ($alpha < 127) {
+                $right = $x;
+                break 2;
+            }
+        }
+    }
+
+    $crop_width = $right - $left + 1;
+    $crop_height = $bottom - $top + 1;
+
+    $new_img = imagecreatetruecolor($crop_width, $crop_height);
+    imagesavealpha($new_img, true);
+    $trans_colour = imagecolorallocatealpha($new_img, 0, 0, 0, 127);
+    imagefill($new_img, 0, 0, $trans_colour);
+
+    imagecopy($new_img, $image, 0, 0, $left, $top, $crop_width, $crop_height);
+    imagepng($new_img, $target_path, 9);
+
+    imagedestroy($image);
+    imagedestroy($new_img);
+
+    return $target_path;
+}
+
+
+
+function generate_level_2_table($entry) {
+    // Helper function
+    $get_val = fn($k, $default = 'N/A') => isset($entry[$k]) && $entry[$k] !== '' ? $entry[$k] : $default;
+
+    // Method General
+    $method_general_obt = floatval($get_val("31", 0));
+    $method_general_total = floatval($get_val("32", 0));
+    $method_general_percent = percent($method_general_obt, $method_general_total);
+
+    // Method Specific
+    $method_specific_obt = floatval($get_val("33", 0));
+    $method_specific_total = floatval($get_val("34", 0));
+    $method_specific_percent = percent($method_specific_obt, $method_specific_total);
+
+    // Instruction Writing
+    $procedure_obt = floatval($get_val("57", 0));
+    $procedure_total = floatval($get_val("38", 0));
+    $procedure_percent = percent($procedure_obt, $procedure_total);
+
+    // Practical
+    $practical_list_raw = maybe_unserialize($get_val("54", ''));
+    $practical_rows = '';
+    $practical_obt = 0;
+    $practical_total = 0;
+    $sample_count = 0;
+
+    if (is_array($practical_list_raw)) {
+        foreach ($practical_list_raw as $sample) {
+            $sample_name = $sample['Practical Samples'] ?? 'Sample';
+            $sample_marks = isset($sample['Marks']) ? floatval($sample['Marks']) : 0;
+
+            $practical_obt += $sample_marks;
+            $practical_total += 100; // Assuming each sample is out of 100
+            $sample_count++;
+
+            $practical_rows .= '<tr><td>' . esc_html($sample_name) . '</td><td>' . format_cell($sample_marks) . '</td></tr>';
+        }
+    }
+
+    $practical_percent = percent($practical_obt, $practical_total);
+
+    // Determine failed sections
+    $failed_sections = [];
+
+    if (is_numeric($method_general_percent) && $method_general_percent < 70) {
+        $failed_sections[] = 'Method General';
+    }
+    if (is_numeric($method_specific_percent) && $method_specific_percent < 70) {
+        $failed_sections[] = 'Method Specific';
+    }
+    if (is_numeric($procedure_percent) && $procedure_percent < 70) {
+        $failed_sections[] = 'Instruction Writing';
+    }
+    if (is_numeric($practical_percent) && $practical_percent < 70) {
+        $failed_sections[] = 'Practical';
+    }
+
+    // Final decisions
+    $overall_result = empty($failed_sections) ? 'Pass' : 'Fail';
+    $retest = empty($failed_sections) ? 'No' : 'Yes';
+    $retest_details = !empty($failed_sections) ? implode(', ', $failed_sections) : '-';
+
+    // Recalculate overall percent
+    $percentages = array_filter([
+        is_numeric($method_general_percent) ? floatval($method_general_percent) : null,
+        is_numeric($method_specific_percent) ? floatval($method_specific_percent) : null,
+        is_numeric($procedure_percent) ? floatval($procedure_percent) : null,
+        is_numeric($practical_percent) ? floatval($practical_percent) : null,
+    ]);
+
+    $overall_calc_percent = !empty($percentages) ? round(array_sum($percentages) / count($percentages), 2) : 'N/A';
+
+    // Output table
+    return '
+    <table border="1" cellpadding="1" style="font-size:10.5pt; width:100%; border-collapse:collapse; border-color:#000;">
+        <tbody>
+            <tr><td>METHOD GENERAL</td><td colspan="2"></td><td>' . format_cell($method_general_obt) . '</td></tr>
+            <tr><td>METHOD SPECIFIC</td><td colspan="2"></td><td>' . format_cell($method_specific_obt) . '</td></tr>
+            <tr><td>Instruction Writing</td><td colspan="2"></td><td>' . format_cell($procedure_obt) . '</td></tr>
+
+            <tr><td rowspan="' . ($sample_count + 1) . '">PRACTICAL LEVEL 2</td>
+                <td colspan="2"><strong>Samples</strong></td>
+                <td rowspan="' . ($sample_count + 1) . '">' . format_cell($practical_percent) . '%</td>
+            </tr>
+            ' . $practical_rows . '
+
+            <tr style="background-color:#f9f9f9;">
+                <td colspan="2" style="text-align:center;"><strong>OVERALL RESULT</strong></td>
+                <td colspan="2" style="text-align:center; font-weight:bold; font-size:13pt; border:2px solid #000;">
+                    ' . format_cell($overall_result) . ' (' . ($overall_calc_percent !== 'N/A' ? $overall_calc_percent . '%' : 'N/A') . ')
+                </td>
+            </tr>
+
+            <tr><td colspan="2">RETEST APPLICABLE</td><td colspan="2">' . format_cell($retest) . '</td></tr>
+            <tr><td colspan="2">IF Yes (Details)</td><td colspan="2">' . format_cell($retest_details) . '</td></tr>
+        </tbody>
+    </table>';
+}
+
+function format_cell($value) {
+    return ($value !== '' && $value !== null) ? esc_html($value) : 'N/A';
+}
+
+function percent($obt, $total) {
+    if (is_numeric($obt) && is_numeric($total) && $total > 0) {
+        return round(($obt / $total) * 100, 2);
+    }
+    return 'N/A';
+}
+
+function generate_level_3_table($entry) {
+    $get_val = fn($k, $default = 'N/A') => isset($entry[$k]) && $entry[$k] !== '' ? $entry[$k] : $default;
+
+    // BASIC section
+    $basic_obt = floatval($entry["40"] ?? 0) + floatval($entry["42"] ?? 0) + floatval($entry["44"] ?? 0);
+    $basic_total = floatval($entry["41"] ?? 0) + floatval($entry["43"] ?? 0) + floatval($entry["45"] ?? 0);
+    $basic_percent = percent($basic_obt, $basic_total);
+
+    // PRACTICAL section
+    $practical_list_raw = maybe_unserialize($entry["54"] ?? '');
+    $practical_rows = '';
+    $practical_obt = 0;
+    $practical_total = 0;
+    $sample_count = 0;
+
+    if (is_array($practical_list_raw)) {
+        foreach ($practical_list_raw as $sample) {
+            $sample_name = $sample['Practical Samples'] ?? 'Sample';
+            $sample_marks = isset($sample['Marks']) ? floatval($sample['Marks']) : 0;
+            $practical_obt += $sample_marks;
+            $practical_total += 100;
+            $sample_count++;
+            $practical_rows .= '<tr><td>' . esc_html($sample_name) . '</td><td>' . format_cell($sample_marks) . '</td></tr>';
+        }
+    }
+    $practical_percent = percent($practical_obt, $practical_total);
+    // METHOD GENERAL
+    $method_general_obt = floatval($entry["46"] ?? 0);
+    $method_general_total = floatval($entry["47"] ?? 0);
+    $method_general_percent = percent($method_general_obt, $method_general_total);
+
+    // METHOD SPECIFIC
+    $method_specific_obt = floatval($entry["48"] ?? 0);
+    $method_specific_total = floatval($entry["49"] ?? 0);
+    $method_specific_percent = percent($method_specific_obt, $method_specific_total);
+
+    // PROCEDURE
+    $procedure_obt = floatval($entry["50"] ?? 0);
+    $procedure_total = floatval($entry["51"] ?? 0);
+    $procedure_percent = percent($procedure_obt, $procedure_total);
+
+    // Determine failed sections
+    $failed_sections = [];
+
+    if (is_numeric($basic_percent) && $basic_percent < 70) {
+        $failed_sections[] = 'Basic';
+    }
+    if (is_numeric($method_general_percent) && $method_general_percent < 70) {
+        $failed_sections[] = 'Method General';
+    }
+    if (is_numeric($method_specific_percent) && $method_specific_percent < 70) {
+        $failed_sections[] = 'Method Specific';
+    }
+    if (is_numeric($procedure_percent) && $procedure_percent < 70) {
+        $failed_sections[] = 'Procedure';
+    }
+    if (is_numeric($practical_percent) && $practical_percent < 70) {
+        $failed_sections[] = 'Practical';
+    }
+
+    // Result and retest logic
+    $overall_result = empty($failed_sections) ? 'Pass' : 'Fail';
+    $retest = empty($failed_sections) ? 'No' : 'Yes';
+    $retest_details = !empty($failed_sections) ? implode(', ', $failed_sections) : '-';
+
+    // Overall average %
+    $percentages = array_filter([
+        is_numeric($basic_percent) ? $basic_percent : null,
+        is_numeric($method_general_percent) ? $method_general_percent : null,
+        is_numeric($method_specific_percent) ? $method_specific_percent : null,
+        is_numeric($procedure_percent) ? $procedure_percent : null,
+        is_numeric($practical_percent) ? $practical_percent : null,
+    ]);
+
+    $overall_calc_percent = !empty($percentages)
+        ? round(array_sum($percentages) / count($percentages), 2)
+        : 'N/A';
+
+    return '<table border="1" cellpadding="1" style="font-size: 10.5pt; width: 100%; border-color: #000; border-collapse: collapse;">
+    <tbody>
+        <tr><td rowspan="3">BASIC</td><td>PART A</td><td>' . format_cell($entry["40"]) . '</td><td rowspan="3">' . $basic_percent . '%</td></tr>
+        <tr><td>PART B</td><td>' . format_cell($entry["42"]) . '</td></tr>
+        <tr><td>PART C</td><td>' . format_cell($entry["44"]) . '</td></tr>
+
+        <tr><td>METHOD GENERAL</td><td colspan="2">PART D</td><td>' . format_cell($method_general_obt) . '</td></tr>
+        <tr><td>METHOD SPECIFIC</td><td colspan="2">PART E</td><td>' . format_cell($method_specific_obt) . '</td></tr>
+        <tr><td>PROCEDURE</td><td colspan="2">PART F</td><td>' . format_cell($procedure_obt) . '</td></tr>
+
+        <tr><td rowspan="' . ($sample_count + 1) . '">PRACTICAL LEVEL 2</td>
+        <td colspan="2"><strong>Samples</strong></td>
+        <td rowspan="' . ($sample_count + 1) . '">' . format_cell($practical_percent) . '%</td>
+        </tr>
+        ' . $practical_rows . '
+
+        <tr><td colspan="2">Reason of Failure (If any)</td><td colspan="2">' . format_cell($entry["failure_reason"] ?? '') . '</td></tr>
+        <tr><td colspan="2"><strong>OVERALL RESULT</strong></td><td><strong>' . format_cell($overall_result) . '</strong></td><td><strong>' . ($overall_calc_percent !== 'N/A' ? $overall_calc_percent . '%' : 'N/A') . '</strong></td></tr>
+        <tr><td colspan="2">RETEST APPLICABLE</td><td colspan="2">' . format_cell($retest) . '</td></tr>
+        <tr><td colspan="2">IF Yes (Details)</td><td colspan="2">' . format_cell($retest_details) . '</td></tr>
+    </tbody></table>';
+}
+
+?>
+

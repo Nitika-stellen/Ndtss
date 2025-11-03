@@ -1,0 +1,58 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node / Yarn / NPM
+node_modules/
+yarn-error.log
+npm-debug.log
+
+# Composer / PHP
+vendor/
+composer.lock
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.*
+secrets/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# WordPress
+# Ignore uploaded media and common runtime/cache/backup directories
+wp-content/uploads/
+wp-content/upgrade/
+wp-content/cache/
+wp-content/ai1wm-backups/
+wp-content/aiowps_backups/
+wp-content/maintenance/
+wp-content/backup*/
+wp-content/backups/
+wp-content/wflogs/
+
+# Database and backups
+*.sql
+*.sql.gz
+*.zip
+
+# Misc
+*.tmp
+*.swp
+# Windows image file cache
+ehthumbs.db
+
+# Ignore node and build artifacts
+dist/
+build/
+
+# Ignore sensitive local config variants (if present)
+wp-config-local.php
+wp-config.*.local

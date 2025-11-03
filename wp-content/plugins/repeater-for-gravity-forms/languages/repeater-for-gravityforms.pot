@@ -1,0 +1,75 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Project-Id-Version: Gravity Forms Signature\n"
+"POT-Creation-Date: 2020-11-21 22:37+0700\n"
+"PO-Revision-Date: 2020-11-21 22:36+0700\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 2.0.5\n"
+"X-Poedit-Basepath: ..\n"
+"X-Poedit-Flags-xgettext: --add-comments=translators:\n"
+"X-Poedit-WPHeader: index.php\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+"X-Poedit-KeywordsList: __;_e;_n:1,2;_x:1,2c;_ex:1,2c;_nx:4c,1,2;esc_attr__;"
+"esc_attr_e;esc_attr_x:1,2c;esc_html__;esc_html_e;esc_html_x:1,2c;_n_noop:1,2;"
+"_nx_noop:3c,1,2;__ngettext_noop:1,2\n"
+"X-Poedit-SearchPath-0: .\n"
+"X-Poedit-SearchPathExcluded-0: *.js\n"
+
+#: frontend/settings.php:22
+msgid "Width"
+msgstr ""
+
+#: frontend/settings.php:25 frontend/settings.php:32
+msgid "Number px"
+msgstr ""
+
+#: frontend/settings.php:29
+msgid "Height"
+msgstr ""
+
+#: frontend/settings.php:36
+msgid "Background"
+msgstr ""
+
+#: frontend/settings.php:42
+msgid "Color"
+msgstr ""
+
+#: frontend/settings.php:48 frontend/signature_field.php:169
+msgid "Full Name"
+msgstr ""
+
+#: frontend/settings.php:50 frontend/signature_field.php:169
+msgid "Enter Full Name"
+msgstr ""
+
+#: frontend/signature_field.php:37
+msgid "Signature"
+msgstr ""
+
+#: frontend/signature_field.php:258
+msgid "View the image"
+msgstr ""
+
+#. Plugin Name of the plugin/theme
+msgid "Gravity Forms Signature"
+msgstr ""
+
+#. Plugin URI of the plugin/theme
+#. Author URI of the plugin/theme
+msgid "https://codecanyon.net/user/rednumber/portfolio"
+msgstr ""
+
+#. Description of the plugin/theme
+msgid "Allows you to capture signatures online"
+msgstr ""
+
+#. Author of the plugin/theme
+msgid "Rednumber"
+msgstr ""

@@ -1,0 +1,462 @@
+/* Renewal Admin Styles */
+
+.renew-admin-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.renew-admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+}
+
+.renew-admin-title {
+    margin: 0;
+    color: #23282d;
+    font-size: 28px;
+}
+
+.renew-admin-subtitle {
+    color: #666;
+    font-size: 14px;
+    margin: 5px 0 0 0;
+}
+
+/* Table Styles */
+.renew-admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.renew-admin-table th {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.renew-admin-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #dee2e6;
+    vertical-align: top;
+}
+
+.renew-admin-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Status badges */
+.status-pending {
+    background: #fff3cd;
+    color: #856404;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.status-approved {
+    background: #d1ecf1;
+    color: #0c5460;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.status-rejected {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* Certificate Info Section */
+.certificate-info {
+    background: #e8f5e8;
+    border: 1px solid #5cb85c;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 15px 0;
+}
+
+.certificate-info h3 {
+    margin-top: 0;
+    color: #2e7d2e;
+    font-size: 18px;
+}
+
+.certificate-info p {
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+.certificate-info strong {
+    color: #333;
+}
+
+/* Certificate Download Section */
+.certificate-download-section {
+    background: #e8f5e8;
+    border: 1px solid #5cb85c;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 15px 0;
+}
+
+.certificate-download-section h4 {
+    margin-top: 0;
+    color: #2e7d2e;
+    font-size: 16px;
+}
+
+.certificate-download-section p {
+    margin: 6px 0;
+    font-size: 13px;
+}
+
+/* Action Buttons */
+.renew-action-buttons {
+    margin: 15px 0;
+}
+
+.button-group {
+    display: inline-block;
+    margin-right: 10px;
+}
+
+.button-group .button {
+    margin-right: 5px;
+}
+
+/* Form Styles */
+.renew-admin-form {
+    background: #fff;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin: 20px 0;
+}
+
+.form-section {
+    margin-bottom: 25px;
+}
+
+.form-section h3 {
+    margin-top: 0;
+    color: #333;
+    font-size: 18px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+}
+
+.form-row {
+    display: flex;
+    margin-bottom: 15px;
+    gap: 20px;
+}
+
+.form-group {
+    flex: 1;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-group textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+/* CPD Points Section */
+.cpd-section {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 15px 0;
+}
+
+.cpd-year {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.cpd-year h4 {
+    margin-top: 0;
+    color: #333;
+}
+
+.cpd-category {
+    display: flex;
+    margin-bottom: 8px;
+    align-items: center;
+}
+
+.cpd-category label {
+    width: 120px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.cpd-category input {
+    width: 60px;
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    text-align: center;
+}
+
+/* Admin Notes Section */
+.admin-notes-section {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 15px 0;
+}
+
+.admin-notes-section h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.admin-notes-section textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13px;
+}
+
+/* Navigation Tabs */
+.nav-tab-wrapper {
+    border-bottom: 2px solid #ddd;
+    margin-bottom: 20px;
+    padding: 0;
+}
+
+.nav-tab {
+    display: inline-block;
+    text-decoration: none;
+    padding: 12px 20px;
+    background: #f1f1f1;
+    border: 2px solid #ddd;
+    border-bottom: none;
+    margin-right: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #555;
+    transition: all 0.3s ease;
+}
+
+.nav-tab:hover {
+    background: #e8e8e8;
+    color: #333;
+}
+
+.nav-tab-active {
+    background: #fff;
+    border-bottom: 2px solid #fff;
+    margin-bottom: -2px;
+    color: #0073aa;
+    font-weight: 600;
+}
+
+/* Tab Content */
+.tab-content {
+    background: #fff;
+    padding: 25px;
+    border: 2px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+}
+
+.tab-title {
+    margin-top: 0;
+    margin-bottom: 25px;
+    color: #23282d;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+/* Email Template Cards */
+.email-template-card {
+    margin-bottom: 25px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fafafa;
+    overflow: hidden;
+}
+
+.toggle-btn {
+    width: 100%;
+    background: #f8f9fa;
+    border: none;
+    padding: 15px 20px;
+    text-align: left;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    border-bottom: 1px solid #ddd;
+    transition: background-color 0.3s ease;
+    color: #333;
+}
+
+.toggle-btn:hover {
+    background: #e9ecef;
+}
+
+.toggle-btn:focus {
+    outline: none;
+    background: #e9ecef;
+}
+
+.email-content {
+    padding: 20px;
+    background: #fff;
+}
+
+.email-content label {
+    display: block;
+    margin-bottom: 15px;
+    font-weight: 600;
+    color: #333;
+}
+
+.email-content input[type="checkbox"] {
+    margin-right: 8px;
+    transform: scale(1.1);
+}
+
+.input-field {
+    width: 100%;
+    margin-bottom: 15px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.input-field:focus {
+    border-color: #0073aa;
+    outline: none;
+    box-shadow: 0 0 0 1px #0073aa;
+}
+
+.email-content .wp-editor-container {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.email-content hr {
+    margin: 20px 0;
+    border: none;
+    border-top: 1px solid #eee;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .renew-admin-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+
+    .form-row {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .renew-admin-table {
+        font-size: 12px;
+    }
+
+    .renew-admin-table th,
+    .renew-admin-table td {
+        padding: 8px 10px;
+    }
+
+    .tab-content {
+        padding: 15px;
+    }
+
+    .email-template-card {
+        margin-bottom: 20px;
+    }
+}
+
+/* Loading States */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #0073aa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Success/Error Messages */
+.notice {
+    padding: 12px 15px;
+    margin: 15px 0;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.notice-success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.notice-error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.notice-info {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}

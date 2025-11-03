@@ -1,0 +1,1305 @@
+<?php
+function display_form_entries_page($form_id, $is_retest = false) {
+    if (!class_exists('GFAPI')) {
+        echo '<p class="text-red-600">Gravity Forms plugin is not active.</p>';
+        return;
+    }
+
+    // Field mappings for forms
+    $field_map = [
+        'form_15' => [
+            'prefer_center' => '833',
+            'exam_order_no' => '789',
+            'user_email' => '12',
+            'candidate_name' => '1',
+            'payment_mode' => '190.4',
+            'methods' => [
+                '188.1' => 'ET', '188.2' => 'MT', '188.3' => 'PT', '188.4' => 'UT',
+                '188.5' => 'RT', '188.6' => 'VT', '188.7' => 'TT', '188.8' => 'PAUT', '188.9' => 'TOFD'
+            ],
+        ],
+        'form_30' => [
+            'prefer_center' => '9',
+            'exam_order_no' => '12',
+            'user_email' => '',
+            'candidate_name' => '',
+            'payment_mode' => '8.4',
+            'methods' => '1',
+        ],
+    ];
+
+    $config = $field_map['form_' . $form_id];
+    
+    
+
+    // Server-side pagination
+    $current_page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
+    $rows_per_page = 10;
+    $search_criteria = [
+        'start_date' => null,
+        'end_date' => null,
+    ];
+    $paging = [
+        'offset' => ($current_page - 1) * $rows_per_page,
+        'page_size' => $rows_per_page,
+    ];
+    $entries = GFAPI::get_entries($form_id, $search_criteria, [], $paging);
+    $total_entries = GFAPI::count_entries($form_id, $search_criteria);
+
+    if (is_wp_error($entries) || empty($entries)) {
+        echo '<p class="text-red-600">No entries found for Form ID ' . esc_html($form_id) . '.</p>';
+        return;
+    }
+
+    // User access control
+   $current_user = wp_get_current_user();
+    $is_super_admin = current_user_can('administrator');
+    $is_aqb_admin = current_user_can('custom_aqb');
+    $is_center_admin = current_user_can('custom_center');
+    $allowed_center_name = null;
+
+    $allowed_centers = [];
+
+    if ($is_aqb_admin) {
+        $center_ids = (array) get_user_meta($current_user->ID, '_exam_center_aqb_admin', true);
+
+        if (!empty($center_ids)) {
+            foreach ($center_ids as $center_id) {
+                $center_title = get_the_title($center_id);
+                if ($center_title) {
+                    $allowed_centers[] = $center_title;
+                }
+            }
+        }
+    }
+
+    if ($is_center_admin) {
+        $center_ids = (array) get_user_meta($current_user->ID, '_exam_center_center_admin', true);
+
+        if (!empty($center_ids)) {
+            foreach ($center_ids as $center_id) {
+                $center_title = get_the_title($center_id);
+                if ($center_title) {
+                    $allowed_centers[] = $center_title;
+                }
+            }
+        }
+    }
+
+    if (!$is_super_admin && empty($allowed_centers)) {
+        echo '<p class="text-red-600">You do not have permission to view this page.</p>';
+        return;
+    }
+
+    // Filters
+    $name_filter = isset($_GET['name']) ? sanitize_text_field($_GET['name']) : '';
+    $method_filter = isset($_GET['method']) ? sanitize_text_field($_GET['method']) : '';
+    $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
+    $center_filter = isset($_GET['center']) ? sanitize_text_field($_GET['center']) : '';
+
+    echo '<div class="wrap">';
+    echo '<h1 class="text-3xl font-bold mb-6 text-gray-800">Exam Form Entries</h1>';
+
+    echo '<div class="search_form flex flex-wrap gap-4 mb-6">';
+    echo '<div class="form_controls flex-1 min-w-[200px]">';
+    echo '<input type="text" id="searchInput" class="border p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400 text-sm" placeholder="Search users..." value="' . esc_attr($name_filter) . '">';
+    echo '</div>';
+    echo '<div class="form_controls flex-1 min-w-[150px]">';
+    echo '<select id="methodFilter" class="border p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">';
+    echo '<option value="">All Methods</option>';
+    $methods = ['ET', 'MT', 'PT', 'UT', 'RT', 'VT', 'TT', 'PAUT', 'TOFD'];
+    foreach ($methods as $method) {
+        $selected = $method === $method_filter ? 'selected' : '';
+        echo "<option value='$method' $selected>$method</option>";
+    }
+    echo '</select>';
+    echo '</div>';
+    echo '<div class="form_controls flex-1 min-w-[150px]">';
+    echo '<select id="statusFilter" class="border p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">';
+    echo '<option value="">All Statuses</option>';
+    $statuses = [
+        'pending' => 'Pending',
+        'approved' => 'Approved',
+        'rejected' => 'Rejected',
+    ];
+    foreach ($statuses as $key => $label) {
+        $selected = $key === $status_filter ? 'selected' : '';
+        echo "<option value='$key' $selected>$label</option>";
+    }
+    echo '</select>';
+    echo '</div>';
+    if ($is_super_admin) {
+        echo '<div class="form_controls flex-1 min-w-[150px]">';
+        echo '<select id="centerFilter" class="border p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">';
+        echo '<option value="">All Centers</option>';
+        $centers = get_posts([
+            'post_type' => 'exam_center',
+            'posts_per_page' => -1,
+            'cache_results' => true,
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
+        ]);
+        foreach ($centers as $center) {
+            $selected = $center->post_title === $center_filter ? 'selected' : '';
+            echo '<option value="' . esc_attr($center->post_title) . '" ' . $selected . '>' . esc_html($center->post_title) . '</option>';
+        }
+        echo '</select>';
+        echo '</div>';
+    }
+    echo '<div class="form_controls">';
+    echo '<button id="exportCsv" class="button-primary">Export CSV</button>';
+    echo '</div>';
+    echo '</div>';
+
+    echo '<div class="overflow-x-auto">';
+    echo '<table class="table_custom wp-list-table widefat striped dataTable no-footer" id="certifiedTable">';
+    echo '<thead>';
+    echo '<tr>';
+    echo '<th class="px-3 py-2">Sr No</th>';
+    echo '<th class="px-3 py-2" data-sort="exam_number">Exam Order No <span class="sort-arrow">▲</span></th>';
+    echo '<th class="px-3 py-2" data-sort="email">User Email <span class="sort-arrow">▲</span></th>';
+    echo '<th class="px-3 py-2" data-sort="designator">Designator <span class="sort-arrow">▲</span></th>';
+    echo '<th class="px-3 py-2" data-sort="prefer_center">Prefer Center <span class="sort-arrow">▲</span></th>';
+    echo '<th class="px-3 py-2" data-sort="payment_amount">Payment Price <span class="sort-arrow">▲</span></th>';
+    echo '<th class="px-3 py-2" data-sort="payment_mode">Payment Mode <span class="sort-arrow">▲</span></th>';
+    echo '<th class="px-3 py-2" data-sort="payment_status">Payment Status <span class="sort-arrow">▲</span></th>';
+    echo '<th class="px-3 py-2" data-sort="date_created">Submitted Date <span class="sort-arrow">▲</span></th>';
+    echo '<th class="px-3 py-2" data-sort="status">Status <span class="sort-arrow">▲</span></th>';
+    echo '<th class="px-3 py-2">Actions</th>';
+    echo '</tr>';
+    echo '</thead>';
+    echo '<tbody class="bg-white divide-y divide-gray-100" id="tableBody">';
+    foreach ($entries as $index => $entry) {
+
+        $entry_id = $entry['id'];
+        $prefer_center = rgar($entry, $config['prefer_center']);
+        $user_email = rgar($entry, $config['user_email']);
+        $candidate_name = rgar($entry, $config['candidate_name']);
+        $status = gform_get_meta($entry_id, 'approval_status');
+
+
+        if ($is_retest) {
+            $selected_labels = !empty(rgar($entry, $config['methods'])) ? [rgar($entry, $config['methods'])] : [];
+        } else {
+            $selected_labels = [];
+            foreach ($config['methods'] as $key => $label) {
+                if (!empty(rgar($entry, $key))) {
+                    $selected_labels[] = $label;
+                }
+            }
+        }
+
+        if (!$is_super_admin && !in_array($prefer_center, $allowed_centers, true)) {
+            continue;
+        }
+
+        if ($is_super_admin && $center_filter && $prefer_center !== $center_filter) {
+            continue;
+        }
+        if ($status_filter && $status !== $status_filter) {
+            continue;
+        }
+        if ($method_filter && ($is_retest ? $method_filter !== ($selected_labels[0] ?? '') : !in_array($method_filter, $selected_labels))) {
+            continue;
+        }
+        if ($name_filter && stripos($user_email . ' ' . $candidate_name, $name_filter) === false) {
+            continue;
+        }
+
+        $status_badge = '<span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-700">Pending</span>';
+        if ($status === 'approved') {
+            $status_badge = '<span class="px-2 py-1 text-xs font-medium rounded-full bg-green-200 text-green-700">Approved</span>';
+        } elseif ($status === 'rejected') {
+            $status_badge = '<span class="px-2 py-1 text-xs font-medium rounded-full bg-red-200 text-red-700">Rejected</span>';
+        }
+
+
+        echo '<tr class="cert-row hover:bg-blue-50 transition-colors duration-200 cursor-pointer">';
+        echo '<td class="px-3 py-2 text-gray-700 text-sm font-medium text-center break-words">' . esc_html($index + 1 + ($current_page - 1) * $rows_per_page) . '</td>';
+        echo '<td class="px-3 py-2 text-gray-700 text-sm break-words">' . esc_html(rgar($entry, $config['exam_order_no'])) . '</td>';
+        echo '<td class="px-3 py-2 text-gray-600 text-sm break-words">' . esc_html($user_email) . '</td>';
+        echo '<td class="px-3 py-2 text-gray-800 text-sm font-medium break-words">' . esc_html(!empty($selected_labels) ? implode(', ', $selected_labels) : 'None') . '</td>';
+        echo '<td class="px-3 py-2 text-gray-700 text-sm break-words">' . esc_html($prefer_center) . '</td>';
+        echo '<td class="px-3 py-2 text-gray-700 text-sm break-words">' . esc_html(rgar($entry, 'payment_amount')) . '</td>';echo '<td class="px-3 py-2 text-gray-700 text-sm break-words">' . esc_html($display_payment_mode) . '</td>';
+
+        echo '<td class="px-3 py-2 text-gray-700 text-sm break-words">' . esc_html(rgar($entry, 'payment_status')) . '</td>';
+        echo '<td class="px-3 py-2 text-gray-700 text-sm break-words">' . esc_html(date('d M Y', strtotime($entry['date_created']))) . '</td>';
+        echo '<td class="px-3 py-2 text-gray-700 text-sm break-words">' . $status_badge . '</td>';
+        echo '<td class="px-3 py-2 text-center">';
+        echo '<a href="' . esc_url("admin.php?page=gf_entries&view=entry&id={$form_id}&lid={$entry_id}") . '" class="doc_link">';
+        echo '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" fill="currentColor" viewBox="0 0 24 24">';
+        echo '<path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm1 2h7v5h5v10H7V4zm7-1.5L16.5 7H13V2.5zM8 11h8v2H8v-2zm0 4h8v2H8v-2z"/>';
+        echo '</svg>';
+        echo '</a>';
+        echo '</td>';
+        echo '</tr>';
+    }
+    echo '</tbody>';
+    echo '</table>';
+    echo '<div class="table_footer">';
+    echo '<div id="pagination" class="flex justify-center items-center gap-2 mt-4"></div>';
+    echo '<div id="totalCount" class="text-center mt-2 text-gray-600">Showing 1 to 10 of 0 entries</div>';
+    echo '</div>';
+    echo '</div>';
+    echo '</div>';
+       ?>
+  <!--   <style>
+        button {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+        .bg-blue-600 {
+            background-color: #2563eb;
+        }
+        .hover\:bg-blue-700:hover {
+            background-color: #1d4ed8;
+        }
+        .text-blue-600 {
+            color: #2563eb;
+        }
+        .hover\:text-blue-800:hover {
+            color: #1e40af;
+        }
+        .sort-arrow {
+            font-size: 1.2em;
+            margin-left: 2px;
+            vertical-align: middle;
+            font-weight: bold;
+            color: #ffffff;
+        }
+        .controls-container {
+            background-color: #ffffff;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        @media (min-width: 768px) {
+            .controls-container .flex-1 {
+                flex: 1;
+                max-width: 33.33%;
+            }
+            .controls-container button {
+                flex-shrink: 0;
+            }
+        }
+        #pagination button {
+            padding: 4px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            background-color: #ffffff;
+            cursor: pointer;
+            font-size: 0.875rem;    margin-right: 8px;
+        }
+        #pagination button.active {
+            background-color: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+        }
+        #pagination button:hover {
+            background-color: #e6f0fa;
+        }
+    </style> -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const headers = document.querySelectorAll('#certifiedTable thead th[data-sort]');
+            const searchInput = document.getElementById('searchInput');
+            const methodFilter = document.getElementById('methodFilter');
+            const statusFilter = document.getElementById('statusFilter');
+            const centerFilter = document.getElementById('centerFilter');
+            const tableBody = document.querySelector('#tableBody');
+            const paginationDiv = document.getElementById('pagination');
+            const totalCountDiv = document.getElementById('totalCount');
+            let currentSortColumn = null;
+            let currentSortDirection = 'asc';
+            let currentPage = 1;
+            const rowsPerPage = 10;
+            const totalUnfilteredRows = <?php echo count($entries); ?>;
+
+            function parseDate(dateStr) {
+                if (dateStr === 'Unknown') return 0;
+                return new Date(dateStr).getTime();
+            }
+
+            function getCellValue(row, column) {
+                const columnMap = {
+                    'exam_number': 1,
+                    'email': 2,
+                    'designator': 3,
+                    'prefer_center': 4,
+                    'payment_amount': 5,
+                    'payment_mode': 6,
+                    'payment_status': 7,
+                    'date_created': 8,
+                    'status': 9
+                };
+                const cellIndex = columnMap[column];
+                if (cellIndex === undefined) return '';
+                const cell = row.cells[cellIndex];
+                let value = cell.innerText.trim();
+                if (column === 'date_created') {
+                    return parseDate(value);
+                } else if (column === 'payment_amount') {
+                    return parseFloat(value) || value;
+                }
+                return value.toLowerCase();
+            }
+
+            function updateHeaderIndicators(activeColumn) {
+                headers.forEach(header => {
+                    const isActive = header.dataset.sort === activeColumn;
+                    const sortSpan = header.querySelector('.sort-arrow');
+                    if (isActive) {
+                        sortSpan.textContent = currentSortDirection === 'asc' ? '▲' : '▼';
+                    } else {
+                        sortSpan.textContent = '▲';
+                    }
+                });
+            }
+
+            // Set default arrows on page load
+            headers.forEach(header => {
+                const sortSpan = header.querySelector('.sort-arrow');
+                if (sortSpan) sortSpan.textContent = '▲';
+            });
+
+            headers.forEach(header => {
+                header.addEventListener('click', () => {
+                    const column = header.dataset.sort;
+                    if (!column) return;
+
+                    const rows = Array.from(document.querySelectorAll('#certifiedTable tbody tr'));
+                    const direction = currentSortColumn === column && currentSortDirection === 'asc' ? 'desc' : 'asc';
+
+                    rows.sort((a, b) => {
+                        const aValue = getCellValue(a, column);
+                        const bValue = getCellValue(b, column);
+
+                        if (column === 'payment_amount' || column === 'date_created') {
+                            if (aValue === bValue) return 0;
+                            if (!aValue) return 1;
+                            if (!bValue) return -1;
+                            return direction === 'asc' ? aValue - bValue : bValue - aValue;
+                        } else {
+                            return direction === 'asc' 
+                            ? aValue.localeCompare(bValue) 
+                            : bValue.localeCompare(aValue);
+                        }
+                    });
+
+                    rows.forEach((row, index) => {
+                        row.cells[0].innerText = index + 1;
+                    });
+
+                    const tbody = document.querySelector('#certifiedTable tbody');
+                    tbody.innerHTML = '';
+                    rows.forEach(row => tbody.appendChild(row));
+
+                    currentSortColumn = column;
+                    currentSortDirection = direction;
+                    updateHeaderIndicators(column);
+                    applyFilters();
+                });
+            });
+
+            // Search and filter functionality
+            searchInput.addEventListener('input', function () {
+                applyFilters();
+            });
+
+            methodFilter.addEventListener('change', function () {
+                applyFilters();
+            });
+
+            statusFilter.addEventListener('change', function () {
+                applyFilters();
+            });
+
+            if (centerFilter) {
+                centerFilter.addEventListener('change', function () {
+                    applyFilters();
+                });
+            }
+
+            function applyFilters() {
+                const searchTerm = searchInput.value.toLowerCase();
+                const selectedMethod = methodFilter.value;
+                const selectedStatus = statusFilter.value;
+                const selectedCenter = centerFilter ? centerFilter.value : '';
+                const rows = tableBody.getElementsByTagName('tr');
+                let visibleRows = [];
+                let isFiltered = false;
+
+                Array.from(rows).forEach(row => {
+                    const cells = row.getElementsByTagName('td');
+                    const methodCell = cells[3].innerText; // Designator column
+                    const statusCell = cells[9].innerText.toLowerCase(); // Status column
+                    const centerCell = cells[4].innerText; // Prefer Center column
+                    let searchMatch = true;
+                    let methodMatch = true;
+                    let statusMatch = true;
+                    let centerMatch = true;
+
+                    // Search filter
+                    if (searchTerm) {
+                        searchMatch = false;
+                        for (let i = 1; i < cells.length - 1; i++) { // Skip Actions column
+                            if (cells[i].innerText.toLowerCase().includes(searchTerm)) {
+                                searchMatch = true;
+                                break;
+                            }
+                        }
+                        isFiltered = true;
+                    }
+
+                    // Method filter
+                    if (selectedMethod && selectedMethod !== '') {
+                        methodMatch = methodCell.split(', ').includes(selectedMethod);
+                        isFiltered = true;
+                    }
+
+                    // Status filter
+                    if (selectedStatus && selectedStatus !== '') {
+                        statusMatch = statusCell.includes(selectedStatus);
+                        isFiltered = true;
+                    }
+
+                    // Center filter
+                    if (selectedCenter && selectedCenter !== '' && centerFilter) {
+                        centerMatch = centerCell === selectedCenter;
+                        isFiltered = true;
+                    }
+
+                    if (searchMatch && methodMatch && statusMatch && centerMatch) {
+                        row.style.display = '';
+                        visibleRows.push(row);
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                updatePagination(visibleRows, isFiltered);
+            }
+
+            function updatePagination(visibleRows, isFiltered) {
+                const totalRows = visibleRows.length;
+                const totalPages = Math.ceil(totalRows / rowsPerPage);
+                paginationDiv.innerHTML = '';
+
+                // Previous button
+                const prevButton = document.createElement('button');
+                prevButton.textContent = 'Previous';
+                prevButton.addEventListener('click', () => {
+                    if (currentPage > 1) {
+                        currentPage--;
+                        updatePagination(visibleRows, isFiltered);
+                    }
+                });
+                paginationDiv.appendChild(prevButton);
+
+                // Page numbers
+                for (let i = 1; i <= totalPages; i++) {
+                    const pageButton = document.createElement('button');
+                    pageButton.textContent = i;
+                    pageButton.addEventListener('click', () => {
+                        currentPage = i;
+                        updatePagination(visibleRows, isFiltered);
+                    });
+                    paginationDiv.appendChild(pageButton);
+                }
+
+                // Next button
+                const nextButton = document.createElement('button');
+                nextButton.textContent = 'Next';
+                nextButton.addEventListener('click', () => {
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        updatePagination(visibleRows, isFiltered);
+                    }
+                });
+                paginationDiv.appendChild(nextButton);
+
+                // Apply active class to current page
+                const pageButtons = paginationDiv.querySelectorAll('button:nth-child(n+2):nth-child(-n+' + (totalPages + 1) + ')');
+                pageButtons.forEach(button => button.classList.remove('active'));
+                if (currentPage <= pageButtons.length) {
+                    pageButtons[currentPage - 1].classList.add('active');
+                }
+
+                // Update total count with range
+                const startIndex = (currentPage - 1) * rowsPerPage + 1;
+                const endIndex = Math.min(currentPage * rowsPerPage, totalRows);
+                if (isFiltered && totalUnfilteredRows > totalRows) {
+                    totalCountDiv.textContent = `Showing ${startIndex} to ${endIndex} of ${totalRows} entries (filtered from ${totalUnfilteredRows} total entries)`;
+                } else {
+                    totalCountDiv.textContent = `Showing ${startIndex} to ${endIndex} of ${totalRows} entries`;
+                }
+
+                renderPage(visibleRows);
+            }
+
+            function renderPage(visibleRows) {
+                const start = (currentPage - 1) * rowsPerPage;
+                const end = start + rowsPerPage;
+                const paginatedRows = visibleRows.slice(start, end);
+
+                Array.from(tableBody.getElementsByTagName('tr')).forEach(row => {
+                    row.style.display = 'none';
+                });
+
+                paginatedRows.forEach((row, index) => {
+                    row.style.display = '';
+                    row.cells[0].innerText = index + 1 + (currentPage - 1) * rowsPerPage;
+                });
+            }
+
+            document.getElementById('exportCsv').addEventListener('click', function () {
+                const csvRows = [
+                    ['Exam Order No', 'User Email', 'Designator', 'Prefer Center', 'Payment Price', 'Payment Mode', 'Payment Status', 'Submitted Date', 'Status']
+                    ];
+                document.querySelectorAll('#tableBody tr').forEach(row => {
+                    if (row.style.display === 'none') return;
+                    const cols = row.querySelectorAll('td');
+                    csvRows.push([
+                        cols[1].innerText, // Exam Order No
+                        cols[2].innerText, // User Email
+                        cols[3].innerText, // Designator
+                        cols[4].innerText, // Prefer Center
+                        cols[5].innerText, // Payment Price
+                        cols[6].innerText, // Payment Mode
+                        cols[7].innerText, // Payment Status
+                        cols[8].innerText, // Submitted Date
+                        cols[9].innerText // Status
+                        ]);
+                });
+
+                const csvContent = csvRows.map(e => e.join(",")).join("\n");
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'submitted_forms.csv';
+                a.click();
+            });
+
+            // Initial filter and pagination
+            applyFilters();
+        });
+    </script>
+    <?php
+}
+
+function display_submitted_forms_page() {
+    display_form_entries_page(15, false);
+}
+
+
+function display_retest_forms_page() {
+   display_form_entries_page(30, true);
+}
+
+
+add_action('gform_entry_detail_sidebar_middle', 'add_examiner_assignment_to_entry', 10, 2);
+function add_examiner_assignment_to_entry($form, $entry) {
+    $allowed_form_ids = [15, 30];
+    $form_id = (int)$form['id'];
+
+    if (!in_array($form_id, $allowed_form_ids, true)) {
+        return;
+    }
+
+    $entry_id = $entry['id'];
+    $entry_status = gform_get_meta($entry_id, 'approval_status');
+    if (strtolower($entry_status) !== 'approved') {
+        echo '<div class="postbox"><h3 class="hndle"><span>Assign Examiner</span></h3><div class="inside"><p>This entry must be approved before assigning an examiner.</p></div></div>';
+        return;
+    }
+
+    $center_id = gform_get_meta($entry_id, '_linked_exam_center');
+    if (!$center_id) {
+        echo '<div class="postbox"><h3 class="hndle"><span>Assign Examiner/Invigilator</span></h3><div class="inside"><p>No exam center linked to this entry.</p></div></div>';
+        return;
+    }
+
+    $assigned_examiners = (array)gform_get_meta($entry_id, '_assigned_examiners');
+    $assigned_invigilators = (array)gform_get_meta($entry_id, '_assigned_invigilators');
+    $examiner_users = get_post_meta($center_id, 'assign_examiners', true);
+    $invigilator_users = get_post_meta($center_id, 'assign_invigilator', true);
+
+    if (empty($examiner_users) && empty($invigilator_users)) {
+        echo '<div class="postbox"><h3 class="hndle"><span>Assign Examiner/Invigilator</span></h3><div class="inside"><p>No examiners or invigilators found for this center.</p></div></div>';
+        return;
+    }
+
+    $invigilator_data = gform_get_meta($entry_id, '_invigilator_update_record',true);
+    //$invigilator_data = is_array($invigilator_data) ? $invigilator_data : [];
+
+    // Field mappings
+    $field_map = [
+        'form_15' => [
+            'methods' => ['188.1' => 'ET', '188.2' => 'MT', '188.3' => 'PT', '188.4' => 'UT', '188.5' => 'RT', '188.6' => 'VT', '188.7' => 'TT', '188.8' => 'PAUT', '188.9' => 'TOFD'],
+            'exam_order_no' => '789',
+            'preferred_exam_field_label' => 'Preferred Examination Date for %s:',
+        ],
+        'form_30' => [
+            'methods' => '1',
+            'exam_order_no' => '12',
+            'preferred_exam_field_id' => '6',
+        ],
+    ];
+    $config = $field_map['form_' . $form_id];
+
+    // Get methods
+    $field_188_values = [];
+    if ($form_id == 15) {
+        foreach ($config['methods'] as $key => $label) {
+            if (!empty(rgar($entry, $key))) {
+                $field_188_values[] = $label;
+            }
+        }
+        $exam_order_no = rgar($entry, $config['exam_order_no']);
+    } 
+    if ($form_id == 30) {
+        $method_value = trim(rgar($entry, $config['methods']) ?? '');
+        $field_188_values = !empty($method_value) ? [$method_value] : [];
+        $exam_order_no = rgar($entry, $config['exam_order_no']);
+    }
+
+    // Fetch marks entries
+    $marks_form_id = 25;
+    $marks_field_id = '20';
+    $search_criteria = [
+        'field_filters' => [
+            [
+                'key' => $marks_field_id,
+                'value' => $exam_order_no,
+            ],
+        ],
+    ];
+    $result_entries = GFAPI::get_entries($marks_form_id, $search_criteria);
+    $entries_by_method = [];
+    foreach ($result_entries as $entry_row) {
+        $method_name = $entry_row['28'] ?? '';
+        if (!empty($method_name)) {
+            $entries_by_method[$method_name] = $entry_row;
+        }
+    }
+
+    $method_dates = gform_get_meta($entry_id, '_method_slots',true);
+
+    $method_dates = is_array($method_dates) ? $method_dates : [];
+    $disable_assignment = !empty($entries_by_method);
+    $tomorrow = date('Y-m-d', strtotime('+1 day'));
+    ?>
+    <div id="side-sortables" class="meta-box-sortables ui-sortable">
+        <div id="submitdiv" class="postbox">
+            <div class="postbox-header">
+                <h2 class="hndle ui-sortable-handle">Assign Examiner and Invigilator</h2>
+                <div class="handle-actions hide-if-no-js">
+                    <button type="button" class="handlediv" aria-expanded="true">
+                        <span class="screen-reader-text">Toggle panel: Entry</span>
+                        <span class="toggle-indicator" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </div>
+            <div class="inside Examiners_label p-4">
+                <form id="assign-users-form">
+                    <?php wp_nonce_field('assign_users_nonce', 'assign_users_nonce_field'); ?>
+                    <h3 class="text-lg font-semibold mb-3">Select Examiners:</h3>
+                    <?php foreach ((array)$examiner_users as $user_id):
+                        $user = get_userdata($user_id);
+                        if ($user): ?>
+                            <label class="block mb-2">
+                                <input type="checkbox" name="assigned_examiners[]" value="<?= esc_attr($user_id) ?>" <?= in_array($user_id, $assigned_examiners) ? 'checked' : '' ?> class="mr-2">
+                                <?= esc_html($user->display_name) ?>
+                            </label>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                    <h3 class="text-lg font-semibold mt-4 mb-3">Select Invigilators:</h3>
+                    <?php foreach ((array)$invigilator_users as $user_id):
+                        $user = get_userdata($user_id);
+                        if ($user): ?>
+                            <label class="block mb-2">
+                                <input type="checkbox" name="assigned_invigilators[]" value="<?= esc_attr($user_id) ?>" <?= in_array($user_id, $assigned_invigilators) ? 'checked' : '' ?> class="mr-2">
+                                <?= esc_html($user->display_name) ?>
+                            </label>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                    <?php if (!empty($field_188_values)): ?>
+                        <h3 class="text-lg font-semibold mt-4 mb-3">Exam Slots</h3>
+                        <?php foreach ($field_188_values as $index => $method):
+                            $entry_data = GFAPI::get_entry($entry_id);
+                            $preferred_exam_field_id = '';
+                            if ($form_id == 15) {
+                                $form = GFAPI::get_form($entry_data['form_id']);
+                                foreach ($form['fields'] as $field) {
+                                    if ($field['label'] == sprintf($config['preferred_exam_field_label'], $method)) {
+                                        $preferred_exam_field_id = $field['id'];
+                                        break;
+                                    }
+                                }
+                            } else {
+                                $preferred_exam_field_id = $config['preferred_exam_field_id'];
+                            }
+
+                            $preferred_exam_date = $preferred_exam_field_id ? ($entry[$preferred_exam_field_id] ?? '') : '';
+                            $slot2_date = $method_dates[$method]['slot_2']['date'] ?? '';
+                            $slot2_time = $method_dates[$method]['slot_2']['time'] ?? '';
+                            $slot2_visible = !empty($slot2_date) || !empty($slot2_time);
+                            $slot2_display = $slot2_visible ? 'block' : 'none';
+                            $btn_text = $slot2_visible ? 'Remove Slot 2' : 'Add Slot 2';
+                            ?>
+                            <div class="mb-4 border border-gray-200 rounded-lg p-4 bg-gray-50 method-slot" data-method="<?= esc_attr($method) ?>">
+                                <h4 class="font-semibold mb-3 text-base text-gray-800"><?= esc_html($method) ?> Exam Slots</h4>
+                                <div class="slot-wrapper grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            Slot 1 Date <span class="text-red-500">*</span>
+                                        </label>
+                                        <input type="date" name="method_slots[<?= esc_attr($method) ?>][slot_1_date]" min="<?= esc_attr($tomorrow) ?>" value="<?= esc_attr(!empty($method_dates[$method]['slot_1']['date']) ? $method_dates[$method]['slot_1']['date'] : $preferred_exam_date) ?>" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2" required />
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            Slot 1 Time <span class="text-red-500">*</span>
+                                        </label>
+                                        <input type="time" name="method_slots[<?= esc_attr($method) ?>][slot_1_time]" value="<?= esc_attr($method_dates[$method]['slot_1']['time'] ?? '') ?>" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2" required />
+                                    </div>
+                                </div>
+                                <div class="slot-2-wrapper mt-3" style="display: <?= $slot2_display ?>;">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                Slot 2 Date
+                                            </label>
+                                            <input type="date" name="method_slots[<?= esc_attr($method) ?>][slot_2_date]" min="<?= esc_attr($tomorrow) ?>" value="<?= esc_attr($slot2_date) ?>" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                Slot 2 Time
+                                            </label>
+                                            <input type="time" name="method_slots[<?= esc_attr($method) ?>][slot_2_time]" value="<?= esc_attr($slot2_time) ?>" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="toggle-slot-2-btn mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium" data-method="<?= esc_attr($method) ?>"><?= esc_html($btn_text) ?></button>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    <input type="hidden" name="entry_id" value="<?= esc_attr($entry_id) ?>">
+                    <div class="mt-4 text-center">
+                        <input type="button" class="button button-primary save-assignment" value="Save Assignments" <?= $disable_assignment ? 'disabled' : '' ?> />
+                    </div>
+                    <?php if ($disable_assignment): ?>
+                        <p class="text-green-700 font-semibold text-center mt-2">Marks have already been entered. No further assignment needed.</p>
+                    <?php endif; ?>
+                    <div id="assign-response" class="mt-3 text-center"></div>
+                </form>
+            </div>
+        </div>
+
+        <?php if (!empty($field_188_values)): ?>
+        <div id="side-sortable" class="meta-box-sortables ui-sortable">
+            <div id="submitdivs" class="postbox">
+                <div class="postbox-header">
+                    <h2 class="hndle ui-sortable-handle">Candidate Marks</h2>
+                    <div class="handle-actions hide-if-no-js">
+                        <span class="hidden" id="submitdiv-handle-order-lower-description">Move Entry box down</span>
+                        <button type="button" class="handlediv" aria-expanded="true">
+                            <span class="screen-reader-text">Toggle panel: Entry</span>
+                            <span class="toggle-indicator" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="inside p-4">
+                    <?php foreach ($field_188_values as $method): ?>
+                        <h3 class="text-lg font-semibold mb-3"><?= esc_html($method) ?></h3>
+                        <?php
+                        $has_verified_slot = false;
+                        if (!empty($invigilator_data)) {
+                            foreach ($invigilator_data as $slot_key => $slot_info) {
+                                if (strpos($slot_key, $method . '|') === 0) {
+                                    $checkin = $slot_info['checkin_time'] ?? '';
+                                    $checkout = $slot_info['checkout_time'] ?? '';
+                                    if (!empty($checkin) && !empty($checkout)) {
+                                        $has_verified_slot = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if ($has_verified_slot) {
+                            if (isset($entries_by_method[$method])) {
+                                $method_key = sanitize_title($method);
+                                $marks_entry_id = gform_get_meta($entry_id, '_examiner_marks_entry_id_' . $method_key);
+                                if (!empty($marks_entry_id) && is_numeric($marks_entry_id)) {
+                                    $marks_entry_data = GFAPI::get_entry($marks_entry_id);
+                                    if (!is_wp_error($marks_entry_data)) {
+                                        $marks_form = GFAPI::get_form($marks_entry_data['form_id']);
+                                        $marks_combined = [];
+                                        $other_fields = [];
+                                        $practical_samples_html = '';
+                                        foreach ($marks_form['fields'] as $field) {
+                                            $field_id = $field->id;
+                                            $label = trim($field->label);
+                                            $value = $marks_entry_data[$field_id] ?? '';
+                                            if (empty($value) || in_array($field->type, ['html', 'hidden']) || in_array($field_id, [18])) {
+                                                continue;
+                                            }
+
+                                            if ($field_id == 54 && is_serialized($value)) {
+                                                $samples = maybe_unserialize($value);
+                                                if (is_array($samples)) {
+                                                    $items = [];
+                                                    foreach ($samples as $sample) {
+                                                        $sample_no = $sample['Practical Samples'] ?? '';
+                                                        $marks = $sample['Marks'] ?? '';
+                                                        if ($sample_no || $marks) {
+                                                            $items[] = esc_html($sample_no) . ' : ' . esc_html($marks);
+                                                        }
+                                                    }
+                                                    if (!empty($items)) {
+                                                        $practical_samples_html = "<tr><td class='font-medium px-2 py-1'><strong>Practical Samples</strong></td><td class='px-2 py-1'>" .
+                                                            implode('<br>', $items) . "</td></tr>";
+                                                    }
+                                                }
+                                                continue;
+                                            }
+                                            if (stripos($label, 'Marks Obtained') !== false) {
+                                                $base = trim(str_ireplace('Marks Obtained', '', $label));
+                                                $marks_combined[$base]['obtained'] = $value;
+                                                $marks_combined[$base]['label'] = $base;
+                                            } elseif (stripos($label, 'Total Marks') !== false) {
+                                                $base = trim(str_ireplace('Total Marks', '', $label));
+                                                $marks_combined[$base]['total'] = $value;
+                                                $marks_combined[$base]['label'] = $base;
+                                            } else {
+                                                $other_fields[$label] = $value;
+                                            }
+                                        }
+                                        echo '<table class="wp-list-table widefat striped"><tbody>';
+                                        foreach ($other_fields as $label => $value) {
+                                            echo '<tr><td class="font-medium px-2 py-1"><strong>' . esc_html($label) . ':</strong></td><td class="px-2 py-1">' . esc_html($value) . '</td></tr>';
+                                        }
+                                        foreach ($marks_combined as $data) {
+                                            echo '<tr><td class="font-medium px-2 py-1"><strong>' . esc_html($data['label']) . ':</strong></td>';
+                                            echo '<td class="px-2 py-1">' . esc_html($data['obtained'] ?? '-') . '/' . esc_html($data['total'] ?? '-') . '</td></tr>';
+                                        }
+                                        if (!empty($practical_samples_html)) {
+                                            echo $practical_samples_html;
+                                        }
+                                        echo '</tbody></table>';
+                                        $edit_link = esc_url(admin_url("admin.php?page=gf_entries&view=entry&id=25&lid={$marks_entry_id}"));
+                                        echo '<a href="' . $edit_link . '" class="button button-secondary mt-2 inline-block">View/Edit Marks</a>';
+
+                                        $notification_meta = gform_get_meta($marks_entry_id, '_notification_meta_' . sanitize_title($method));
+                                        $certificate_meta = gform_get_meta($marks_entry_id, '_certification_meta_' . sanitize_title($method));
+                                        $is_notification_generated = !empty($notification_meta['path']);
+                                        $notification_url = esc_url($notification_meta['url'] ?? '');
+                                        $notification_date = !empty($notification_meta['generated_at']) ? date('d M Y', strtotime($notification_meta['generated_at'])) : 'Unknown date';
+                                        $is_certificate_generated = !empty($certificate_meta['path']);
+                                        $certificate_url = esc_url($certificate_meta['url'] ?? '');
+                                        $certificate_date = !empty($certificate_meta['generated_at']) ? date('d M Y', strtotime($certificate_meta['generated_at'])) : 'Unknown date';
+
+                                        $not_issued_by_id = $notification_meta['issued_by'] ?? null;
+                                        $not_issued_by_user = $not_issued_by_id ? get_userdata($not_issued_by_id) : null;
+                                        $not_first_name = $not_issued_by_user ? get_user_meta($not_issued_by_id, 'first_name', true) : '';
+                                        $not_last_name = $not_issued_by_user ? get_user_meta($not_issued_by_id, 'last_name', true) : '';
+                                        $not_issued_by_name = trim($not_first_name . ' ' . $not_last_name);
+                                        if (empty($not_issued_by_name) && $not_issued_by_user) {
+                                            $not_issued_by_name = $not_issued_by_user->display_name;
+                                        }
+
+                                        $cert_issued_by_id = $certificate_meta['issued_by'] ?? null;
+                                        $cert_issued_by_user = $cert_issued_by_id ? get_userdata($cert_issued_by_id) : null;
+                                        $cert_first_name = $cert_issued_by_user ? get_user_meta($cert_issued_by_id, 'first_name', true) : '';
+                                        $cert_last_name = $cert_issued_by_user ? get_user_meta($cert_issued_by_id, 'last_name', true) : '';
+                                        $cert_issued_by_name = trim($cert_first_name . ' ' . $cert_last_name);
+                                        if (empty($cert_issued_by_name) && $cert_issued_by_user) {
+                                            $cert_issued_by_name = $cert_issued_by_user->display_name;
+                                        }
+
+                                        $manager_approval_status = gform_get_meta($marks_entry_id, '_manager_approval_status_' . sanitize_title($method));
+                                        $is_manager_approved = ($manager_approval_status === 'approved');
+
+                                        if (current_user_can('custom_aqb') || is_custom_super_admin()) {
+                                           // if (!$is_notification_generated): 
+                                                ?>
+                                                <form method="post" class="mt-3">
+                                                    <?php wp_nonce_field('generate_notification_nonce', 'generate_notification_nonce_field'); ?>
+                                                    <input type="hidden" name="generate_certificate" value="1">
+                                                    <input type="hidden" name="exam_entry_id" value="<?= esc_attr($entry_id) ?>">
+                                                    <input type="hidden" name="marks_entry_id" value="<?= esc_attr($marks_entry_id) ?>">
+                                                    <input type="hidden" name="method" value="<?= esc_attr($method) ?>">
+                                                    <label class="block mb-2 text-sm font-medium text-gray-700">
+                                                        <input type="checkbox" data-target="submitBtn_<?= $marks_entry_id; ?>" class="confirm-checkbox mr-2">
+                                                        Confirm that marks have been verified
+                                                    </label>
+                                                    <button id="submitBtn_<?= $marks_entry_id; ?>" class="button button-primary" disabled>Generate Result Notification</button>
+                                                </form>
+
+                                                <div class="mt-3 p-3 bg-gray-100 border-l-4 border-blue-600">
+                                                    <strong>Result Notification generated on:</strong> <?= esc_html($notification_date) ?><br>
+                                                    <strong>Issued by:</strong> <?= esc_html($not_issued_by_name ?: 'Unknown') ?><br>
+                                                    <a href="<?= $notification_url ?>" target="_blank" class="button button-secondary mt-2 inline-block">View Result Notification</a>
+                                                </div>
+                                            <?php //endif;
+                                        } elseif (current_user_can('custom_center')) {
+                                           // if ($is_notification_generated):
+                                            ?>
+                                                <div class="mt-3 p-3 bg-gray-100 border-l-4 border-blue-600">
+                                                    <strong>Result Notification generated on:</strong> <?= esc_html($notification_date) ?><br>
+                                                    <strong>Issued by:</strong> <?= esc_html($not_issued_by_name ?: 'Unknown') ?><br>
+                                                    <a href="<?= $notification_url ?>" target="_blank" class="button button-secondary mt-2 inline-block">View Result Notification</a>
+                                                </div>
+                                            <?php //else:
+                                             ?>
+                                                <div class="mt-3 p-3 bg-yellow-100 border-l-4 border-yellow-600">
+                                                    <strong>Result Notification is pending from AQB Admin.</strong><br>
+                                                    Please wait for AQB to generate it.
+                                                </div>
+                                            <?php //endif;
+                                        }
+                                        if (current_user_can('custom_manager')) {
+                                            if ($is_notification_generated && !$is_manager_approved): ?>
+                                                <form method="post" class="mt-3">
+                                                    <?php wp_nonce_field('approve_certificate_nonce', 'approve_certificate_nonce_field'); ?>
+                                                    <input type="hidden" name="approve_certificate_step" value="1">
+                                                    <input type="hidden" name="exam_entry_id" value="<?= esc_attr($entry_id) ?>">
+                                                    <input type="hidden" name="marks_entry_id" value="<?= esc_attr($marks_entry_id) ?>">
+                                                    <input type="hidden" name="method" value="<?= esc_attr($method) ?>">
+                                                    <p class="mb-2"><strong>Result Notification generated. Please review and approve for final certification.</strong></p>
+                                                    <button class="button button-primary">Approve for Final Certificate</button>
+                                                </form>
+                                            <?php elseif ($is_manager_approved): ?>
+                                                <div class="mt-3 p-3 bg-green-100 border-l-4 border-green-600">
+                                                    <strong>You approved this result for final certificate generation.</strong>
+                                                </div>
+                                            <?php endif;
+                                        }
+                                        if (is_custom_super_admin()) {
+                                            if (!$is_manager_approved): ?>
+                                                <div class="mt-3 p-3 bg-yellow-100 border-l-4 border-yellow-600">
+                                                    <strong>Final Certificate cannot be generated yet.</strong><br>
+                                                    Waiting for Manager to approve this result for certification.
+                                                </div>
+                                            <?php elseif (!$is_certificate_generated): ?>
+                                                <form method="post" class="mt-3">
+                                                    <?php wp_nonce_field('generate_final_certificate_nonce', 'generate_final_certificate_nonce_field'); ?>
+                                                    <input type="hidden" name="generate_final_certificate" value="1">
+                                                    <input type="hidden" name="exam_entry_id" value="<?= esc_attr($entry_id) ?>">
+                                                    <input type="hidden" name="marks_entry_id" value="<?= esc_attr($marks_entry_id) ?>">
+                                                    <input type="hidden" name="method" value="<?= esc_attr($method) ?>">
+                                                    <label class="block mb-2 text-sm font-medium text-gray-700">
+                                                        <input type="checkbox" data-target="generateBtn_<?= $marks_entry_id; ?>" class="confirm-certificate mr-2">
+                                                        Confirm that marks have been verified
+                                                    </label>
+                                                    <button id="generateBtn_<?= $marks_entry_id; ?>" class="button button-primary" disabled>Generate Final Certificate</button>
+                                                </form>
+                                            <?php else: ?>
+                                                <div class="mt-3 p-3 bg-gray-100 border-l-4 border-blue-600">
+                                                    <strong>Final Certificate generated on:</strong> <?= esc_html($certificate_date) ?><br>
+                                                    <strong>Issued by:</strong> <?= esc_html($cert_issued_by_name ?: 'Unknown') ?><br>
+                                                    <a href="<?= $certificate_url ?>" target="_blank" class="button button-secondary mt-2 inline-block">View Final Certificate</a>
+                                                </div>
+                                            <?php endif;
+                                        } elseif (current_user_can('custom_center')) {
+                                            if ($is_certificate_generated): ?>
+                                                <div class="mt-3 p-3 bg-gray-100 border-l-4 border-blue-600">
+                                                    <strong>Final Certificate generated on:</strong> <?= esc_html($certificate_date) ?><br>
+                                                    <strong>Issued by:</strong> <?= esc_html($cert_issued_by_name ?: 'Unknown') ?><br>
+                                                    <a href="<?= $certificate_url ?>" target="_blank" class="button button-secondary mt-2 inline-block">View Final Certificate</a>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="mt-3 p-3 bg-yellow-100 border-l-4 border-yellow-600">
+                                                    <strong>Final Certificate is pending from Super Admin.</strong><br>
+                                                    Please wait for it to be generated.
+                                                </div>
+                                            <?php endif;
+                                        }
+                                    } else {
+                                        echo '<p class="text-red-600"><em>Could not load marks entry.</em></p>';
+                                    }
+                                } else {
+                                    $examiner_marks_url = admin_url("admin.php?page=examiner-marks-entry&entry_id=" . intval($entry_id) . "&method=" . urlencode($method) . "&examno=" . esc_attr($exam_order_no));
+                                    echo '<a href="' . esc_url($examiner_marks_url) . '" class="button button-primary mt-2 inline-block">Add Marks</a>';
+                                }
+                            } else {
+                                echo '<p class="text-red-600"><em>Marks not added by examiner yet for this method.</em></p>';
+                            }
+                        } else {
+                            echo '<p class="text-red-600"><em>Candidate has not attended the exam yet.</em></p>';
+                        }
+                        ?>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+        <style>
+            .method-slot {
+                background-color: #f9fafb;
+                border-radius: 8px;
+                padding: 16px;
+                margin-bottom: 16px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            }
+            .method-slot h4 {
+                margin-bottom: 12px;
+                font-size: 16px;
+                color: #1f2937;
+            }
+            .slot-wrapper {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            @media (min-width: 768px) {
+                .slot-wrapper {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+            .slot-wrapper label {
+                font-size: 14px;
+                color: #374151;
+            }
+            .slot-wrapper input {
+                padding: 8px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                width: 100%;
+                font-size: 14px;
+                transition: border-color 0.2s, box-shadow 0.2s;
+            }
+            .slot-wrapper input:focus {
+                outline: none;
+                border-color: #2563eb;
+                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            }
+            .slot-2-wrapper {
+                margin-top: 12px;
+                padding-top: 12px;
+                border-top: 1px solid #e5e7eb;
+            }
+            .toggle-slot-2-btn {
+                display: inline-block;
+                margin-top: 12px;
+                padding: 6px 12px;
+                background-color: #e5e7eb;
+                color: #1f2937;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 500;
+                transition: background-color 0.2s, color 0.2s;
+            }
+            .toggle-slot-2-btn:hover {
+                background-color: #d1d5db;
+                color: #111827;
+            }
+            .postbox .inside {
+                padding: 16px;
+            }
+            .postbox h3, .postbox h2 {
+                font-size: 18px;
+                color: #1f2937;
+            }
+        </style>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                // Handle confirm-checkbox group
+                const checkboxes = document.querySelectorAll('.confirm-checkbox');
+                checkboxes.forEach(function (checkbox) {
+                    checkbox.addEventListener('change', function () {
+                        if (this.checked) {
+                            checkboxes.forEach(function (cb) {
+                                if (cb !== checkbox) {
+                                    cb.checked = false;
+                                    const btn = document.getElementById(cb.getAttribute('data-target'));
+                                    if (btn) btn.disabled = true;
+                                }
+                            });
+                            const btn = document.getElementById(this.getAttribute('data-target'));
+                            if (btn) btn.disabled = false;
+                        } else {
+                            const btn = document.getElementById(this.getAttribute('data-target'));
+                            if (btn) btn.disabled = true;
+                        }
+                    });
+                });
+
+                // Handle confirm-certificate group
+                const certificateCheckboxes = document.querySelectorAll('.confirm-certificate');
+                certificateCheckboxes.forEach(function (checkbox) {
+                    checkbox.addEventListener('change', function () {
+                        if (this.checked) {
+                            certificateCheckboxes.forEach(function (cb) {
+                                if (cb !== checkbox) {
+                                    cb.checked = false;
+                                    const btn = document.getElementById(cb.getAttribute('data-target'));
+                                    if (btn) btn.disabled = true;
+                                }
+                            });
+                            const btn = document.getElementById(this.getAttribute('data-target'));
+                            if (btn) btn.disabled = false;
+                        } else {
+                            const btn = document.getElementById(this.getAttribute('data-target'));
+                            if (btn) btn.disabled = true;
+                        }
+                    });
+                });
+
+                // Toggle slot 2 visibility
+                jQuery('.toggle-slot-2-btn').on('click', function() {
+                    var $btn = jQuery(this);
+                    var $wrapper = $btn.closest('.method-slot').find('.slot-2-wrapper');
+                    $wrapper.slideToggle(200);
+                    $btn.text($wrapper.is(':visible') ? 'Remove Slot 2' : 'Add Slot 2');
+                });
+
+                // Save assignment handler
+                jQuery('.save-assignment').on('click', function(e) {
+                    e.preventDefault();
+                    jQuery('#assign-response').html('<div class="text-blue-600">Processing...</div>');
+                    let examiner_ids = [];
+                    jQuery('input[name="assigned_examiners[]"]:checked').each(function() {
+                        examiner_ids.push(jQuery(this).val());
+                    });
+                    let invigilator_ids = [];
+                    jQuery('input[name="assigned_invigilators[]"]:checked').each(function() {
+                        invigilator_ids.push(jQuery(this).val());
+                    });
+                    let entry_id = jQuery('input[name="entry_id"]').val();
+                    let isValid = true;
+                    let now = new Date();
+                    let method_slots = {};
+                    jQuery('input[name^="method_slots"]').each(function() {
+                        let name = jQuery(this).attr('name');
+                        let value = jQuery(this).val();
+                        let parts = name.split(/\[|\]/).filter(p => p !== '');
+                        if (parts.length === 3) {
+                            let method = parts[1];
+                            let combined = parts[2];
+                            let match = combined.match(/(slot_\d+)_(date|time)/);
+                            if (match) {
+                                let slot = match[1];
+                                let type = match[2];
+                                method_slots[method] = method_slots[method] || {};
+                                method_slots[method][slot] = method_slots[method][slot] || {};
+                                method_slots[method][slot][type] = value;
+                            }
+                        }
+                    });
+
+                    Object.keys(method_slots).forEach(method => {
+                        let slot1 = method_slots[method]['slot_1'] || {};
+                        if (!slot1['date'] || !slot1['time']) {
+                            isValid = false;
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Missing Required Fields',
+                                text: `Slot 1 date and time are required for method: ${method}`
+                            });
+                            return false;
+                        }
+                        let slot1DateTime = new Date(`${slot1['date']}T${slot1['time']}`);
+                        if (slot1DateTime <= now) {
+                            isValid = false;
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Invalid Date/Time',
+                                text: `Slot 1 for ${method} must be in the future.`
+                            });
+                            return false;
+                        }
+                    });
+
+                    if (!isValid) {
+                        jQuery('#assign-response').html('');
+                        return;
+                    }
+                    Swal.fire({
+                        title: 'Are you sure?',
+                        text: 'Do you want to assign this entry?',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Yes, assign it!'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            Swal.fire({
+                                title: 'Processing...',
+                                text: 'Please wait while we are assigning the entry to the selected staff.',
+                                allowOutsideClick: false,
+                                allowEscapeKey: false,
+                                didOpen: () => Swal.showLoading()
+                            });
+
+                            jQuery.ajax({
+                                url: ajaxurl,
+                                method: 'POST',
+                                data: {
+                                    action: 'save_exam_assignments',
+                                    entry_id: entry_id,
+                                    assigned_examiners: examiner_ids,
+                                    assigned_invigilators: invigilator_ids,
+                                    method_slots: method_slots,
+                                    _nonce: jQuery('#assign_users_nonce_field').val()
+                                },
+                                success: function(response) {
+                                    if (typeof response === 'string') {
+                                        try {
+                                            response = JSON.parse(response);
+                                        } catch (e) {
+                                            Swal.fire({
+                                                icon: 'error',
+                                                title: 'Error!',
+                                                text: 'Invalid response format from server.'
+                                            });
+                                            jQuery('#assign-response').html('');
+                                            return;
+                                        }
+                                    }
+                                    if (response.success) {
+                                        Swal.fire({
+                                            title: 'Assignment done!',
+                                            text: 'The entry has been assigned.',
+                                            icon: 'success'
+                                        });
+                                        location.reload();
+                                    } else {
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'Error!',
+                                            text: response.data || 'Failed to save.'
+                                        });
+                                        jQuery('#assign-response').html('');
+                                    }
+                                },
+                                error: function() {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Error!',
+                                        text: 'AJAX request failed.'
+                                    });
+                                    jQuery('#assign-response').html('');
+                                }
+                            });
+                        } else {
+                            jQuery('#assign-response').html('');
+                        }
+                    });
+                });
+            });
+        </script>
+    <?php
+}
+
+function is_custom_super_admin() {
+    $current_user = wp_get_current_user();
+    $admin_email  = get_option('admin_email');
+
+    return strtolower($current_user->user_email) === strtolower($admin_email);
+}

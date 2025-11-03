@@ -1,0 +1,398 @@
+<?php
+// Create a custom admin menu
+add_action('admin_menu', 'register_custom_gravity_form_page');
+
+function register_custom_gravity_form_page() {
+    add_menu_page(
+        'Submitted Forms',   // Page title
+        'Submitted Forms',   // Menu title
+        'manage_options',    // Capability required
+        'submitted-forms',   // Menu slug
+        'display_submitted_forms_page', // Callback function
+        'dashicons-forms',   // Icon
+        20                   // Menu position
+    );
+}
+
+function display_submitted_forms_page() {
+    global $wpdb;
+
+    // Get all users who have submitted forms
+    $users = get_users(array(
+        'meta_key' => 'form_3_entry_id',  // Look for the 'form_3_entry_id' meta key
+        'meta_compare' => 'EXISTS'
+    ));
+
+    ?>
+    <div class="wrap">
+        <h1>Submitted Forms</h1>
+       <table id="submitted_form" class="wp-list-table widefat fixed striped">
+    <thead>
+        <tr>
+            <th>Submitted By</th>
+            <th>User Email</th>
+            <th>Submitted Date</th>
+            <th>Status</th> <!-- New status column -->
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php
+        foreach ($users as $user) {
+            $user_id = $user->ID;
+            $status = get_user_meta($user_id, 'form_3_approval_status', true); // Get status from user meta
+            $entry_id = get_user_meta($user_id, 'form_3_entry_id', true);  // Retrieve the entry ID
+
+            if (!empty($entry_id)) {
+                // Get entry details using GFAPI
+                $entry = GFAPI::get_entry($entry_id);
+                if (!is_wp_error($entry)) {
+                    $submitted_date = $entry['date_created'];  // Get the form submission date
+                    ?>
+                    <tr>
+                        <td><?php echo esc_html($user->display_name); ?></td>
+                        <td><?php echo esc_html($user->user_email); ?></td>
+                        <td><?php echo esc_html(date('F j, Y, g:i a', strtotime($submitted_date))); ?></td> <!-- Form submission date -->
+                        <td class="status">
+                            <?php
+                            if ($status == 'approved') {
+                                echo '<span style="color: green;">Approved</span>';
+                            } elseif ($status == 'rejected') {
+                                echo '<span style="color: red;">Rejected</span>';
+                            } else {
+                                echo '<span style="color: gray;">Pending</span>';
+                            }
+                            ?>
+                        </td>
+                        <td>
+                            <!-- View button with thickbox class -->
+                            <a href="#TB_inline?width=600&height=550&inlineId=view-entry-<?php echo $entry_id; ?>" class="thickbox button button-primary">View</a>
+                            <a href="#" data-entry-id="<?php echo $entry_id; ?>" data-user-id="<?php echo $user_id; ?>" class="button button-success approve-entry">Approve</a>
+                            <a href="#" data-entry-id="<?php echo $entry_id; ?>" data-user-id="<?php echo $user_id; ?>" class="button button-danger reject-entry">Reject</a>
+                        </td>
+                    </tr>
+                    <?php
+                }
+            }
+        }
+        ?>
+    </tbody>
+</table>
+
+
+        <?php
+        foreach ($users as $user) {
+            $user_id = $user->ID;
+            $entry_id = get_user_meta($user_id, 'form_3_entry_id', true);
+
+            if (!empty($entry_id)) {
+                ?>
+                <!-- Hidden div for Thickbox popup content -->
+                <div id="view-entry-<?php echo esc_attr($entry_id); ?>" style="display:none;">
+                    <h2>Entry Details for Form ID: 3</h2>
+                    <table class="wp-list-table widefat fixed striped">
+                        <?php
+                        $entry = GFAPI::get_entry($entry_id);
+
+                        if (!is_wp_error($entry)) {
+                            // Fetch form fields to get labels
+                            $form = GFAPI::get_form(3); // Replace with your actual form ID
+
+                            foreach ($form['fields'] as $field) {
+                                // Skip HTML fields
+                                if ($field->type === 'html') {
+                                    continue;
+                                }
+
+                                $field_id = $field->id;
+                                $label = $field->label; // Get the field label
+                                $value = rgar($entry, $field_id); // Retrieve the entry value
+
+                                // Handle list fields (serialized data)
+                                if ($field->type === 'list' && !empty($value)) {
+                                    $unserialized_data = maybe_unserialize($value);
+                                    
+                                    if (is_array($unserialized_data)) {
+                                        echo '<tr>';
+                                        echo '<th>' . esc_html($label) . '</th>';
+                                        echo '<td>';
+                                        echo '<table class="wp-list-table widefat fixed striped">';
+                                        
+                                        foreach ($unserialized_data as $list_item) {
+                                            if (is_array($list_item)) {
+                                                echo '<tr>';
+                                                foreach ($list_item as $sub_label => $sub_value) {
+                                                    echo '<td><strong>' . esc_html($sub_label) . ':</strong> ' . esc_html($sub_value) . '</td>';
+                                                }
+                                                echo '</tr>';
+                                            }
+                                        }
+                                        
+                                        echo '</table>';
+                                        echo '</td>';
+                                        echo '</tr>';
+                                    }
+                                }
+                                // Handle file upload field
+                                elseif ($field->type === 'fileupload' && !empty($value)) {
+                                    echo '<tr>';
+                                    echo '<th>' . esc_html($label) . '</th>';
+                                    echo '<td><a href="' . esc_url($value) . '" download>Download File</a></td>';
+                                    echo '</tr>';
+                                }
+                                // Handle signature field
+                                elseif ($field->type === 'signature' && !empty($value)) {
+                                    // Check if the value contains a URL with query parameters (Gravity Forms signature URL)
+                                    if (strpos($value, 'gf-signature=') !== false) {
+                                        // We need to construct the URL properly
+                                        $signature_url = esc_url($value);
+                                        echo '<tr>';
+                                        echo '<th>' . esc_html($label) . '</th>';
+                                        echo '<td><img src="' . esc_url($signature_url) . '" alt="Signature" style="max-width:200px;"/></td>';
+                                        echo '</tr>';
+                                    }
+                                    // Handle base64 signatures
+                                    elseif (strpos($value, 'data:image') === 0) {
+                                        echo '<tr>';
+                                        echo '<th>' . esc_html($label) . '</th>';
+                                        echo '<td><img src="' . esc_attr($value) . '" alt="Signature" style="max-width:200px;"/></td>';
+                                        echo '</tr>';
+                                    }
+                                } else {
+                                    // Display other field types (sanitize value)
+                                    $sanitized_value = wp_strip_all_tags($value, true);
+                                    echo '<tr>';
+                                    echo '<th>' . esc_html($label) . '</th>';
+                                    echo '<td>' . esc_html($sanitized_value) . '</td>';
+                                    echo '</tr>';
+                                }
+                            }
+                        } else {
+                            echo '<p>Error retrieving the entry.</p>';
+                        }
+                        ?>
+                    </table>
+                </div>
+                <?php
+            }
+        }
+        ?>
+    </div>
+    <script type="text/javascript">
+jQuery(document).ready(function($) {
+    // Loader element (you can style it as per your need)
+    var loader = $('<div id="ajax-loader" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);"><img src="loader.gif" alt="Loading..."/></div>');
+    $('body').append(loader);
+
+    // Show loader and disable buttons
+    function showLoader() {
+        loader.show();
+    }
+
+    // Hide loader and enable buttons
+    function hideLoader() {
+        loader.hide();
+    }
+
+    // Disable both Approve and Reject buttons after an action
+    function disableActionButtons(button) {
+        var row = button.closest('tr');
+        row.find('.approve-entry, .reject-entry').attr('disabled', true);
+    }
+
+    // Handle Approve button click
+    $('.approve-entry').on('click', function(e) {
+        e.preventDefault();
+
+        var button = $(this);
+        var entryId = button.data('entry-id');
+        var userId = button.data('user-id');
+
+        // Show loader
+        showLoader();
+
+        // AJAX request for approval
+        $.ajax({
+            type: 'POST',
+            url: '<?php echo admin_url('admin-ajax.php');?>',
+            data: {
+                action: 'approve_entry_ajax',  // Action hook for PHP
+                entry_id: entryId,
+                user_id: userId,
+                nonce: '<?php echo wp_create_nonce('approve_nonce');?>'
+            },
+            success: function(response) {
+                // Hide loader
+                hideLoader();
+
+                if (response.success) {
+                    button.closest('tr').find('.status').html('<span style="color: green;">Approved</span>');
+                    disableActionButtons(button);
+                    alert('Form has been approved and notifications sent.');
+                } else {
+                    alert('There was an error: ' + response.data);
+                }
+            },
+            error: function() {
+                hideLoader();
+                alert('Error occurred while processing the request.');
+            }
+        });
+    });
+
+    // Handle Reject button click
+    $('.reject-entry').on('click', function(e) {
+        e.preventDefault();
+
+        var button = $(this);
+        var entryId = button.data('entry-id');
+        var userId = button.data('user-id');
+
+        // Show SweetAlert prompt for rejection reason
+        Swal.fire({
+            title: 'Enter Rejection Reason',
+            input: 'textarea',
+            inputPlaceholder: 'Type your reason here...',
+            showCancelButton: true,
+            confirmButtonText: 'Reject',
+            cancelButtonText: 'Cancel',
+            showLoaderOnConfirm: true,
+            preConfirm: (rejectReason) => {
+                return new Promise((resolve, reject) => {
+                    if (rejectReason) {
+                        // Show loader
+                        showLoader();
+
+                        // AJAX request for rejection
+                        $.ajax({
+                            type: 'POST',
+                            url: '<?php echo admin_url('admin-ajax.php');?>',
+                            data: {
+                                action: 'reject_entry_ajax',  // Action hook for PHP
+                                entry_id: entryId,
+                                user_id: userId,
+                                reject_reason: rejectReason,
+                                nonce: '<?php echo wp_create_nonce('reject_nonce');?>'
+                            },
+                            success: function(response) {
+                                // Hide loader
+                                hideLoader();
+
+                                if (response.success) {
+                                    button.closest('tr').find('.status').html('<span style="color: red;">Rejected</span>');
+                                    disableActionButtons(button);
+                                    Swal.fire('Rejected', 'The form has been rejected and notifications sent.', 'success');
+                                } else {
+                                    Swal.fire('Error', response.data, 'error');
+                                }
+                            },
+                            error: function() {
+                                hideLoader();
+                                Swal.fire('Error', 'Error occurred while processing the request.', 'error');
+                            }
+                        });
+                    } else {
+                        Swal.fire('Warning', 'You must enter a reason to reject the form.', 'warning');
+                    }
+                });
+            }
+        });
+    });
+
+    // Disable buttons if status is already approved/rejected
+    $('tr').each(function() {
+        var status = $(this).find('.status').text().trim();
+        if (status === 'Approved' || status === 'Rejected') {
+            $(this).find('.approve-entry, .reject-entry').attr('disabled', true);
+        }
+    });
+});
+
+
+</script>
+    <?php
+}
+
+// Handle AJAX request for approval
+add_action('wp_ajax_approve_entry_ajax', 'handle_approve_entry_ajax');
+
+function handle_approve_entry_ajax() {
+    // Verify nonce for security
+    check_ajax_referer('approve_nonce', 'nonce');
+
+    // Get the entry ID and user ID from AJAX request
+    $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
+    $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
+
+    if (!$entry_id || !$user_id) {
+        wp_send_json_error('Invalid Entry or User ID.');
+    }
+
+    // Get user data
+    $user_info = get_userdata($user_id);
+    $user_email = $user_info->user_email;
+
+    // Admin email (can be hardcoded or fetched dynamically)
+    $admin_email = get_option('admin_email');
+
+    // Email subject and message for user
+    $user_subject = 'Your Form has been Approved';
+    $user_message = 'Hello ' . $user_info->display_name . ',\n\nYour form (Entry ID: ' . $entry_id . ') has been approved. Thank you for your submission!';
+
+    // Email subject and message for admin
+    $admin_subject = 'Form Approved Notification';
+    $admin_message = 'The form (Entry ID: ' . $entry_id . ') for user ' . $user_info->display_name . ' has been approved.';
+
+    // Send email to user
+    wp_mail($user_email, $user_subject, $user_message);
+
+    // Send email to admin
+    wp_mail($admin_email, $admin_subject, $admin_message);
+
+    // Save approval status in user meta
+    update_user_meta($user_id, 'form_3_approval_status', 'approved');
+
+    // If everything went fine, send success response
+    wp_send_json_success();
+}
+
+
+add_action('wp_ajax_reject_entry_ajax', 'handle_reject_entry_ajax');
+function handle_reject_entry_ajax() {
+    check_ajax_referer('reject_nonce', 'nonce');
+    $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
+    $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
+    $reject_reason = isset($_POST['reject_reason']) ? sanitize_text_field($_POST['reject_reason']) : '';
+
+    if (!$entry_id || !$user_id || !$reject_reason) {
+        wp_send_json_error('Missing parameters.');
+    }
+
+    // Update user meta for rejection status
+    update_user_meta($user_id, 'form_3_approval_status', 'rejected');
+
+    // Get user data
+    $user_info = get_userdata($user_id);
+    $user_email = $user_info->user_email;
+
+    // Admin email (can be hardcoded or fetched dynamically)
+    $admin_email = get_option('admin_email');
+
+    // Email subject and message for user
+    $user_subject = 'Your Form has been Rejected';
+    $user_message = 'Hello ' . $user_info->display_name . ',\n\nYour form (Entry ID: ' . $entry_id . ') has been rejected for the following reason:\n\n' . $reject_reason . '\n\nPlease review your submission and try again.';
+
+    // Email subject and message for admin
+    $admin_subject = 'Form Rejected Notification';
+    $admin_message = 'The form (Entry ID: ' . $entry_id . ') for user ' . $user_info->display_name . ' has been rejected for the following reason:\n\n' . $reject_reason;
+
+    // Send email to user
+    wp_mail($user_email, $user_subject, $user_message);
+
+    // Send email to admin
+    wp_mail($admin_email, $admin_subject, $admin_message);
+
+    // If everything went fine, send success response
+    wp_send_json_success();
+}
+?>

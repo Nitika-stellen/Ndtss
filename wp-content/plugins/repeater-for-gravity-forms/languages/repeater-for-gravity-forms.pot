@@ -1,0 +1,88 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Repeater for Gravity Forms\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-08-05 08:43+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: \n"
+"Language: \n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Loco https://localise.biz/\n"
+"X-Loco-Version: 2.8.0; wp-6.8.2; php-8.2.0\n"
+"X-Domain: repeater-for-gravity-forms"
+
+#: add_on.php:44
+msgid "add button text"
+msgstr ""
+
+#. Author of the plugin
+msgid "add-ons.org"
+msgstr ""
+
+#: add_on.php:36
+msgid "An optional title before each row of the repeater"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://add-ons.org/"
+msgstr ""
+
+#. URI of the plugin
+msgid "https://add-ons.org/plugin/gravity-forms-repeater-fields/"
+msgstr ""
+
+#: repeater-for-gravity-forms.php:36
+msgid "Initial Rows"
+msgstr ""
+
+#: repeater-for-gravity-forms.php:54
+msgid "Limit"
+msgstr ""
+
+#: repeater-for-gravity-forms.php:45
+msgid "Map field with Initial Rows"
+msgstr ""
+
+#: repeater-for-gravity-forms.php:50
+msgid "Map field with Initial Rows (ID field)"
+msgstr ""
+
+#: repeater-for-gravity-forms.php:57
+msgid ""
+"Max number of rows applicable by the user, leave empty for no limit (Free "
+"version limit = 5 )"
+msgstr ""
+
+#: fields/repeater_field.php:36
+msgid "Repeater end"
+msgstr ""
+
+#. Name of the plugin
+msgid "Repeater for Gravity Forms"
+msgstr ""
+
+#: fields/repeater_start_field.php:34
+msgid "Repeater Start"
+msgstr ""
+
+#: add_on.php:41
+msgid "Text button"
+msgstr ""
+
+#. Description of the plugin
+msgid ""
+"The add-on that allows specified groups of fields to be repeated by the user."
+msgstr ""
+
+#: repeater-for-gravity-forms.php:41
+msgid "The number of rows at start, if empty no rows will be created"
+msgstr ""
+
+#: add_on.php:33
+msgid "Title"
+msgstr ""

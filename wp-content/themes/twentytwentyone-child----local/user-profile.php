@@ -1,0 +1,1079 @@
+<?php
+/**
+ * User Profile Shortcode
+ * Displays user profile with tabs for Basic Profile, Membership, Event, SGNDT Certificates, and Final Certificates.
+ * Includes separate retest buttons for each failed subject and filter-based interface for final certificates.
+ *
+ * @package SGNDT
+ * @version 1.0.5
+ */
+
+function user_profile_shortcode() {
+    global $wpdb;
+    if (!is_user_logged_in()) {
+        return '<p>You must be logged in to view your profile.</p>';
+    }
+
+    $current_user = wp_get_current_user();
+
+    ob_start();
+    ?>
+    <div class="user-profile-header">
+				<?php
+				$current_user = wp_get_current_user();
+				$photo_url = get_user_meta($current_user->ID, 'custom_profile_photo', true);
+				if (!empty($photo_url)) {
+					echo '<img src="' . esc_url($photo_url) . '" alt="Profile Photo" style="max-width:150px; border-radius: 8px;">';
+				} else {
+					echo '<div style="width:150px; height:150px; background:#ccc; display:flex; align-items:center; justify-content:center; border-radius:8px;">No Photo</div>';
+				}
+				?>
+				<div class="user-profile-header-info">
+                    <h2><?php echo esc_html($current_user->display_name); ?>'s Profile</h2>
+				<p class="user-profile-email"><?php echo esc_html($current_user->user_email); ?></p>
+                </div>
+			</div>	
+    <div class="user-profile-container">
+        <div class="user-profile-tabs" role="tablist">
+            <ul>
+                <li><a href="#basic-profile-section" class="tab-link active-tab" role="tab" aria-selected="true" aria-controls="basic-profile-section">Basic Profile</a></li>
+                <li><a href="#membership-section" class="tab-link" role="tab" aria-selected="false" aria-controls="membership-section">Membership</a></li>
+                <li><a href="#event-participation-section" class="tab-link" role="tab" aria-selected="false" aria-controls="event-participation-section">Event</a></li>
+                <li><a href="#certificate-section" class="tab-link" role="tab" aria-selected="false" aria-controls="certificate-section">SGNDT Certificates</a></li>
+                <li><a href="#final-certificate-section" class="tab-link" role="tab" aria-selected="false" aria-controls="final-certificate-section">Final Certificates</a></li>
+            </ul>
+        </div>
+
+        <div class="user-profile-content">		
+
+            <!-- Basic Profile Section (unchanged) -->
+            <div id="basic-profile-section" class="user-profile-tab-content" role="tabpanel" aria-labelledby="basic-profile-tab">
+                <div class="main-profile">
+                    <h3>Basic Profile</h3>
+				
+                    <p><strong>First Name:</strong> <?php echo esc_attr($current_user->first_name); ?></p>
+                    <p><strong>Last Name:</strong> <?php echo esc_attr($current_user->last_name); ?></p>
+                    <p><strong>Email:</strong> <?php echo esc_attr($current_user->user_email); ?></p>
+                </div>
+                <?php echo do_shortcode('[user_address_section]'); ?>
+                <div class="upload-ce-section">
+                    <?php echo get_gravity_forms_certificates($current_user->ID); ?>
+                </div>
+            </div>
+
+            <!-- Membership Section (unchanged) -->
+            <div id="membership-section" class="user-profile-tab-content" style="display:none;" role="tabpanel" aria-labelledby="membership-tab">
+        <h3 class="section-title">Membership</h3>
+        <?php
+         $current_user = wp_get_current_user();
+    $membership_data = get_user_meta($current_user->ID, 'membership_data', true);
+    $membership_data = is_array($membership_data) ? $membership_data : [];
+    $membership_status = get_user_meta($current_user->ID, 'membership_approval_status', true);
+    $membership_type = get_user_meta($current_user->ID, 'membership_type', true);
+    $approval_date = get_user_meta($current_user->ID, 'membership_approval_date', true);
+    $membership_entry = get_user_meta($current_user->ID, 'ind_member_form_entry', true);
+
+    $membership_labels = [
+        'individual' => 'Individual Membership',
+        'corporate' => 'Corporate Membership'
+    ];
+        if ($membership_status || $membership_type) {
+            echo '<p>You have applied for <span class="highlight-text">' . esc_html($membership_labels[$membership_type] ?? 'Unknown Membership') . '</span></p>';
+            echo '<p>Membership Status: <span class="status-text status-' . esc_html($membership_status) . '">' . esc_html($membership_status) . '</span></p>';
+
+            if ($membership_status === 'pending') {
+                echo '<p>Your membership application is pending approval.</p>';
+            }
+        } else {
+            echo '<p>You have not applied for any membership.</p>';
+        }
+
+        if ($membership_entry) {
+            $entry = GFAPI::get_entry($membership_entry);
+            if (is_wp_error($entry)) {
+                echo '<p>Error retrieving membership data.</p>';
+            } else {
+                $form_id = isset($entry['form_id']) ? $entry['form_id'] : '';
+                $membership_types = '';
+
+                if ($form_id == 5 && isset($entry[27])) {
+                    $membership_types = explode('|', $entry[27])[0];
+                } elseif ($form_id == 4 && isset($entry[31])) {
+                    $membership_types = explode('|', $entry[31])[0];
+                }
+
+                if ($membership_types === "Annual") {
+                    $membership_types = 1;
+                }
+
+                if ($membership_status === 'approved' && $approval_date) {
+                    try {
+                        $start_date = new DateTime($approval_date);
+                        $expiry_date = $start_date->modify('+' . (int)$membership_types . ' years');
+                        echo '<p>Membership Expiry Date: <strong>' . $expiry_date->format('d/m/Y') . '</strong></p>';
+
+                        $current_date = new DateTime();
+                        if ($current_date > $expiry_date) {
+                            echo '<p>Your membership expired on <strong>' . $expiry_date->format('d/m/Y') . '</strong>.</p>';
+                            echo '<p>Please renew your membership by filling out this <a href="' . esc_url(home_url('/individual-membership/')) . '" target="_blank">renewal form</a>.</p>';
+                        }
+                    } catch (Exception $e) {
+                        error_log("Invalid membership approval date for user ID {$current_user->ID}: {$approval_date} - Error: " . $e->getMessage());
+                        echo '<p>Error displaying membership expiry date.</p>';
+                    }
+                }
+            }
+        }
+
+        // Display membership certificates
+        if (!empty($membership_data)) {
+            ?>
+            <h4>Your Memberships</h4>
+            <table class="membership-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background-color: #f2f2f2;">
+                        <th style="padding: 10px; border: 1px solid #ddd;">Membership Number</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Membership Type</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Certificate</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Expiry Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($membership_data as $membership) : ?>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;"><?php echo esc_html($membership['membership_number'] ?? 'N/A'); ?></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;"><?php echo esc_html($membership['membership_type'] ?? 'N/A'); ?></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">
+                                <?php if (!empty($membership['certificate_url'])) : ?>
+                                    <a href="<?php echo esc_url($membership['certificate_url']); ?>" class="button" download>Download Certificate</a>
+                                <?php else : ?>
+                                    No certificate available
+                                <?php endif; ?>
+                            </td>
+                            <td style="padding: 10px; border: 1px solid #ddd;"><?php echo esc_html($membership['expiry_date'] ? date('d/m/Y', strtotime($membership['expiry_date'])) : 'N/A'); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+            <?php
+        } else {
+            echo '<p>No membership certificates available.</p>';
+        }
+        ?>
+    </div>
+
+            <!-- SGNDT Certificates Section (unchanged) -->
+            <div id="certificate-section" class="user-profile-tab-content" style="display:none;" role="tabpanel" aria-labelledby="certificate-tab">
+                <style>
+                   
+                    .download-btn, .retest-btn { display: inline-block; padding: 6px 12px; font-size: 13px; color: white; text-decoration: none; border-radius: 4px; margin: 2px; }
+                    .download-btn { background-color: #0073aa; }
+                    .download-btn:hover { background-color: #005a87; }
+                    .retest-btn { background-color: #d9534f; }
+                    .retest-btn:hover { background-color: #c9302c; }
+                    .retest-btn.disabled { background-color: #cccccc; cursor: not-allowed; text-decoration: none; }
+                    .status-pass { color: green; font-weight: bold; }
+                    .status-fail { color: red; font-weight: bold; }
+                    .failed-subjects { color: red; position: relative; }
+                    .failed-subjects ul { list-style: none; padding: 0; margin: 0; }
+                    .failed-subjects li { margin: 5px 0; display: flex; justify-content: center; align-items: center; gap: 10px; }
+                    .tooltip { display: none; position: absolute; background-color: #333; color: white; padding: 8px; border-radius: 4px; font-size: 12px; z-index: 1000; width: 200px; text-align: left; top: 100%; left: 50%; transform: translateX(-100%); }
+                    .failed-subjects:hover .tooltip { display: block; }
+                    
+                  
+                </style>
+                <?php
+                global $wpdb;
+                $user_id = get_current_user_id();
+                $table_certifications = $wpdb->prefix . 'sgndt_certifications';
+                $table_subject_marks = $wpdb->prefix . 'sgndt_subject_marks';
+                $table_subject_price = $wpdb->prefix .'sgndt_exam_prices';
+
+                $certifications = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SELECT DISTINCT c.*
+                        FROM {$table_certifications} c
+                        WHERE c.user_id = %d
+                        AND c.issue_date = (
+                            SELECT MAX(c2.issue_date)
+                            FROM {$table_certifications} c2
+                            WHERE c2.user_id = c.user_id
+                            AND c2.method = c.method
+                            AND c2.level = c.level
+                            AND c2.sector = c.sector
+                        )
+                        ORDER BY c.issue_date DESC",
+                        $user_id
+                    ),
+                    ARRAY_A
+                );
+
+                if ($certifications) {
+                    echo '<table class="certificate-table" role="grid">
+                    <thead><tr><th>Method</th><th>Level</th><th>Sector</th><th>Scope</th><th>Notification Issue Date</th><th>Status</th><th>Failed Subjects</th></tr></thead><tbody>';
+
+                    $base_retest_url = home_url('/retest-form');
+
+                    foreach ($certifications as $cert) {
+                        $cert_id = $cert['certification_id'];
+                        $marks_entry_id = $cert['marks_entry_id'];
+                        $latest_attempt = $wpdb->get_var(
+                            $wpdb->prepare("SELECT MAX(attempt_number) FROM {$table_subject_marks} WHERE certification_id = %d", $cert_id)
+                        );
+
+                        $failed_subjects_raw = $wpdb->get_results(
+                            $wpdb->prepare(
+                                "SELECT subject_name, pass_status, status, percentage, marks_obtained, marks_total
+                                FROM {$table_subject_marks}
+                                WHERE certification_id = %d AND attempt_number = %d AND pass_status = 'Fail'",
+                                $cert_id,
+                                $latest_attempt
+                            ),
+                            ARRAY_A
+                        );
+
+                        $failed_subjects = [];
+                        $show_retest_links = [];
+                        $subject_details_by_name = [];
+
+                        foreach ($failed_subjects_raw as $subj) {
+                            $name = $subj['subject_name'];
+                            $failed_subjects[] = $name;
+                            $subject_details_by_name[$name] = $subj;
+
+                            if (empty($subj['status']) || strtolower($subj['status']) !== 'pending') {
+                                $show_retest_links[] = $name;
+                            }
+                        }
+
+                        $status_value = empty($failed_subjects) ? 'Pass' : 'Fail';
+                        $status_display = ($status_value === 'Pass') ? '<span class="status-pass">Pass</span>' : '<span class="status-fail">Fail</span>';
+
+                        $failed_subjects_display = '-';
+                        if (!empty($failed_subjects)) {
+                            $failed_subjects_display = '<span class="failed-subjects"><ul>';
+                            foreach ($failed_subjects as $subject_name) {
+                                $detail = $subject_details_by_name[$subject_name] ?? null;
+                                $tooltip = '';
+                                if ($detail) {
+                                    $tooltip = $subject_name . ': ' . 'Marks: ' . number_format($detail['marks_obtained'], 2) . '/' . number_format($detail['marks_total'], 2)
+                                    . '<br>Percentage: ' . number_format($detail['percentage'], 2) . '%'
+                                    . '<br>Status: ' . esc_html($detail['pass_status']);
+                                }
+
+                                $failed_subjects_display .= '<li style="position:relative;">' . esc_html($subject_name);
+
+                                if (!in_array($subject_name, $show_retest_links)) {
+                                    $failed_subjects_display .= ' <span class="status-fail">Retest Applied</span>';
+                                } else {
+                                     $base_price = $wpdb->get_var(
+                                        $wpdb->prepare(
+                                            "SELECT price FROM {$table_subject_price} WHERE level = %s AND subject = %s",
+                                            $cert['level'],
+                                            $subject_name
+                                        )
+                                    );
+                                  $final_price = $base_price + 150;
+                                   
+                                    $redirect_url = add_query_arg([
+                                        'orginal_exam_no' => $cert['exam_order_no'],
+                                        'cert_number' => $cert['cert_number'],
+                                        'retest_method' => $cert['method'],
+                                        'retest_sector' => $cert['sector'],
+                                        'retest_level' => $cert['level'],
+                                        'retest_scope' => $cert['scope'],
+                                        'retest_parts' => urlencode($subject_name),
+                                        'marks_entry_id' => $marks_entry_id,
+                                        'retest_price' => $final_price,
+                                    ], $base_retest_url);
+
+                                    $failed_subjects_display .= ' <a href="' . esc_url($redirect_url) . '" class="retest-btn">Apply Retest</a>';
+                                }
+
+                                $failed_subjects_display .= '<span class="tooltip">' . $tooltip . '</span></li>';
+                            }
+                            $failed_subjects_display .= '</ul></span>';
+                        }
+
+                        $result_notification_link = !empty($cert['certificate_link']) ? '<a class="result_link" href="' . esc_url($cert['certificate_link']) . '" target="_blank">View</a>' : '-';
+                        $notification_issue_date = !empty($cert['issue_date']) ? date('d/m/Y', strtotime($cert['issue_date'])) : '-';
+                        $certification_issue_date = '-';
+                        $expiry_display = '-';
+                        $action_display = ($status_value === 'Pass') ? 'Not Issued Yet' : 'Not Eligible';
+
+                        if (empty($cert['cert_number'])) {
+                            $cert['cert_number'] = 'N/A';
+                        }
+
+                        // echo '<tr>
+                        // <td>' . esc_html($cert['method']) . '</td>
+                        // <td>' . esc_html($cert['level']) . '</td>
+                        // <td>' . esc_html($cert['sector']) . '</td>
+                        // <td>' . esc_html($cert['scope']) . '</td>
+                        // <td>' . $notification_issue_date . '</td>
+                        // <td>' . $result_notification_link . '</td>
+                        // <td>' . $status_display . '</td>
+                        // <td>' . $failed_subjects_display . '</td>
+                        // </tr>';
+                        echo '<tr>
+                        <td>' . esc_html($cert['method']) . '</td>
+                        <td>' . esc_html($cert['level']) . '</td>
+                        <td>' . esc_html($cert['sector']) . '</td>
+                        <td>' . esc_html($cert['scope']) . '</td>
+                        <td>' . $notification_issue_date . '</td>
+                        <td>' . $status_display . '</td>
+                        <td>' . $failed_subjects_display . '</td>
+                        </tr>';
+                    }
+
+                    echo '</tbody></table>';
+                } else {
+                    echo '<p>No certifications found.</p>';
+                }
+                ?>
+            </div>
+
+              <!-- Final Certificates Section -->
+            <div id="final-certificate-section" class="user-profile-tab-content" style="display:none;" role="tabpanel" aria-labelledby="final-certificate-tab">
+                
+                <h3>Final Certificates</h3>
+                <div class="filter-container">
+                    <select id="method-filter" name="method_filter" aria-label="Filter by Method">
+                        <option value="">All Methods</option>
+                        <?php
+                        global $wpdb;
+                        $user_id = get_current_user_id();
+                        $methods = $wpdb->get_col($wpdb->prepare("SELECT DISTINCT method FROM {$wpdb->prefix}sgndt_final_certifications WHERE user_id = %d", $user_id));
+                        foreach ($methods as $method) {
+                            echo '<option value="' . esc_attr($method) . '">' . esc_html($method) . '</option>';
+                        }
+                        ?>
+                    </select>
+                    <select id="level-filter" name="level_filter" aria-label="Filter by Level">
+                        <option value="">All Levels</option>
+                        <?php
+                        $levels = $wpdb->get_col($wpdb->prepare("SELECT DISTINCT level FROM {$wpdb->prefix}sgndt_final_certifications WHERE user_id = %d", $user_id));
+                        foreach ($levels as $level) {
+                            echo '<option value="' . esc_attr($level) . '">' . esc_html($level) . '</option>';
+                        }
+                        ?>
+                    </select>
+                    <select id="status-filter" name="status_filter" aria-label="Filter by Status">
+                        <option value="">All Statuses</option>
+                        <option value="issued">Issued</option>
+                        <option value="pending">Pending</option>
+                    </select>
+                    <button id="reset-filters" style="padding: 8px; font-size: 14px; border-radius: 4px; background-color: #d9534f; color: white;">Reset Filters</button>
+                </div>
+                <div aria-live="polite" id="filter-status" style="display:none;"></div>
+                <table class="certificate-table" role="grid" id="final-certificate-table">
+                    <thead>
+                        <tr>
+                            <th>Certificate Number</th>
+                            <th>Method</th>
+                            <th>Level</th>
+                            <th>Sector</th>
+                            <th>Scope</th>
+                            <th>Issue Date</th>
+                            <th>Expiry Date</th>
+                            <th>Status</th>
+                            <th>Certificate Link</th>
+                            <!--<th>Action</th>-->
+                        </tr>
+                    </thead>
+                    <tbody id="final-certificate-tbody">
+                <?php
+                $final_certifications = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SELECT * FROM {$wpdb->prefix}sgndt_final_certifications WHERE user_id = %d ORDER BY issue_date DESC",
+                        $user_id
+                    ),
+                    ARRAY_A
+                );
+                
+
+                if ($final_certifications) {
+                    $current_date = new DateTime('now', new DateTimeZone('Asia/Kolkata')); // 06:29 PM IST, August 08, 2025
+                    $renewal_url = home_url('/renew-recertification');
+                    $recertification_url = home_url('/renew-recertification');
+                    $full_exam_url = home_url('/application-form');
+
+                    foreach ($final_certifications as $cert) {
+                        $issue_date = !empty($cert['issue_date']) ? date('d/m/Y', strtotime($cert['issue_date'])) : '-';
+                        $expiry_date = !empty($cert['expiry_date']) ? date('d/m/Y', strtotime($cert['expiry_date'])) : '-';
+                        $certificate_link = !empty($cert['certificate_link']) ? '<a href="' . esc_url($cert['certificate_link']) . '" class="download-btn" target="_blank">Download</a>' : '-';
+                        $cert_number = !empty($cert['certificate_number']) ? esc_html($cert['certificate_number']) : 'N/A';
+                        $status = !empty($cert['status']) ? esc_html($cert['status']) : 'N/A';
+                        $level = !empty($cert['level']) ? esc_html($cert['level']) : '';
+                        $exam_entry_id = !empty($cert['exam_entry_id']) ? esc_html($cert['exam_entry_id']) : '-';
+                        $marks_entry_id = !empty($cert['marks_entry_id']) ? esc_html($cert['marks_entry_id']) : '-';
+                        $marks_entry = GFAPI::get_entry($marks_entry_id);
+                        $action = '-';
+                        if (!empty($cert['issue_date']) && !empty($cert['expiry_date'])) {
+                            try {
+                                $issue_datetime = new DateTime($cert['issue_date'], new DateTimeZone('Asia/Kolkata'));
+                                $expiry_datetime = new DateTime($cert['expiry_date'], new DateTimeZone('Asia/Kolkata'));
+                                $renewal_eligible_date = clone $expiry_datetime;
+                                $renewal_eligible_date->modify('-6 months');
+                                $renewal_deadline_date = clone $expiry_datetime;
+                                $renewal_deadline_date->modify('+12 months');
+                                $recertification_eligible_date = clone $expiry_datetime;
+                                $recertification_eligible_date->modify('-6 months');
+
+                                $interval = $current_date->diff($issue_datetime);
+                                $years_since_issue = $interval->y + ($interval->m / 12);
+                                $is_recertification_cycle = $years_since_issue >= 10;
+
+                                if ($is_recertification_cycle) {
+                                    if ($current_date >= $recertification_eligible_date && $current_date <= $renewal_deadline_date) {
+                                        $action = '<div class="action-cell-wrapper">
+                                       
+                                            <div class="action-buttons recertification-buttons">
+                                                <a href="' . esc_url(add_query_arg([
+                                                    'cert_number' => $cert['certificate_number'],
+                                                    'method' => $cert['method'],
+                                                    'level' => $cert['level'],
+                                                    'sector' => $cert['sector'],
+                                                    'scope' => $cert['scope'],
+                                                    'exam_entry_id' => $cert['exam_entry_id'],
+                                                    'marks_entry_id' => $cert['marks_entry_id'],
+                                                    'renew_method' => 'cpd'
+                                                ], $recertification_url)) . '" class="action-button" data-action="cpd">Recertification by CPD</a>
+                                                <a href="' . esc_url(add_query_arg([
+                                                    'cert_number' => $cert['certificate_number'],
+                                                    'method' => $cert['method'],
+                                                    'level' => $cert['level'],
+                                                    'sector' => $cert['sector'],
+                                                    'scope' => $cert['scope'],
+                                                    'exam_entry_id' => $cert['exam_entry_id'],
+                                                    'marks_entry_id' => $cert['marks_entry_id'],
+                                                    'renew_method' => 'exam'
+                                                ], $recertification_url)) . '" class="action-button" data-action="exam">Recertification by Exam</a>
+                                            </div>
+                                        </div>';
+                                    } elseif ($current_date > $renewal_deadline_date) {
+                                        $action = '<div class="action-cell-wrapper">
+                                     
+                                            <div class="action-buttons full-exam-buttons">
+                                                <a href="' . esc_url(add_query_arg([
+                                                    'cert_number' => $cert['certificate_number'],
+                                                    'method' => $cert['method'],
+                                                    'level' => $cert['level'],
+                                                    'sector' => $cert['sector'],
+                                                    'scope' => $cert['scope'],
+                                                    'exam_entry_id' => $cert['exam_entry_id'],
+                                                    'marks_entry_id' => $cert['marks_entry_id'],
+                                                    'renew_method' => 'cpd'
+                                                ], $full_exam_url)) . '" class="action-button" data-action="cpd">Renew by CPD</a>
+                                                <a href="' . esc_url(add_query_arg([
+                                                    'cert_number' => $cert['certificate_number'],
+                                                    'method' => $cert['method'],
+                                                    'level' => $cert['level'],
+                                                    'sector' => $cert['sector'],
+                                                    'scope' => $cert['scope'],
+                                                    'exam_entry_id' => $cert['exam_entry_id'],
+                                                    'marks_entry_id' => $cert['marks_entry_id'],
+                                                    'renew_method' => 'exam'
+                                                ], $full_exam_url)) . '" class="action-button" data-action="exam">Renew by Exam</a>
+                                            </div>
+                                        </div>';
+                                    }
+                                } else {
+                                    if ($current_date >= $renewal_eligible_date && $current_date <= $renewal_deadline_date) {
+                                        $action = '<div class="action-cell-wrapper">
+                                         
+                                            <div class="action-buttons renewal-buttons">
+                                                <a href="' . esc_url(add_query_arg([
+                                                    'cert_number' => $cert['certificate_number'],
+                                                    'method' => $cert['method'],
+                                                    'level' => $cert['level'],
+                                                    'sector' => $cert['sector'],
+                                                    'scope' => $cert['scope'],
+                                                    'exam_entry_id' => $cert['exam_entry_id'],
+                                                    'marks_entry_id' => $cert['marks_entry_id'],
+                                                    'renew_method' => 'cpd'
+                                                ], $renewal_url)) . '" class="action-button" data-action="cpd">Renew by CPD</a>
+                                                <a href="' . esc_url(add_query_arg([
+                                                    'cert_number' => $cert['certificate_number'],
+                                                    'method' => $cert['method'],
+                                                    'level' => $cert['level'],
+                                                    'sector' => $cert['sector'],
+                                                    'scope' => $cert['scope'],
+                                                    'exam_entry_id' => $cert['exam_entry_id'],
+                                                    'marks_entry_id' => $cert['marks_entry_id'],
+                                                    'renew_method' => 'exam'
+                                                ], $renewal_url)) . '" class="action-button" data-action="exam">Renew by Exam</a>
+                                            </div>
+                                        </div>';
+                                    } elseif ($current_date > $renewal_deadline_date) {
+                                        $action = '<span class="status-fail">Expired</span>';
+                                    }
+                                }
+                            } catch (Exception $e) {
+                                error_log("Error processing dates for certificate {$cert['certificate_number']}: " . $e->getMessage());
+                                $action = '<span class="status-fail">Error</span>';
+                            }
+                        }
+
+                        echo '<tr data-method="' . esc_attr($cert['method']) . '" data-level="' . esc_attr($cert['level']) . '" data-status="' . esc_attr($cert['status']) . '">
+                            <td>' . $cert_number . '</td>
+                            <td>' . esc_html($cert['method']) . '</td>
+                            <td>' . esc_html($cert['level']) . '</td>
+                            <td>' . esc_html($cert['sector']) . '</td>
+                            <td>' . esc_html($cert['scope']) . '</td>
+                            <td>' . $issue_date . '</td>
+                            <td>' . $expiry_date . '</td>
+                            <td>' . $status . '</td>
+                            <td>' . $certificate_link . '</td>
+                             <!-- <td>' . $action . '</td> -->
+                        </tr>';
+                    }
+                } else {
+                    echo '<tr><td colspan="12">No final certificates found.</td></tr>';
+                }
+                ?>
+            </tbody>
+                </table>
+            </div>
+
+            <!-- Event Participation Section (unchanged) -->
+            <div id="event-participation-section" class="user-profile-tab-content" style="display:none;">
+                <?php
+                $user_id = get_current_user_id();
+                $registered_events = get_user_meta($user_id, 'registered_event_ids', false);
+
+                if (!empty($registered_events)) {
+                    echo '<h3 class="event-section-title">Your Registered Events</h3>';
+                    echo '<div class="event-container">';
+
+                    foreach ($registered_events as $event_id) {
+                        $event_title = get_the_title($event_id);
+                        $event_link = get_permalink($event_id);
+                        $event_status = get_user_meta($user_id, 'event_' . $event_id . '_approval_status', true);
+                        $event_status = !empty($event_status) ? ucfirst($event_status) : 'Pending';
+                        $event_start = get_post_meta($event_id, '_EventStartDate', true);
+                        $event_end = get_post_meta($event_id, '_EventEndDate', true);
+                        $event_duration_text = 'N/A';
+
+                        if (!empty($event_start) && !empty($event_end)) {
+                            $start_time = strtotime($event_start);
+                            $end_time = strtotime($event_end);
+                            if ($end_time > $start_time) {
+                                $duration_seconds = $end_time - $start_time;
+                                $hours = floor($duration_seconds / 3600);
+                                $minutes = floor(($duration_seconds % 3600) / 60);
+                                if ($hours > 0) {
+                                    $event_duration_text = $hours . ' hr' . ($hours > 1 ? 's' : '') . ' ' . $minutes . ' min';
+                                } else {
+                                    $event_duration_text = $minutes . ' minutes';
+                                }
+                            } else {
+                                $event_duration_text = 'Invalid duration';
+                            }
+                        }
+
+                        $check_in_status = get_user_meta($user_id, 'event_' . $event_id . '_check_in_status', true);
+                        $check_in_time = get_user_meta($user_id, 'event_' . $event_id . '_check_in_time', true);
+                        $check_out_time = get_user_meta($user_id, 'event_' . $event_id . '_check_out_time', true);
+                        $total_hours_attended = get_user_meta($user_id, 'event_' . $event_id . '_total_hours', true);
+                        $total_hours_text = 'N/A';
+                        if (!empty($total_hours_attended)) {
+                            if ($total_hours_attended < 1) {
+                                $total_minutes_attended = round($total_hours_attended * 60);
+                                $total_hours_text = $total_minutes_attended . ' minutes';
+                            } else {
+                                $hours_attended = floor($total_hours_attended);
+                                $minutes_attended = round(($total_hours_attended - $hours_attended) * 60);
+                                $total_hours_text = $hours_attended . ' hr' . ($hours_attended > 1 ? 's' : '') . ' ' . $minutes_attended . ' min';
+                            }
+                        }                        
+                        $cpd_points = get_user_meta($user_id, 'event_' . $event_id . '_cpd_points', true); $event_end_timestamp = !empty($event_end) ? strtotime($event_end) : 0;
+                        $current_timestamp = strtotime(current_time('mysql'));
+                        $event_has_ended = ($event_end_timestamp > 0 && $current_timestamp > $event_end_timestamp);
+                        
+                        $check_in_status_text = '';
+                        $check_in_time_text = 'N/A';
+                        $check_out_time_text = 'N/A';
+                        $check_out_button = '';
+
+                        if ($check_in_status === 'checked_in' && !$event_has_ended) {
+                            $check_in_status_text = '<span class="status badge blue">Checked-In</span>';
+                            $check_in_time_text = !empty($check_in_time) ? date("d/m/Y, h:i A", strtotime($check_in_time)) : 'N/A';
+                            $check_out_time_text = 'Not Checked-Out';
+                            $check_out_button = '<button class="checkout-button" 
+                            data-user-id="' . esc_attr($user_id) . '" 
+                            data-event-id="' . esc_attr($event_id) . '">
+                            Check-Out
+                            </button>';
+                        } elseif ($check_in_status === 'checked_out') {
+                            $check_in_status_text = '<span class="status badge green">Checked-Out</span>';
+                            $check_in_time_text = !empty($check_in_time) ? date("d/m/Y, h:i A", strtotime($check_in_time)) : 'N/A';
+                            $check_out_time_text = !empty($check_out_time) ? date("d/m/Y, h:i A", strtotime($check_out_time)) : 'N/A';
+                        } elseif ($check_in_status === 'checked_in' && $event_has_ended) {
+                            $check_in_status_text = '<span class="status badge grey">Checked-In (Event Ended)</span>';
+                            $check_in_time_text = !empty($check_in_time) ? date("d/m/Y, h:i A", strtotime($check_in_time)) : 'N/A';
+                            $check_out_time_text = 'Not Checked-Out';
+                        } else {
+                            $check_in_status_text = '<span class="status badge red">Not Checked-In</span>';
+                        }
+                        
+                        ?>
+                        <div class="event-card">
+                            <h4><a href="<?php echo esc_url($event_link); ?>"><?php echo esc_html($event_title); ?></a></h4>
+                            <p><strong>Status:</strong> <?php echo $event_status; ?></p>
+                            <p><strong>Event Duration:</strong> <?php echo $event_duration_text; ?></p>
+                            <p><strong>Check-In Status:</strong> <?php echo $check_in_status_text; ?></p>
+                            <p><strong>Check-In Time:</strong> <?php echo $check_in_time_text; ?></p>
+                            <p><strong>Check-Out Time:</strong> <?php echo $check_out_time_text; ?></p>
+                            <p><strong>Total Hours Attended:</strong> <?php echo $total_hours_text; ?></p>
+                            <p><strong>CPD Points Earned:</strong> <?php echo !empty($cpd_points) ? esc_html($cpd_points) : 'N/A'; ?></p>
+                            <?php echo $check_out_button; ?>
+                        </div>
+                        <?php
+                    }
+                    echo '</div>';
+                } else {
+                    echo '<p>You have not registered for any events yet.</p>';
+                }
+                ?>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+document.addEventListener('DOMContentLoaded', function() { // Ensure DOM is ready
+    const buttons = document.querySelectorAll('.action-button');
+    if (!buttons.length) {
+        console.log('No action buttons found. Check HTML structure.');
+    }
+    buttons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const cell = this.closest('td');
+            const examId = cell.querySelector('[data-exam-id]').getAttribute('data-exam-id');
+            const marksId = cell.querySelector('[data-marks-id]').getAttribute('data-marks-id');
+            const method = cell.querySelector('[data-method]').getAttribute('data-method');
+            const actionType = cell.querySelector('[data-type]').getAttribute('data-type');
+            const renewMethod = this.getAttribute('data-action');
+            console.log(`Clicked: ${actionType} by ${renewMethod}, Exam ID: ${examId}, Marks ID: ${marksId}, Method: ${method}`); // Debug
+            // Add AJAX call or redirect logic here
+            window.location.href = this.href; // Follow the link
+        });
+    });
+});
+
+
+    jQuery(document).ready(function($) {
+        function initializeTabs() {
+        $('.user-profile-tab-content').hide();
+        $('#basic-profile-section').show();
+        $('.tab-link').removeClass('active-tab').attr('aria-selected', 'false');
+        $('.tab-link[href="#basic-profile-section"]').addClass('active-tab').attr('aria-selected', 'true');
+        console.log('Tabs initialized: Basic Profile shown');
+    }
+
+    // Tab click handler
+    $('.tab-link').on('click', function(e) {
+        e.preventDefault();
+        var $this = $(this);
+        var target = $this.attr('href');
+
+        if (!$(target).length) {
+            console.error('Tab target not found: ' + target);
+            return;
+        }
+
+        $('.tab-link').removeClass('active-tab').attr('aria-selected', 'false');
+        $this.addClass('active-tab').attr('aria-selected', 'true');
+        $('.user-profile-tab-content').hide();
+        $(target).show();
+
+        console.log('Switched to tab: ' + target);
+        if (target === '#final-certificate-section') {
+            applyFilters();
+        }
+    });
+
+    // Filter handler for Final Certificates
+    function applyFilters() {
+        var methodFilter = $('#method-filter').val();
+        var levelFilter = $('#level-filter').val();
+        var statusFilter = $('#status-filter').val();
+
+        var $tbody = $('#final-certificate-tbody');
+        var $originalRows = $tbody.data('originalRows');
+        if (!$originalRows) {
+            $originalRows = $tbody.html();
+            $tbody.data('originalRows', $originalRows);
+        }
+
+        // Show all rows if no filters are applied
+        if (!methodFilter && !levelFilter && !statusFilter) {
+            $tbody.html($originalRows);
+            $('#filter-status').text('All certificates displayed.');
+            return;
+        }
+
+        // Apply filters
+        var $rows = $tbody.find('tr').filter(function() {
+            var $row = $(this);
+            var method = $row.data('method') || '';
+            var level = $row.data('level') || '';
+            var status = $row.data('status') || '';
+
+            var showRow = true;
+            if (methodFilter && method !== methodFilter) showRow = false;
+            if (levelFilter && level !== levelFilter) showRow = false;
+            if (statusFilter && status !== statusFilter) showRow = false;
+
+            return showRow;
+        });
+
+        // Update table body
+        $tbody.html($rows.length > 0 ? $rows : '<tr><td colspan="10">No certificates match the selected filters.</td></tr>');
+
+        // Update ARIA live region
+        var visibleRows = $rows.length;
+        $('#filter-status').text(visibleRows > 0 ? visibleRows + ' certificates found.' : 'No certificates match the selected filters.');
+    }
+
+    // Filter change handler
+    $('#method-filter, #level-filter, #status-filter').on('change', applyFilters);
+
+    // Reset filters
+    $('#reset-filters').on('click', function() {
+        $('#method-filter').val('');
+        $('#level-filter').val('');
+        $('#status-filter').val('');
+        applyFilters();
+    });
+
+    // Initialize tabs and filters
+    initializeTabs();
+    if ($('.tab-link[href="#final-certificate-section"]').hasClass('active-tab')) {
+        applyFilters();
+    }
+
+            
+
+        // Checkout button handler (unchanged)
+        $('.checkout-button').on('click', function(e) {
+            e.preventDefault();
+            var userId = $(this).data('user-id');
+            var eventId = $(this).data('event-id');
+
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "Do you want to check-out for this event?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, check-out!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                        type: 'POST',
+                        data: {
+                            action: 'event_checkout_ajax',
+                            user_id: userId,
+                            event_id: eventId,
+                        },
+                        beforeSend: function() {
+                            Swal.fire({
+                                title: 'Processing...',
+                                text: 'Please wait while we process your request.',
+                                showConfirmButton: false,
+                                allowOutsideClick: false,
+                                icon: 'info'
+                            });
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                Swal.fire({
+                                    title: 'Checked-Out Successfully!',
+                                    text: response.data.message,
+                                    icon: 'success',
+                                    confirmButtonText: 'OK'
+                                }).then(() => {
+                                    var eventId = response.data.event_id;
+                                    var totalHours = response.data.total_hours;
+                                    $('.event-' + eventId + '-status').html('Checked-Out - Total Time Spent: ' + totalHours + ' hours');
+                                    $('.event-' + eventId + '-checkout-button').remove();
+                                    location.reload();
+                                });
+                            } else {
+                                Swal.fire({
+                                    title: 'Error!',
+                                    text: response.data.message,
+                                    icon: 'error',
+                                    confirmButtonText: 'OK'
+                                });
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Checkout AJAX error: ' + error);
+                            Swal.fire({
+                                title: 'Error!',
+                                text: 'An unexpected error occurred: ' + error,
+                                icon: 'error',
+                                confirmButtonText: 'OK'
+                            });
+                        }
+                    });
+                }
+            });
+        });
+
+        // Membership form handler (unchanged)
+        $('#membership-form').on('submit', function(e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+            $.ajax({
+                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    $('#membership-result').html('<p class="success-message">' + response.data.message + '</p>');
+                    location.reload();
+                },
+                error: function(response) {
+                    console.error('Membership form submission error: ' + response.statusText);
+                    $('#membership-result').html('<p class="error-message">Error uploading CPD certificate.</p>');
+                }
+            });
+        });
+    });
+    </script>
+    <?php
+    return ob_get_clean();
+}
+
+/**
+ * Disable header and footer for popup views (unchanged)
+ */
+function disable_header_footer_for_popup() {
+    if (isset($_GET['popup']) && $_GET['popup'] == '1') {
+        remove_all_actions('get_header');
+        remove_all_actions('get_footer');
+    }
+}
+add_action('template_redirect', 'disable_header_footer_for_popup');
+
+add_shortcode('user_profile', 'user_profile_shortcode');
+
+/**
+ * Handle CPD certificate upload via AJAX (unchanged)
+ */
+add_action('wp_ajax_update_cpd_certificate', 'update_cpd_certificate');
+function update_cpd_certificate() {
+    if (!is_user_logged_in()) {
+        wp_send_json_error(array('message' => 'You must be logged in to upload a CPD certificate.'));
+    }
+
+    $current_user = wp_get_current_user();
+
+    if (isset($_FILES['cpd_cert']) && $_FILES['cpd_cert']['error'] == UPLOAD_ERR_OK) {
+        $uploaded_file = wp_handle_upload($_FILES['cpd_cert'], array('test_form' => false));
+        if (isset($uploaded_file['url'])) {
+            update_user_meta($current_user->ID, 'cpd_cert', esc_url($uploaded_file['url']));
+            wp_send_json_success(array('message' => 'CPD Certificate uploaded successfully.'));
+        } else {
+            wp_send_json_error(array('message' => 'Error uploading file.'));
+        }
+    } else {
+        wp_send_json_error(array('message' => 'No file uploaded.'));
+    }
+}
+add_action('wp_ajax_nopriv_update_cpd_certificate', 'update_cpd_certificate');
+
+/**
+ * Display uploaded Gravity Forms certificates (unchanged)
+ */
+function get_gravity_forms_certificates($user_id) {
+    $entry_id = get_user_meta($user_id, 'form_15_entry_id', true);
+
+    if (!$entry_id) {
+        return '<p>No certificates uploaded.</p>';
+    }
+
+    $entry = GFAPI::get_entry($entry_id);
+    if (is_wp_error($entry)) {
+        return '<p>Error retrieving certificates.</p>';
+    }
+
+    $education_cert_field_id = 139;
+    $eye_fitness_cert_field_id = 140;
+    $experience_cert_field_id = 141;
+    $training_cert_field_id = 142;
+
+    $education_cert = rgar($entry, $education_cert_field_id);
+    $experience_cert = rgar($entry, $experience_cert_field_id);
+    $eye_fitness_cert = rgar($entry, $eye_fitness_cert_field_id);
+    $training_cert = rgar($entry, $training_cert_field_id);
+
+    ob_start();
+    ?>
+		<h4>Uploaded Certificates</h4>
+		<p><strong>Education Certificate:</strong> 
+			<?php echo $education_cert ? '<a href="' . esc_url($education_cert) . '" target="_blank">Download</a>' : 'Not Uploaded'; ?>
+		</p>
+		<p><strong>Experience Certificate:</strong> 
+			<?php echo $experience_cert ? '<a href="' . esc_url($experience_cert) . '" target="_blank">Download</a>' : 'Not Uploaded'; ?>
+		</p>
+		<p><strong>Eye Fitness Certificate:</strong> 
+			<?php echo $eye_fitness_cert ? '<a href="' . esc_url($eye_fitness_cert) . '" target="_blank">Download</a>' : 'Not Uploaded'; ?>
+		</p>
+		<p><strong>Training Certificate:</strong> 
+			<?php echo $training_cert ? '<a href="' . esc_url($training_cert) . '" target="_blank">Download</a>' : 'Not Uploaded'; ?>
+		</p>
+		<?php
+		return ob_get_clean();
+}
+
+add_action('wp_ajax_event_checkout_ajax', 'handle_event_checkout_ajax');
+function handle_event_checkout_ajax() {
+    $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
+    $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
+
+    if (!$user_id || !$event_id) {
+        wp_send_json_error(['message' => 'Invalid user or event ID.']);
+    }
+
+    $check_in_time = get_user_meta($user_id, 'event_' . $event_id . '_check_in_time', true);
+    if (!$check_in_time) {
+        wp_send_json_error(['message' => 'User has not checked in for this event.']);
+    }
+
+    $check_out_time = current_time('mysql');
+    $check_in_timestamp = strtotime($check_in_time);
+    $check_out_timestamp = strtotime($check_out_time);
+    $total_seconds = $check_out_timestamp - $check_in_timestamp;
+    $total_hours_attended = round($total_seconds / 3600, 2);
+    $total_minutes = round(($total_seconds % 3600) / 60);
+
+    $time_spent_display = ($total_hours_attended >= 1) ? "{$total_hours_attended} hours" : "{$total_minutes} minutes";
+
+    // Get event duration
+    $event_start = get_post_meta($event_id, '_EventStartDate', true);
+    $event_end = get_post_meta($event_id, '_EventEndDate', true);
+    $event_duration_hours = 0;
+
+    if (!empty($event_start) && !empty($event_end)) {
+        $start_time = strtotime($event_start);
+        $end_time = strtotime($event_end);
+        if ($end_time > $start_time) {
+            $event_duration_hours = round(($end_time - $start_time) / 3600, 2);
+        }
+    }
+
+    // Calculate CPD points
+    $cpd_points = 0;
+    $tolerance = 0.01;
+
+   if ($event_duration_hours > 0) {
+    $attendance_percentage = ($total_hours_attended / $event_duration_hours) * 100;
+
+    if ($attendance_percentage > 0 && $attendance_percentage <= 50) {
+        $cpd_points = 0.5;
+    } elseif ($attendance_percentage > 50) {
+        $cpd_points = 1;
+    } else {
+        $cpd_points = 0; // In case no attendance
+    }
+}
+
+
+    // Update CPD points
+    $all_cpd_points = get_user_meta($user_id, 'total_cpd_points', true);
+    if (!$all_cpd_points) {
+        $all_cpd_points = 0;
+    }
+    $all_cpd_points += $cpd_points;
+
+    update_user_meta($user_id, 'event_' . $event_id . '_check_out_time', $check_out_time);
+    update_user_meta($user_id, 'event_' . $event_id . '_check_in_status', 'checked_out');
+    update_user_meta($user_id, 'event_' . $event_id . '_total_hours', $total_hours_attended);
+    update_user_meta($user_id, 'total_cpd_points', $all_cpd_points);
+    update_user_meta($user_id, 'event_' . $event_id . '_cpd_points', $cpd_points);
+
+    // Get user details for email
+    $user_info = get_userdata($user_id);
+    $user_email = $user_info->user_email;
+    $user_name = $user_info->display_name;
+    $event_name = get_the_title($event_id) ?: "Unknown Event";
+    $admin_email = get_option('admin_email');
+
+    // Company details
+    $company_name = get_bloginfo('name');
+    $profile_link = site_url('/user-profile');
+    $admin_user_link = admin_url('/edit.php?post_type=tribe_events&page=attendee-management');
+
+    // Email Subject & Message for User
+    $user_subject = "CPD Points Awarded: $event_name";
+
+    $user_message = '
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <h2 style="color: #0073aa;">CPD Points Awarded</h2>
+            <p>Dear <strong>' . $user_name . '</strong>,</p>
+            <p>We are pleased to inform you that you have been awarded <strong>' . $cpd_points . ' CPD points</strong> for your participation in:</p>
+            <h3 style="color: #0073aa;">' . esc_html($event_name) . '</h3>
+            <p>You attended for: <strong>' . esc_html($time_spent_display) . '</strong>.</p>
+            <p>Your CPD points have been successfully updated.</p>
+            <p><strong>Next Steps:</strong></p>
+            <ul>
+                <li>📌 <a href="' . esc_url($profile_link) . '" style="color: #0073aa; text-decoration: none;">Review your CPD points</a></li>
+                <li>📅 Stay updated with upcoming events for more learning opportunities.</li>
+            </ul>
+            <p>Thank you for your participation. We look forward to seeing you at future events!</p>
+            <p>Best regards,</p>
+            <p><strong>' . $company_name . ' Team</strong></p>
+        </div>
+    ';
+
+    // Email Subject & Message for Admin
+    $admin_subject = "CPD Points Update: $user_name - $event_name";
+
+    $admin_message = '
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <h2 style="color: #d35400;">CPD Points Awarded</h2>
+            <p><strong>User:</strong> ' . esc_html($user_name) . '</p>
+            <p><strong>Event:</strong> ' . esc_html($event_name) . '</p>
+            <p><strong>Check-in Time:</strong> ' . esc_html($check_in_time) . '</p>
+            <p><strong>Check-out Time:</strong> ' . esc_html($check_out_time) . '</p>
+            <p><strong>Total Time Attended:</strong> ' . esc_html($time_spent_display) . '</p>
+            <p><strong>CPD Points Earned:</strong> ' . $cpd_points . '</p>
+            <p>The CPD points have been successfully recorded in the system.</p>
+            <p><strong>Quick Actions:</strong></p>
+            <ul>
+                <li>👤 <a href="' . esc_url($admin_user_link) . '" style="color: #d35400; text-decoration: none;">View User Profile</a></li>
+            </ul>
+            <p>Best regards,</p>
+            <p><strong>' . $company_name . ' Admin Team</strong></p>
+        </div>
+    ';
+
+    // Get email templates
+    $user_data = get_email_template($user_subject, $user_message);
+    $admin_data = get_email_template($admin_subject, $admin_message);
+
+    // Send Emails
+    add_filter('wp_mail_content_type', function() { return 'text/html'; });
+    wp_mail($user_email, $user_subject, $user_data);
+    wp_mail($admin_email, $admin_subject, $admin_data);
+    remove_filter('wp_mail_content_type', function() { return 'text/html'; });
+
+    wp_send_json_success([
+        'message' => 'Check-Out successful! Total time spent: ' . $time_spent_display . '. Earned CPD Points: ' . $cpd_points,
+        'total_hours' => $time_spent_display,
+        'cpd_points' => $cpd_points,
+        'total_cpd_points' => $all_cpd_points
+    ]);
+}
+
+?>

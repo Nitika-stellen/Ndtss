@@ -1,0 +1,23 @@
+# Set default behavior, let Git handle text/binary automatically
+* text=auto
+
+# Normalize line endings for common text files to LF in the repo
+*.php text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+
+# Treat images and archives as binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.gz binary
+
+# Ensure shell scripts are executable and normalized
+*.sh text eol=lf

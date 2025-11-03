@@ -1,0 +1,79 @@
+.hidden {
+    display: none !important;
+}
+.elementor-field-type-repeater>label {
+	display: none !important;
+}
+
+.elementor-editor-active .elementor-field-type-repeater>label, .elementor-editor-active .elementor-field-type-repeater_start>label {
+    display: block !important;
+}
+.container-repeater-field, .elementor-field-repeater-end, .elementor-field-repeater-start,
+.repeater-field-header-title {
+	width: 100% !important;
+}
+.gf-repeater-field-button-add {
+	background-color: #69727d !important;
+    border-radius: 103px 103px 103px 103px !important;
+    padding: 10px 20px 10px 20px !important;
+    color: #fff !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+}
+.gf-repeater-field-button-add:hover {
+    box-shadow: 4px 4px 0 0 rgba(0,0,0,.35)!important;
+    color: #fff;
+}
+.repeater-field-header {
+    display: flex !important;
+    width: 100% !important;
+}
+.repeater-field-header ul {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+.repeater-field-header ul li {
+    display:  inline-block;
+}
+.repeater-field-header-acctions {
+    width: 150px !important;
+    text-align: right;
+}
+.repeater-field-header-acctions li i{
+    font-size: 20px;
+    margin-left: 1px;
+}
+.repeater-field-header-acctions li i:hover {
+    opacity: 0.8;
+    cursor: pointer;
+}
+
+.repeater-field-footer {
+    margin: 15px 0 !important;
+}
+.repeater-content-show {
+    border-bottom: 1px solid #e7e7e7; !important
+}
+.repeater-field-item {
+    margin-bottom: 15px !important;
+}
+.gfield--type-repeater_end {
+    padding: 5px 15px !important;
+}
+.container-repeater-field {
+    grid-column-gap: 2% !important;
+    -ms-grid-columns: (1fr 2%) [12] !important;
+    grid-row-gap: 16px !important;
+    display: grid !important;
+    grid-template-columns: repeat(12,1fr) !important;
+    grid-template-rows: repeat(auto-fill,auto) !important;
+    width: 100% !important;
+}
+ul.gform_fields li .container-repeater-field {
+    grid-template-columns: none !important;
+}
+
+@media only screen and (max-width: 600px) {
+   
+}
