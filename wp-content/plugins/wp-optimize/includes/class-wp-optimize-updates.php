@@ -37,13 +37,17 @@ class WP_Optimize_Updates {
 			'update_350_delete_plugin_table_list_regenerate_in_new_location',
 		),
 		'3.7.0' => array('update_370_disable_auto_preload_after_purge_feature'),
-		'3.8.0' => array('update_380_404_detector_table_create')
+		'3.8.0' => array('update_380_404_detector_table_create'),
+		'4.3.1' => array(
+			'update_431_update_browser_cache_htaccess_config',
+			'update_431_db_table_analysis_wipe_usage_data',
+		),
 	);
 
 	/**
 	 * See if any database schema updates are needed, and perform them if so.
 	 * Example Usage:
-	 * public static function update_101_add_new_column() {
+	 * private static function update_101_add_new_column() {
 	 *		$wpdb = $GLOBALS['wpdb'];
 	 *		$wpdb->query('ALTER TABLE tm_tasks ADD task_expiry varchar(300) AFTER id');
 	 *	}
@@ -66,7 +70,7 @@ class WP_Optimize_Updates {
 	/**
 	 * Delete old semaphore locks from options database table.
 	 */
-	public static function delete_old_locks() {
+	private static function delete_old_locks() {
 		global $wpdb;
 		
 		$query = "DELETE FROM `{$wpdb->options}`".
@@ -85,11 +89,16 @@ class WP_Optimize_Updates {
 	/**
 	 * Disable cache directories viewing.
 	 */
-	public static function disable_cache_directories_viewing() {
+	private static function disable_cache_directories_viewing() {
+
+		if (!function_exists('wpo_disable_cache_directories_viewing')) {
+			include_once WPO_PLUGIN_MAIN_PATH . 'cache/file-based-page-cache-functions.php';
+		}
+		
 		wpo_disable_cache_directories_viewing();
 	}
-
-	public static function reset_wpo_plugin_cron_tasks_schedule() {
+	
+	private static function reset_wpo_plugin_cron_tasks_schedule() {
 		wp_clear_scheduled_hook('wpo_plugin_cron_tasks');
 	}
 
@@ -98,7 +107,7 @@ class WP_Optimize_Updates {
 	 *
 	 * @return void
 	 */
-	public static function enable_minify_defer() {
+	private static function enable_minify_defer() {
 		if (!function_exists('wp_optimize_minify_config')) {
 			include_once WPO_PLUGIN_MAIN_PATH . 'minify/class-wp-optimize-minify-config.php';
 		}
@@ -115,7 +124,7 @@ class WP_Optimize_Updates {
 	 *
 	 * @return void
 	 */
-	public static function update_minify_excludes() {
+	private static function update_minify_excludes() {
 		if (!function_exists('wp_optimize_minify_config')) {
 			include_once WPO_PLUGIN_MAIN_PATH . 'minify/class-wp-optimize-minify-config.php';
 		}
@@ -166,7 +175,7 @@ class WP_Optimize_Updates {
 	 *
 	 * @return bool
 	 */
-	public static function is_new_install() {
+	private static function is_new_install() {
 		$db_version = get_option('wpo_update_version');
 		return !$db_version;
 	}
@@ -174,7 +183,7 @@ class WP_Optimize_Updates {
 	/**
 	 * Modifies the cache configuration for Windows OS by regenerating the 'uploads' path.
 	 */
-	public static function update_3214_modify_cache_config_in_windows() {
+	private static function update_3214_modify_cache_config_in_windows() {
 		
 		// Check if the OS is Windows and it's not a new installation.
 		if ('WIN' !== strtoupper(substr(PHP_OS, 0, 3)) || self::is_new_install()) {
@@ -327,9 +336,30 @@ class WP_Optimize_Updates {
 	/**
 	 * Iterate over plugin utils tables creation, using WP_Optimize_Table_Management
 	 */
-	public static function update_380_404_detector_table_create() {
+	private static function update_380_404_detector_table_create() {
 		if (self::is_new_install()) return;
 		WP_Optimize()->get_table_management()->create_plugin_tables();
+	}
+
+	/**
+	 * Update the browser cache htaccess config file with max-age values
+	 */
+	private static function update_431_update_browser_cache_htaccess_config() {
+		if (self::is_new_install()) return;
+		if (!WP_Optimize()->get_options()->get_option('enable_browser_cache')) return;
+
+		WP_Optimize()->get_browser_cache()->restore();
+	}
+
+	/**
+	 * Wipe WPO_DB_Table_Analysis usage data
+	 */
+	private static function update_431_db_table_analysis_wipe_usage_data() {
+		if (self::is_new_install()) return;
+
+		if (class_exists('WPO_DB_Table_Analysis')) {
+			WPO_DB_Table_Analysis::wipe_usage_data();
+		}
 	}
 }
 

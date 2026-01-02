@@ -54,8 +54,8 @@ class WPO_Page_Builder_Compatibility {
 	 *
 	 * @return bool
 	 */
-	private function is_edit_mode() {
-		return isset($_GET['fl_builder']) || isset($_GET['et_fb']); // phpcs:ignore WordPress.Security.NonceVerification -- We are not using $_GET value, just checking its existence
+	public function is_edit_mode() {
+		return isset($_GET['fl_builder']) || isset($_GET['et_fb']) || isset($_GET['ct_builder']); // phpcs:ignore WordPress.Security.NonceVerification -- We are not using $_GET value, just checking its existence
 	}
 
 	/**

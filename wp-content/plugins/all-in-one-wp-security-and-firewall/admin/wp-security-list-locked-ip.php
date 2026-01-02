@@ -107,6 +107,7 @@ class AIOWPSecurity_List_Locked_IP extends AIOWPSecurity_List_Table {
 			$ip_lookup_result[$key] = empty($value) ? __('Not Found', 'all-in-one-wp-security-and-firewall') : $value;
 		}
 
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_print_r -- PCP warning. Part of error reporting system.
 		$ip_lookup_result = print_r($ip_lookup_result, true);
 
 		$output = sprintf('<a href="#TB_inline?&inlineId=trace-%s" title="%s" class="thickbox">%s</a>', esc_attr($item['id']), esc_html__('IP lookup result', 'all-in-one-wp-security-and-firewall'), esc_html__('Show result', 'all-in-one-wp-security-and-firewall'));
@@ -167,7 +168,9 @@ class AIOWPSecurity_List_Locked_IP extends AIOWPSecurity_List_Table {
 	 * @return void
 	 */
 	private function process_bulk_action() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- PCP warning. This is the nonce.
 		if (empty($_REQUEST['_wpnonce']) || !isset($_REQUEST['_wp_http_referer'])) return;
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- PCP warning. This is the nonce.
 		$result = AIOWPSecurity_Utility_Permissions::check_nonce_and_user_cap($_REQUEST['_wpnonce'], 'bulk-items');
 		if (is_wp_error($result)) return;
 
@@ -175,7 +178,8 @@ class AIOWPSecurity_List_Locked_IP extends AIOWPSecurity_List_Table {
 			if (!isset($_REQUEST['item'])) {
 				AIOWPSecurity_Admin_Menu::show_msg_error_st(__('Please select some records using the checkboxes', 'all-in-one-wp-security-and-firewall'));
 			} else {
-				$this->delete_lockout_records($_REQUEST['item']);
+				// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- PCP warning. Sanitized later.
+				$this->delete_lockout_records(wp_unslash($_REQUEST['item']));
 			}
 		}
 
@@ -183,9 +187,11 @@ class AIOWPSecurity_List_Locked_IP extends AIOWPSecurity_List_Table {
 			if (!isset($_REQUEST['item'])) {
 				AIOWPSecurity_Admin_Menu::show_msg_error_st(__('Please select some records using the checkboxes', 'all-in-one-wp-security-and-firewall'));
 			} else {
-				$this->unlock_ips(($_REQUEST['item']));
+				// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- PCP warning. Sanitized later.
+				$this->unlock_ips((wp_unslash($_REQUEST['item'])));
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended -- PCP warning. This is the nonce.
 	}
 
 	/**
@@ -203,6 +209,7 @@ class AIOWPSecurity_List_Locked_IP extends AIOWPSecurity_List_Table {
 		// Unlock multiple records
 		$entries = array_filter($entries, 'is_numeric');  // Discard non-numeric ID values
 		$id_list = '(' .implode(',', $entries) .')';  // Create comma separate list for DB operation
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
 		$result = $wpdb->query("UPDATE $lockout_table SET `released` = UNIX_TIMESTAMP() WHERE `id` IN $id_list");
 
 		if (null != $result) {
@@ -225,6 +232,7 @@ class AIOWPSecurity_List_Locked_IP extends AIOWPSecurity_List_Table {
 			$entries = array_filter($entries, 'is_numeric'); //discard non-numeric ID values
 			$id_list = "(" .implode(",", $entries) .")"; //Create comma separate list for DB operation
 			$delete_command = "DELETE FROM ".$lockout_table." WHERE id IN ".$id_list;
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP error. Ignore.
 			$result = $wpdb->query($delete_command);
 			if ($result) {
 				AIOWPSecurity_Admin_Menu::show_msg_record_deleted_st();
@@ -236,6 +244,7 @@ class AIOWPSecurity_List_Locked_IP extends AIOWPSecurity_List_Table {
 		} elseif (null != $entries) {
 			// Delete single record
 			$delete_command = "DELETE FROM ".$lockout_table." WHERE id = '".absint($entries)."'";
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP error. Ignore.
 			$result = $wpdb->query($delete_command);
 			if ($result) {
 				return AIOWPSecurity_Admin_Menu::show_msg_record_deleted_st(true);
@@ -270,7 +279,9 @@ class AIOWPSecurity_List_Locked_IP extends AIOWPSecurity_List_Table {
 		$this->_column_headers = array($columns, $hidden, $sortable);
 
 		// Parameters that are going to be used to order the result
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- PCP warning. No nonce.
 		$orderby = isset($_GET['orderby']) ? sanitize_text_field(wp_unslash($_GET['orderby'])) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- PCP warning. No nonce.
 		$order = isset($_GET['order']) ? sanitize_text_field(wp_unslash($_GET['order'])) : '';
 
 		$orderby = !empty($orderby) ? esc_sql($orderby) : 'created';
@@ -282,20 +293,15 @@ class AIOWPSecurity_List_Locked_IP extends AIOWPSecurity_List_Table {
 		$current_page = $this->get_pagenum();
 		$offset = ($current_page - 1) * $per_page;
 
-		$total_items = $wpdb->get_var(
-			"SELECT COUNT(*) FROM {$lockout_table} WHERE `released` > UNIX_TIMESTAMP()"
-		);
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
+		$total_items = $wpdb->get_var("SELECT COUNT(*) FROM {$lockout_table} WHERE `released` > UNIX_TIMESTAMP()");
 
 		if ($ignore_pagination) {
-			$data = $wpdb->get_results(
-				"SELECT * FROM {$lockout_table} WHERE `released` > UNIX_TIMESTAMP() ORDER BY {$orderby} {$order}",
-				'ARRAY_A'
-			);
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
+			$data = $wpdb->get_results("SELECT * FROM {$lockout_table} WHERE `released` > UNIX_TIMESTAMP() ORDER BY {$orderby} {$order}", 'ARRAY_A');
 		} else {
-			$data = $wpdb->get_results(
-				"SELECT * FROM {$lockout_table} WHERE `released` > UNIX_TIMESTAMP() ORDER BY {$orderby} {$order} LIMIT {$per_page} OFFSET {$offset}",
-				'ARRAY_A'
-			);
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
+			$data = $wpdb->get_results("SELECT * FROM {$lockout_table} WHERE `released` > UNIX_TIMESTAMP() ORDER BY {$orderby} {$order} LIMIT {$per_page} OFFSET {$offset}", 'ARRAY_A');
 		}
 
 		$this->items = $data;

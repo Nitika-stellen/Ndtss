@@ -3,7 +3,7 @@
 Plugin Name: WP-Optimize - Clean, Compress, Cache
 Plugin URI: https://teamupdraft.com/wp-optimize
 Description: WP-Optimize makes your site fast and efficient. It cleans the database, compresses images and caches pages. Fast sites attract more traffic and users.
-Version: 4.3.0
+Version: 4.3.1
 Requires at least: 4.9
 Requires PHP: 7.2
 Update URI: https://wordpress.org/plugins/wp-optimize/
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) die('No direct access allowed');
 
 // Check to make sure if WP_Optimize is already call and returns.
 if (!class_exists('WP_Optimize')) :
-define('WPO_VERSION', '4.3.0');
+define('WPO_VERSION', '4.3.1');
 define('WPO_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('WPO_PLUGIN_MAIN_PATH', plugin_dir_path(__FILE__));
 define('WPO_PLUGIN_SLUG', plugin_basename(__FILE__));
@@ -52,9 +52,8 @@ class WP_Optimize {
 		register_activation_hook(__FILE__, array('WPO_Activation', 'actions'));
 		register_deactivation_hook(__FILE__, array('WPO_Deactivation', 'actions'));
 		register_uninstall_hook(__FILE__, array('WPO_Uninstall', 'actions'));
-		if (!is_admin() && (!defined('DOING_CRON') || !DOING_CRON)) {
-			WPO_Page_Optimizer::instance()->initialise();
-		}
+
+		WPO_Page_Optimizer::instance()->maybe_initialise();
 
 		$this->load_admin();
 		add_action('admin_init', array($this, 'admin_init'));
@@ -186,7 +185,7 @@ class WP_Optimize {
 			}
 		}
 		
-		if ('Minify_HTML' == $class_name) {
+		if ('Minify_HTML' === $class_name) {
 			require_once WPO_PLUGIN_MAIN_PATH.'vendor/mrclay/minify/lib/Minify/HTML.php';
 		}
 	}
@@ -250,7 +249,7 @@ class WP_Optimize {
 			if (isset($options['action']) && 'install' === $options['action'] && isset($skin->options['overwrite']) && 'update-theme' === $skin->options['overwrite']) {
 				$updated_theme = $upgrader_object->result['destination_name'];
 				// Check if the theme is in use
-				if ($active_theme == $updated_theme || $parent_theme == $updated_theme) {
+				if ($active_theme === $updated_theme || $parent_theme === $updated_theme) {
 					$should_purge_cache = true;
 				}
 			// A theme is updated using the classic update system
@@ -353,6 +352,15 @@ class WP_Optimize {
 	 */
 	public function get_page_optimizer() {
 		return WPO_Page_Optimizer::instance();
+	}
+
+	/**
+	 * Returns instance 404 Detector Cron class.
+	 *
+	 * @return WP_Optimize_404_Detector_Cron
+	 */
+	private function get_404_detector_cron() {
+		return WP_Optimize_404_Detector_Cron::get_instance();
 	}
 
 	/**
@@ -671,28 +679,26 @@ class WP_Optimize {
 			return;
 		}
 
-		// Loads the task manager
-		$this->get_task_manager();
+		add_action('init', array($this, 'init'));
 
-		add_action('init', array($this, 'schedule_plugin_cron_tasks'));
+		// add_filter('updraftcentral_host_plugins', array($this, 'attach_updraftcentral_host'));
+		// if (file_exists(WPO_PLUGIN_MAIN_PATH.'central/factory.php')) include_once(WPO_PLUGIN_MAIN_PATH.'central/factory.php');
+	}
 
-		add_action('init', array($this, 'load_language_file'), 0);
+	/**
+	 * Methods needed to be run in init hook.
+	 *
+	 * @return void
+	 */
+	public function init() {
+		$this->load_language_file();
+		$this->schedule_plugin_cron_tasks();
+		$this->init_page_cache();
+		$this->get_minify();
+		$this->get_delay_js();
 
 		// Load 3rd party plugin compatibilities.
 		$this->load_compatibilities();
-		
-		// Load page cache.
-		$this->get_page_cache();
-
-		// We use the init hook to avoid the _load_textdomain_just_in_time warning,
-		// which is triggered because we use translations during cache initialization
-		add_action('init', array($this, 'init_page_cache'), 1);
-
-		// Include minify
-		$this->get_minify();
-		
-		// Include delay js
-		$this->get_delay_js();
 
 		$this->run_updates();
 
@@ -700,13 +706,13 @@ class WP_Optimize {
 		// This deletes already converted webp images and original image file when a media is deleted
 		WP_Optimize_WebP_Images::get_instance();
 
+		// Loads the task manager
+		$this->get_task_manager();
+
 		// Include WebP
 		if (WPO_USE_WEBP_CONVERSION) {
 			$this->get_webp_instance();
 		}
-
-		// add_filter('updraftcentral_host_plugins', array($this, 'attach_updraftcentral_host'));
-		// if (file_exists(WPO_PLUGIN_MAIN_PATH.'central/factory.php')) include_once(WPO_PLUGIN_MAIN_PATH.'central/factory.php');
 	}
 
 	/**
@@ -714,7 +720,7 @@ class WP_Optimize {
 	 *
 	 * @return void
 	 */
-	public function load_language_file() {
+	private function load_language_file() {
 		load_plugin_textdomain('wp-optimize', false, dirname(plugin_basename(__FILE__)) . '/languages');
 	}
 
@@ -758,7 +764,7 @@ class WP_Optimize {
 		foreach ($active_plugins as $file) {
 			if ('wp-optimize.php' == basename($file)) {
 				$plugin_dir = WP_PLUGIN_DIR.'/'.dirname($file);
-				if (('free' == $which && !file_exists($plugin_dir.'/premium.php')) || ('free' != $which && file_exists($plugin_dir.'/premium.php'))) return $file;
+				if (('free' === $which && !file_exists($plugin_dir.'/premium.php')) || ('free' !== $which && file_exists($plugin_dir.'/premium.php'))) return $file;
 			}
 		}
 		return false;
@@ -807,7 +813,7 @@ class WP_Optimize {
 		// Loops around each plugin available.
 		foreach ($get_plugins as $key => $value) {
 			// If the plugin name matches that of the specified name, it will gather details.
-			if ($value['Name'] != $name && $value['TextDomain'] != $name) continue;
+			if ($value['Name'] !== $name && $value['TextDomain'] !== $name) continue;
 			$plugin_info['installed'] = true;
 			$plugin_info['name'] = $key;
 			$plugin_info['version'] = $value['Version'];
@@ -841,7 +847,7 @@ class WP_Optimize {
 
 		$this->register_template_directories();
 
-		if (('index.php' == $pagenow && current_user_can('update_plugins')) || ('index.php' == $pagenow && defined('WP_OPTIMIZE_FORCE_DASHNOTICE') && WP_OPTIMIZE_FORCE_DASHNOTICE)) {
+		if (('index.php' === $pagenow && current_user_can('update_plugins')) || ('index.php' === $pagenow && defined('WP_OPTIMIZE_FORCE_DASHNOTICE') && WP_OPTIMIZE_FORCE_DASHNOTICE)) {
 			$options = $this->get_options();
 
 			$dismissed_until = $options->get_option('dismiss_dash_notice_until', 0);
@@ -1086,7 +1092,7 @@ class WP_Optimize {
 		}
 
 		// Add option for MyISAM to InnoDB conversion.
-		if ('MyISAM' == $table_info->Engine) {
+		if ('MyISAM' === $table_info->Engine) {
 			$content .= '<div class="wpo_button_convert wpo_button_wrap">'
 				. '<button class="button button-secondary toinnodb" data-table="' . esc_attr($table_info->Name) . '">' . __('Convert to InnoDB', 'wp-optimize') . '</button>'
 				. '<img class="optimization_spinner visibility-hidden" src="' . esc_attr(admin_url('images/spinner-2x.gif')) . '" width="20" height="20" alt="...">' // phpcs:ignore PluginCheck.CodeAnalysis.ImageFunctions.NonEnqueuedImage -- N/A
@@ -1101,7 +1107,7 @@ class WP_Optimize {
 	/**
 	 * Initialize WP-Optimize page cache.
 	 */
-	public function init_page_cache() {
+	private function init_page_cache() {
 		if ($this->get_page_cache()->config->get_option('enable_page_caching', false)) {
 			if ((!(defined('WP_CLI') && WP_CLI)) && (!defined('DOING_AJAX') || !DOING_AJAX)) {
 				$this->_cache_init_status = $this->get_page_cache()->enable();
@@ -1128,15 +1134,15 @@ class WP_Optimize {
 
 		$options = $this->get_options();
 
-		if ($options->get_option('schedule') === false) {
+		if (false === $options->get_option('schedule')) {
 			$options->set_default_options();
 		} else {
-			if ('true' == $options->get_option('schedule')) {
+			if ('true' === $options->get_option('schedule')) {
 				if (!wp_next_scheduled('wpo_cron_event2')) {
 					$schedule_type = $options->get_option('schedule-type', 'wpo_weekly');
 
 					// Backward compatibility
-					if ('wpo_otherweekly' == $schedule_type) $schedule_type = 'wpo_fortnightly';
+					if ('wpo_otherweekly' === $schedule_type) $schedule_type = 'wpo_fortnightly';
 
 					$this_time = (86400 * 7);
 
@@ -1344,7 +1350,7 @@ class WP_Optimize {
 
 		if ($dh = opendir($templates_dir)) {
 			while (($file = readdir($dh)) !== false) {
-				if ('.' == $file || '..' == $file) continue;
+				if ('.' === $file || '..' === $file) continue;
 				if (is_dir($templates_dir.'/'.$file)) {
 					$template_directories[$file] = $templates_dir.'/'.$file;
 				}
@@ -1389,7 +1395,7 @@ class WP_Optimize {
 			$bytes = number_format($bytes / 1024, $decimals) . ' KB';
 		} elseif (1 < $bytes) {
 			$bytes = $bytes . ' bytes';
-		} elseif (1 == $bytes) {
+		} elseif (1 === (int) $bytes) {
 			$bytes = $bytes . ' byte';
 		} else {
 			$bytes = '0 bytes';
@@ -1421,7 +1427,7 @@ class WP_Optimize {
 
 		$this->log('WPO: Starting cron_action()');
 		$options->update_option('last-optimized', time());
-		if ('true' == $options->get_option('schedule')) {
+		if ('true' === $options->get_option('schedule')) {
 			$this_options = $options->get_option('auto');
 
 			// Currently the output of the optimizations is not saved/used/logged.
@@ -1435,13 +1441,15 @@ class WP_Optimize {
 	 *
 	 * @return void
 	 */
-	public function schedule_plugin_cron_tasks() {
+	private function schedule_plugin_cron_tasks() {
 		if (!wp_next_scheduled('wpo_weekly_cron_tasks')) {
 			wp_schedule_event(current_time("timestamp", 0), 'weekly', 'wpo_weekly_cron_tasks');
 		}
 
 		add_action('wpo_weekly_cron_tasks', array($this, 'do_weekly_cron_tasks'));
-		WP_Optimize_404_Detector_Cron::get_instance();
+
+		// Run 404 detector cron.
+		$this->get_404_detector_cron();
 	}
 
 	/**
@@ -1600,7 +1608,7 @@ class WP_Optimize {
 			$keys = array_keys($saved_loggers);
 
 			// if options stored in old format then reformat it.
-			if (false == is_numeric($keys[0])) {
+			if (false === is_numeric($keys[0])) {
 				$_saved_loggers = array();
 					foreach ($saved_loggers as $logger_id => $enabled) {
 						if ($enabled) {
@@ -1633,7 +1641,7 @@ class WP_Optimize {
 						if (array_key_exists($option_name, $options_keys)) {
 							$options_keys[$option_name]++;
 						} else {
-									$options_keys[$option_name] = 0;
+							$options_keys[$option_name] = 0;
 						}
 
 						$option_value = isset($logger_additional_options[$option_name][$options_keys[$option_name]]) ? $logger_additional_options[$option_name][$options_keys[$option_name]] : '';
@@ -1739,7 +1747,7 @@ class WP_Optimize {
 		// we don't check permissions for cron jobs.
 		if (defined('DOING_CRON') && DOING_CRON) return true;
 
-		if (self::is_premium() && false == user_can(get_current_user_id(), 'wpo_run_optimizations')) return false;
+		if (self::is_premium() && false === user_can(get_current_user_id(), 'wpo_run_optimizations')) return false;
 		return true;
 	}
 

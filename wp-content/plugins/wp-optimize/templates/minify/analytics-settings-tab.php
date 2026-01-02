@@ -7,7 +7,7 @@
 		<p class="wpo-description-show-links">
 			<?php esc_html_e('Reduce the performance impact caused by analytics scripts.', 'wp-optimize'); ?>
 			<?php esc_html_e('Serve Google Analytics (GA) scripts locally by selecting Gtag.js or choose a lightweight alternative to GA by selecting Minimal Analytics.', 'wp-optimize'); ?>
-			<a href="<?php echo esc_url(WP_Optimize()->maybe_add_affiliate_params('https://teamupdraft.com/documentation/wp-optimize/topics/general/faqs/how-to-set-up-google-analytics-in-wp-optimize/')); ?>" target="_blank"><?php esc_html_e('More information about the Google Analytics feature here', 'wp-optimize'); ?></a>
+			<a href="<?php echo esc_url(WP_Optimize()->maybe_add_affiliate_params('https://teamupdraft.com/documentation/wp-optimize/topics/general/faqs/how-to-set-up-google-analytics-in-wp-optimize/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=google-analytics-feature&utm_creative_format=text')); ?>" target="_blank"><?php esc_html_e('More information about the Google Analytics feature here', 'wp-optimize'); ?></a>
 		</p>
 		<div class="switch-container">
 			<label class="switch">

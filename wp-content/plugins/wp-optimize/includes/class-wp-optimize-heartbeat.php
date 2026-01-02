@@ -78,7 +78,7 @@ class WP_Optimize_Heartbeat {
 				}
 			} else {
 				$command_name = key($command);
-				if ('updraft_smush_ajax' == $command_name) {
+				if ('updraft_smush_ajax' === $command_name) {
 					$command_data = current($command);
 					
 					$command_data_param = null;

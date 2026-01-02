@@ -17,7 +17,7 @@
 			?>
 		</div>
 
-		<?php $aio_wp_security->include_template('wp-admin/firewall/partials/fake-googlebots.php'); ?>
-		<?php $aio_wp_security->include_template('wp-admin/firewall/partials/blank-ref-and-useragent.php'); ?>
+		<?php $aio_wp_security->include_template('wp-admin/firewall/partials/fake-googlebots.php', false, compact('aiowps_block_fake_googlebots')); ?>
+		<?php $aio_wp_security->include_template('wp-admin/firewall/partials/blank-ref-and-useragent.php', false, compact('aiowps_ban_post_blank_headers')); ?>
 	</div>
 </div>

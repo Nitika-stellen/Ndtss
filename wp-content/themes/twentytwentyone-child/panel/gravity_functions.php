@@ -1,46 +1,227 @@
 <?php
 
-add_filter('gform_entry_list', 'restrict_center_admin_form_12_entries', 10, 2);
-function restrict_center_admin_form_12_entries($query, $form_id) {
+/**
+ * Centralized Gravity Forms Role-Based Access Control
+ * 
+ * Role Permissions:
+ * - administrator, manager_admin: Can view ALL forms and entries
+ * - membership_admin: Can view ONLY forms 4, 5, 12 and their entries
+ * - examiner, invigilator, center_admin, aqb_admin: Can view ONLY forms 15, 30, 39, 25 and their entries
+ */
+
+/**
+ * Get allowed form IDs for the current user based on their role
+ * 
+ * @return array|false Array of allowed form IDs, or false if user can access all forms
+ */
+function get_allowed_gravity_forms_for_user() {
     $current_user = wp_get_current_user();
+    if (!$current_user || !$current_user->ID) {
+        return array(); // No user logged in, no access
+    }
+    
     $user_roles = $current_user->roles;
-    if (in_array('center_admin', $user_roles)) {
+  
+    
+    // Super admin and manager can view all forms
+    if (in_array('administrator', $user_roles) || in_array('manager_admin', $user_roles)) {
+        return false; // false means no restrictions (all forms allowed)
+    }
+    
+    // Examiner, invigilator, center_admin, aqb_admin can only view forms 15, 30, 39, 25
+    $exam_roles = array('examiner', 'invigilator', 'center_admin', 'aqb_admin');
+    $has_exam_role = false;
+    foreach ($exam_roles as $role) {
+        if (in_array($role, $user_roles)) {
+            $has_exam_role = true;
+            break;
+        }
+    }
+    
+    if ($has_exam_role) {
+        return array(15, 30, 39, 25);
+    }
+
+    // Membership admin can only view forms 4, 5, 12
+    if (in_array('membership_admin', $user_roles)) {
+        return array(4, 5, 12);
+    }
+    
+    // Default: no access for unknown roles
+    return array();
+}
+
+/**
+ * Check if user can access a specific form
+ * 
+ * @param int $form_id The form ID to check
+ * @return bool True if user can access, false otherwise
+ */
+function can_user_access_gravity_form($form_id) {
+    $allowed_forms = get_allowed_gravity_forms_for_user();
+    
+    // false means no restrictions (all forms allowed)
+    if ($allowed_forms === false) {
+        return true;
+    }
+    
+    // Check if form_id is in allowed list
+    return in_array($form_id, $allowed_forms);
+}
+
+/**
+ * Filter form list based on user role
+ */
+add_filter('gform_form_list_forms', 'restrict_gravity_forms_by_role');
+function restrict_gravity_forms_by_role($forms) {
+    $allowed_forms = get_allowed_gravity_forms_for_user();
+    
+    // If false, user can see all forms (no filtering needed)
+    if ($allowed_forms === false) {
+        return $forms;
+    }
+    
+    // Filter forms to only show allowed ones
+    foreach ($forms as $key => $form) {
+        if (!in_array($form->id, $allowed_forms)) {
+            unset($forms[$key]);
+        }
+    }
+    
+    return $forms;
+}
+
+/**
+ * Filter entry list based on user role
+ */
+add_filter('gform_entry_list', 'restrict_gravity_form_entries_by_role', 10, 2);
+function restrict_gravity_form_entries_by_role($query, $form_id) {
+    if (!can_user_access_gravity_form($form_id)) {
         $query['paging']['total_count'] = 0;
         $query['entries'] = array();
     }
     return $query;
 }
-add_action('pre_get_posts', 'restrict_center_admin_from_form_12');
-function restrict_center_admin_from_form_12($query) {
-    $current_user = wp_get_current_user();
-    $user_roles = $current_user->roles;
-    if (in_array('center_admin', $user_roles))
-    {
-        global $pagenow;
-        if ($pagenow == 'admin.php' && isset($_GET['id']) && $_GET['id'] == 12) {
-            wp_die('You are not allowed to view this form.');
+
+/**
+ * Prevent direct access to restricted forms via URL
+ */
+add_action('pre_get_posts', 'restrict_gravity_forms_direct_access');
+function restrict_gravity_forms_direct_access($query) {
+    global $pagenow;
+    
+    if ($pagenow == 'admin.php' && isset($_GET['page']) && $_GET['page'] === 'gf_entries') {
+        // If no form is selected, pick the first allowed form for this user (if any)
+        $allowed_forms = get_allowed_gravity_forms_for_user();
+
+        if (isset($_GET['id'])) {
+            $form_id = intval($_GET['id']);
+            if ($form_id > 0 && !can_user_access_gravity_form($form_id)) {
+                wp_die('You are not allowed to view this form.');
+            }
+        } elseif ($allowed_forms !== false && !empty($allowed_forms)) {
+            // Redirect to the first allowed form so the user lands on a valid entries view
+            $first_allowed = intval($allowed_forms[0]);
+            wp_redirect(add_query_arg('id', $first_allowed, admin_url('admin.php?page=gf_entries')));
+            exit;
         }
     }
 }
-add_filter('gform_form_list_forms', 'restrict_center_admin_from_form_list');
-function restrict_center_admin_from_form_list($forms) {
-    if (current_user_can('center_admin')) {
-        foreach ($forms as $key => $form) {
-            if ($form->id == 12) {
-                unset($forms[$key]);
-            }
-        }
-    }    
-    return $forms;
-}
-add_action('current_screen', 'restrict_center_admin_access_to_form_12');
-function restrict_center_admin_access_to_form_12() {
-    if (is_admin() && current_user_can('center_admin')) {
-        if (isset($_GET['id']) && $_GET['id'] == 12) {
+
+/**
+ * Prevent access to restricted forms via current_screen
+ */
+add_action('current_screen', 'restrict_gravity_forms_screen_access');
+function restrict_gravity_forms_screen_access() {
+    if (!is_admin()) {
+        return;
+    }
+    
+    if (isset($_GET['id'])) {
+        $form_id = intval($_GET['id']);
+        if ($form_id > 0 && !can_user_access_gravity_form($form_id)) {
             wp_die('You are not allowed to access this form.');
         }
     }
 }
+
+/**
+ * Filter forms returned to the Gravity Forms switcher dropdown (entries screen)
+ */
+add_filter('gform_form_post_get_forms', 'restrict_gravity_forms_switcher_by_role');
+function restrict_gravity_forms_switcher_by_role($forms) {
+    $allowed_forms = get_allowed_gravity_forms_for_user();
+
+    // No restriction
+    if ($allowed_forms === false) {
+        return $forms;
+    }
+
+    // Keep only allowed forms
+    foreach ($forms as $key => $form) {
+        if (!in_array($form->id, $allowed_forms)) {
+            unset($forms[$key]);
+        }
+    }
+
+    return $forms;
+}
+
+/**
+ * Prevent viewing individual entry details for restricted forms
+ */
+add_action('gform_entry_detail', 'restrict_gravity_form_entry_detail_by_role', 10, 2);
+function restrict_gravity_form_entry_detail_by_role($form, $entry) {
+    if (!can_user_access_gravity_form($form['id'])) {
+        wp_die('You are not allowed to view this entry.');
+    }
+}
+
+/**
+ * Prevent direct access to entry detail page via URL
+ */
+add_action('admin_init', 'restrict_gravity_form_entry_detail_page');
+function restrict_gravity_form_entry_detail_page() {
+    global $pagenow;
+    
+    if ($pagenow == 'admin.php' && isset($_GET['page']) && $_GET['page'] == 'gf_entries' && isset($_GET['id'])) {
+        $form_id = intval($_GET['id']);
+        
+        if ($form_id > 0 && !can_user_access_gravity_form($form_id)) {
+            wp_die('You are not allowed to view entries for this form.');
+        }
+        
+        // Also check if accessing a specific entry
+        if (isset($_GET['lid'])) {
+            $entry_id = intval($_GET['lid']);
+            if ($entry_id > 0 && class_exists('GFAPI')) {
+                $entry = GFAPI::get_entry($entry_id);
+                if (!is_wp_error($entry) && isset($entry['form_id'])) {
+                    if (!can_user_access_gravity_form($entry['form_id'])) {
+                        wp_die('You are not allowed to view this entry.');
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Restrict frontend form rendering based on user role
+ */
+// add_filter('gform_pre_render', 'restrict_gravity_forms_frontend_by_role', 10, 1);
+// add_filter('gform_pre_process', 'restrict_gravity_forms_frontend_by_role', 10, 1);
+// function restrict_gravity_forms_frontend_by_role($form) {
+//     if (!can_user_access_gravity_form($form['id'])) {
+//         // Return empty form with access denied message
+//         $form['fields'] = array();
+//         $form['button']['text'] = 'Access Denied';
+//         add_filter('gform_get_form_filter_' . $form['id'], function($form_string) {
+//             return '<div class="gform_access_denied"><p>You do not have permission to access this form.</p></div>';
+//         });
+//     }
+//     return $form;
+// }
 
 function remove_gravity_forms_capabilities() {
     $center_admin = get_role('center_admin');
@@ -553,7 +734,7 @@ function exam_handle_approve_entry_ajax() {
     $center_name     = trim(rgar($entry, '833')); 
     $center_post     = get_page_by_title($center_name, OBJECT, 'exam_center');
     $center_admin_id = get_post_meta($center_post->ID, '_center_admin_id', true);
-    $aqb_admin_id    = get_post_meta($center_post->ID, '_aqb_admin_id', true);
+    $aqb_admin_id    = get_post_meta($center_post->ID, '_aqb_admin_ids', true);
 
     $center_admin = get_userdata($center_admin_id);
     $aqb_admin    = get_userdata($aqb_admin_id);
@@ -676,7 +857,7 @@ function event_handle_exam_reject_entry_ajax() {
     $center_name     = trim(rgar($entry, '833')); 
     $center_post     = get_page_by_title($center_name, OBJECT, 'exam_center');
     $center_admin_id = get_post_meta($center_post->ID, '_center_admin_id', true);
-    $aqb_admin_id    = get_post_meta($center_post->ID, '_aqb_admin_id', true);
+    $aqb_admin_id    = get_post_meta($center_post->ID, '_aqb_admin_ids', true);
 
     $center_admin = get_userdata($center_admin_id);
     $aqb_admin    = get_userdata($aqb_admin_id);

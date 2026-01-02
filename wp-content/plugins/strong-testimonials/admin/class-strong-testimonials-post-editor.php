@@ -58,7 +58,7 @@ class Strong_Testimonials_Post_Editor {
 		<table class="options">
 			<tr>
 				<td colspan="2">
-					<p><?php esc_html_x( 'To add a photo or logo, use the Featured Image option.', 'post editor', 'strong-testimonials' ); ?></p>
+					<p><?php echo esc_html_x( 'To add a photo or logo, use the Featured Image option.', 'post editor', 'strong-testimonials' ); ?></p>
 				</td>
 			</tr>
 			<?php
@@ -384,6 +384,11 @@ class Strong_Testimonials_Post_Editor {
 		$name    = isset( $_POST['field_name'] ) ? sanitize_text_field( wp_unslash( $_POST['field_name'] ) ) : 'rating';
 
 		check_ajax_referer( 'editrating', 'editratingnonce' );
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'You do not have permission to edit this testimonial.', 'strong-testimonials' ) ) );
+			return;
+		}
 
 		if ( $post_id ) {
 			if ( $rating ) {

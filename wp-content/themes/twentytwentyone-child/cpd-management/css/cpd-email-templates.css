@@ -1,0 +1,127 @@
+.email-settings-container {
+    max-width: 100%;
+    margin: auto;
+    padding: 20px;
+    background: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.nav-tab-wrapper {
+    display: flex;
+    border-bottom: 0px solid #ccc;
+    margin-bottom: 20px;
+}
+
+.nav-tab {
+    padding: 10px 20px;
+    margin: 0 10px 0 0;
+    cursor: pointer;
+    background: #f8f8f8;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    transition: 0.3s;
+    text-decoration: none;
+    color: #333;
+}
+
+.nav-tab-active {
+    background: #0073aa;
+    color: white;
+}
+
+.email-settings-container a.nav-tab:hover {
+    background-color: #005a87;
+    color: #ffffff;
+}
+
+.tab-title {
+    font-size: 18px;
+    color: #333;
+    margin: 20px 0 10px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #0073aa;
+}
+
+.email-template-card {
+    background: #f9f9f9;
+    padding: 0px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    transition: 0.3s;
+}
+
+.toggle-btn {
+    width: 100%;
+    text-align: left;
+    background: #0073aa;
+    color: white;
+    border: none;
+    padding: 12px 15px;
+    cursor: pointer;
+    font-size: 16px;
+    border-radius: 5px 5px 0 0;
+    transition: 0.3s;
+    font-weight: 500;
+}
+
+.toggle-btn:hover {
+    background: #005a87;
+}
+
+.email-content {
+    padding: 20px;
+    display: none;
+    background: #fff;
+    border-radius: 0 0 5px 5px;
+}
+
+.email-content label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: #333;
+}
+
+.email-content .input-field {
+    width: 100%;
+    max-width: 600px;
+    padding: 8px 12px;
+    margin-top: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.email-content hr {
+    margin: 20px 0;
+    border: none;
+    border-top: 1px solid #ddd;
+}
+
+.email-settings-container .button-primary {
+    padding: 8px 20px;
+    font-size: 16px;
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+.email-settings-container .submit {
+    text-align: right;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px solid #ddd;
+}
+
+.email-settings-container code {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.email-settings-container p code {
+    margin: 0 3px;
+}
+

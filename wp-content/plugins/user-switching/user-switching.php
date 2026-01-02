@@ -10,14 +10,15 @@
  *
  * Plugin Name:       User Switching
  * Description:       Instant switching between user accounts in WordPress
- * Version:           1.11.0
+ * Version:           1.11.1
  * Plugin URI:        https://wordpress.org/plugins/user-switching/
+ * Plugin ID:         did:plc:ap4bi3w5w42oy7hfom57tehj
  * Author:            John Blackbourn
  * Author URI:        https://johnblackbourn.com
  * Text Domain:       user-switching
  * Domain Path:       /languages/
  * Network:           true
- * Requires at least: 6.0
+ * Requires at least: 6.1
  * Requires PHP:      7.4
  * License URI:       https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
  *

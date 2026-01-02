@@ -13,14 +13,32 @@ require_once get_stylesheet_directory() . '/membership/membership-logger.php';
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
-// Generate membership number with dynamic prefix based on member type
-function ul_generate_membership_number($user_id, $entry_id, $membership_type = '') {
-    // Get member type if not provided
+// Generate membership number with dynamic prefix and suffix based on member type and form
+function ul_generate_membership_number($user_id, $entry_id, $membership_type = '', $form_id = 0, $member_classification = '') {
+    // Generate 5-digit serial number
+    $serial = str_pad($entry_id, 5, '0', STR_PAD_LEFT);
+    
+    // Determine prefix and suffix based on form type
+    if ($form_id == 5) {
+        // Individual form - prefix is based on member classification (first letter)
+        // No suffix for individual forms
+        if (!empty($member_classification)) {
+            $prefix = strtoupper(substr(trim($member_classification), 0, 1));
+            return $prefix . '-' . $serial;
+        }
+        // Fallback if classification not available
+        $prefix = 'I'; // Individual default
+        return $prefix . '-' . $serial;
+    } elseif ($form_id == 4) {
+        // Corporate form - prefix is 'C' and suffix is 'C'
+        return 'C-' . $serial;
+    }
+    
+    // Fallback for other cases - use old logic
     if (empty($membership_type)) {
         $membership_type = get_user_meta($user_id, 'member_type', true) ?: 'Corporate';
     }
 
-    // Generate prefix based on membership type
     $prefix = 'M'; // Default
     $membership_type_lower = strtolower($membership_type);
 
@@ -28,6 +46,8 @@ function ul_generate_membership_number($user_id, $entry_id, $membership_type = '
         $prefix = 'C';
     } elseif (strpos($membership_type_lower, 'ordinary') !== false) {
         $prefix = 'O';
+    } elseif (strpos($membership_type_lower, 'associate') !== false) {
+        $prefix = 'A';
     } elseif (strpos($membership_type_lower, 'professional') !== false) {
         $prefix = 'P';
     } elseif (strpos($membership_type_lower, 'fellow') !== false) {
@@ -36,11 +56,10 @@ function ul_generate_membership_number($user_id, $entry_id, $membership_type = '
         $prefix = 'S';
     } elseif (strpos($membership_type_lower, 'individual') !== false) {
         $prefix = 'I';
+    }elseif (strpos($membership_type_lower, 'renewal') !== false) {
+        $prefix = 'R';
     }
-
-    // Generate 5-digit serial number
-    $serial = str_pad($entry_id, 5, '0', STR_PAD_LEFT);
-
+    
     return $prefix . '-' . $serial;
 }
 
@@ -105,6 +124,7 @@ add_action('wp_ajax_generate_member_certificate', 'handle_generate_member_certif
 // add_action('wp_ajax_nopriv_generate_member_certificate', 'handle_generate_member_certificate');
 
 function handle_generate_member_certificate() {
+
     try {
         // Verify nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'generate_certificate_nonce')) {
@@ -115,11 +135,23 @@ function handle_generate_member_certificate() {
         $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
         $member_id = isset($_POST['member_id']) ? absint($_POST['member_id']) : 0;
         $membership_type = isset($_POST['membership_type']) ? sanitize_text_field($_POST['membership_type']) : '';
+        $form_id = isset($_POST['form_id']) ? intval($_POST['form_id']) : 0;
+        $member_classification = isset($_POST['member_classification']) ? sanitize_text_field($_POST['member_classification']) : '';
+
+        // If member_classification is not provided and form is individual (5), try to get it from entry
+        if (empty($member_classification) && $form_id == 5 && $member_id > 0) {
+            $entry = GFAPI::get_entry($member_id);
+            if (!is_wp_error($entry) && isset($entry['24'])) {
+                $member_classification = rgar($entry, '24');
+            }
+        }
 
         membership_log_info('Certificate generation started', [
             'user_id' => $user_id,
             'member_id' => $member_id,
-            'membership_type' => $membership_type
+            'membership_type' => $membership_type,
+            'form_id' => $form_id,
+            'member_classification' => $member_classification
         ]);
 
         if (!$user_id || !$member_id) {
@@ -148,17 +180,86 @@ function handle_generate_member_certificate() {
 
         // Fallback to user meta if membership_type not provided
         $membership_type = $membership_type ?: get_user_meta($user_id, 'member_type', true) ?: 'Corporate';
-        $member_since_raw = get_user_meta($user_id, 'membership_approval_date', true) ?: date('Y-m-d');
+
+        // Member since: preserve original join date
+        $member_since_raw = get_user_meta($user_id, 'member_since', true);
+        if (empty($member_since_raw)) {
+            $member_since_raw = get_user_meta($user_id, 'membership_approval_date', true);
+        }
+        if (empty($member_since_raw) && !empty($user->user_registered)) {
+            $member_since_raw = date('Y-m-d', strtotime($user->user_registered));
+        }
+        if (empty($member_since_raw)) {
+            $member_since_raw = date('Y-m-d');
+        }
+
+        // Certificate date logic:
+        // 1. For CSV imports with renewal date: use renewal date
+        // 2. For admin approvals: use approval date
+        // 3. Fallback: use member_since
+        $certificate_date_raw = '';
+        $import_source = get_user_meta($user_id, 'import_source', true);
+
+        // Check if CSV import with renewal date
+        if ($import_source === 'csv_import') {
+            $renewal_date = get_user_meta($user_id, 'legacy_renewal_date', true);
+            if (!empty($renewal_date)) {
+                $certificate_date_raw = $renewal_date;
+                membership_log_info('Using renewal date for certificate', [
+                    'user_id' => $user_id,
+                    'renewal_date' => $renewal_date
+                ]);
+            }
+        }
+
+        // If not set, use approval date (for admin approvals or CSV without renewal)
+        if (empty($certificate_date_raw)) {
+            $certificate_date_raw = get_user_meta($user_id, 'membership_approval_date', true);
+        }
+
+        // Final fallback to member_since
+        if (empty($certificate_date_raw)) {
+            $certificate_date_raw = $member_since_raw;
+        }
+
         $expiry_date_raw = get_user_meta($user_id, 'membership_expiry_date', true) ?: date('Y-m-d', strtotime('+1 year'));
 
         // Format dates to Singapore format (DD/MM/YYYY)
         $member_since = ul_format_singapore_date($member_since_raw);
+        $certificate_date = ul_format_singapore_date($certificate_date_raw);
         $expiry_date = ul_format_singapore_date($expiry_date_raw);
 
         $member_name = strtoupper(esc_html($user->display_name));
 
-        // Generate dynamic membership number
-        $membership_no = ul_generate_membership_number($user_id, $member_id, $membership_type);
+        // If member_classification is still empty and form is individual (5), try to get it from entry again
+        if (empty($member_classification) || $member_classification === 'N/A') {
+            if ($form_id == 5 && $member_id > 0) {
+                $entry = GFAPI::get_entry($member_id);
+                if (!is_wp_error($entry) && isset($entry['24'])) {
+                    $member_classification = rgar($entry, '24');
+                    membership_log_info('Retrieved member classification from entry', [
+                        'member_id' => $member_id,
+                        'member_classification' => $member_classification
+                    ]);
+                }
+            }
+        }
+
+        // Override membership display type with classification for Individual members if valid (e.g. Fellow, Associate instead of Individual)
+        if ($form_id == 5 && !empty($member_classification) && $member_classification !== 'N/A') {
+             $membership_type = $member_classification;
+        }
+
+        // Generate dynamic membership number with suffix
+        $membership_no = ul_generate_membership_number($user_id, $member_id, $membership_type, $form_id, $member_classification);
+        
+        membership_log_info('Membership number generated for PDF', [
+            'user_id' => $user_id,
+            'member_id' => $member_id,
+            'form_id' => $form_id,
+            'member_classification' => $member_classification,
+            'membership_no' => $membership_no
+        ]);
 
         // Get dynamic signature information
         $chairman_name = get_option('certificate_chairman_name', 'M.S.VETRISELVAN');
@@ -167,6 +268,11 @@ function handle_generate_member_certificate() {
         $president_title = get_option('certificate_president_title', 'PRESIDENT (NDTSS)');
         $secretary_name = get_option('certificate_secretary_name', 'P.PUGALENDHI');
         $secretary_title = get_option('certificate_secretary_title', 'HONORARY SECRETARY (NDTSS)');
+        
+        // Get signature image URLs
+        $chairman_signature = get_option('certificate_chairman_signature', '');
+        $president_signature = get_option('certificate_president_signature', '');
+        $secretary_signature = get_option('certificate_secretary_signature', '');
 
         // Image paths and URLs
         $logo_path = get_stylesheet_directory() . '/assets/logos/ndtss-logo.png';
@@ -274,7 +380,7 @@ function handle_generate_member_certificate() {
         }
         .signatures {
             width: 80%;
-            margin-top: 40px;
+            margin-top: 20px;
             page-break-inside: avoid;
             padding-left: 30px;
         }
@@ -283,9 +389,20 @@ function handle_generate_member_certificate() {
             vertical-align: top;
             padding: 0 10px;
         }
+        .sig-image-wrapper {
+            height: 45px;
+            display: block;
+            margin-bottom: 0px;
+            text-align: center;
+        }
+        .sig-image {
+            height: 35px;
+            width: auto;
+            max-width: 150px;
+        }
         .sig-line {
             border-top: 1px solid #000;
-            margin: 20px auto 8px;
+            margin: 15px auto 8px;
             width: 100%;
         }
         .sig-title {
@@ -319,20 +436,29 @@ function handle_generate_member_certificate() {
         <div class="member-name" style="color: #0d7dc1; margin-top: -8px;">' . $membership_type . ' Member</div>
         <div class="certify-text" style="margin-top: -20px;">of the Non-Destructive Testing Society</div>
         <div class="certify-text" style="margin-top: -15px;">(Singapore) on</div>
-        <div class="certify-text" style="margin-top: -8px;">' . $member_since . '</div>
+        <div class="certify-text" style="margin-top: -8px;">' . $certificate_date . '</div>
         <div class="date-info" style="font-size: 11px; margin-top: -8px;">Given under our hand and Seal</div>
 
         <table class="signatures">
             <tr>
                 <td class="sig-block">
+                    <div class="sig-image-wrapper">
+                        ' . (!empty($chairman_signature) ? '<img src="' . esc_url($chairman_signature) . '" class="sig-image" alt="Chairman Signature" />' : '&nbsp;') . '
+                    </div>
                     <div class="sig-line"></div>
                     <div class="sig-title">' . strtoupper(esc_html($chairman_name)) . ' ' . strtoupper(esc_html($chairman_title)) . '</div>
                 </td>
                 <td class="sig-block">
+                    <div class="sig-image-wrapper">
+                        ' . (!empty($president_signature) ? '<img src="' . esc_url($president_signature) . '" class="sig-image" alt="President Signature" />' : '&nbsp;') . '
+                    </div>
                     <div class="sig-line"></div>
                     <div class="sig-title">' . strtoupper(esc_html($president_name)) . ' ' . strtoupper(esc_html($president_title)) . '</div>
                 </td>
                 <td class="sig-block">
+                    <div class="sig-image-wrapper">
+                        ' . (!empty($secretary_signature) ? '<img src="' . esc_url($secretary_signature) . '" class="sig-image" alt="Secretary Signature" />' : '&nbsp;') . '
+                    </div>
                     <div class="sig-line"></div>
                     <div class="sig-title">' . strtoupper(esc_html($secretary_name)) . ' ' . strtoupper(esc_html($secretary_title)) . '</div>
                 </td>
@@ -367,10 +493,22 @@ function handle_generate_member_certificate() {
                 wp_send_json_error('Failed to create certificates directory: ' . $cert_dir);
             }
         }
+        
+        // Create .htaccess to protect certificates from direct access
+        $htaccess_file = $cert_dir . '.htaccess';
+        if (!file_exists($htaccess_file)) {
+            $htaccess_content = "# Protect certificates - Admin access only\n";
+            $htaccess_content .= "Order Deny,Allow\n";
+            $htaccess_content .= "Deny from all\n";
+            file_put_contents($htaccess_file, $htaccess_content);
+        }
 
         $certificate_filename = 'user-' . $user_id . '-member-' . $member_id . '.pdf';
-        $certificate_path = $cert_dir . '/' . $certificate_filename;
-        $certificate_url = $cert_url . '/' . $certificate_filename;
+        $certificate_path = $cert_dir . $certificate_filename;
+        $certificate_url = $cert_url . $certificate_filename;
+        
+        // Generate secure URL for admin access (bypasses .htaccess protection)
+        $secure_certificate_url = get_stylesheet_directory_uri() . '/membership/secure-certificate-download.php?file=' . urlencode($certificate_filename);
 
         membership_log_info('Certificate paths generated', [
             'cert_dir' => $cert_dir,
@@ -391,27 +529,56 @@ function handle_generate_member_certificate() {
             wp_send_json_error('Failed to save PDF file');
         }
 
+        // Generate membership number with membership type and suffix (always regenerate with new logic)
+        $membership_number = ul_generate_membership_number($user_id, $member_id, $membership_type, $form_id, $member_classification);
+
         // Retrieve and update membership data
         $membership_data = get_user_meta($user_id, 'membership_data', true);
         $membership_data = is_array($membership_data) ? $membership_data : [];
 
-        // Check if certificate already exists
-        foreach ($membership_data as $membership) {
+        // Check if certificate already exists - update membership number even if certificate exists
+        $certificate_exists = false;
+        $existing_url = '';
+        $old_membership_number = '';
+        foreach ($membership_data as $key => $membership) {
             if (($membership['entry_id'] ?? 0) == $member_id && !empty($membership['certificate_url'])) {
                 $existing_url = $membership['certificate_url'];
+                $old_membership_number = $membership['membership_number'] ?? 'unknown';
 
                 // Fix old URLs that contain year/month structure or incorrect paths
                 $existing_url = ul_fix_certificate_url($existing_url, $cert_url);
 
-                wp_send_json_success([
-                    'certificate_url' => $existing_url,
-                    'membership_number' => $membership['membership_number'],
-                ]);
+                // Update the membership number with the new logic
+                $membership_data[$key]['membership_number'] = $membership_number;
+                $certificate_exists = true;
+                break;
             }
         }
 
-        // Generate membership number with membership type
-        $membership_number = ul_generate_membership_number($user_id, $member_id, $membership_type);
+        // If certificate exists, check if membership number changed - if so, regenerate PDF
+        if ($certificate_exists) {
+            // If membership number changed, regenerate the PDF with new number
+            if ($old_membership_number !== $membership_number) {
+                // Continue to regenerate PDF below with new membership number
+                $certificate_exists = false; // Force regeneration
+            } else {
+                // Membership number unchanged, just update and return
+                update_user_meta($user_id, 'membership_data', $membership_data);
+                
+                membership_log_info('Certificate exists, membership number unchanged', [
+                    'user_id' => $user_id,
+                    'member_id' => $member_id,
+                    'membership_number' => $membership_number,
+                    'form_id' => $form_id,
+                    'member_classification' => $member_classification
+                ]);
+
+                wp_send_json_success([
+                    'certificate_url' => get_stylesheet_directory_uri() . '/membership/secure-certificate-download.php?file=' . urlencode(basename($existing_url)),
+                    'membership_number' => $membership_number,
+                ]);
+            }
+        }
 
         // Update membership data
         $membership_data[] = [
@@ -433,7 +600,7 @@ function handle_generate_member_certificate() {
         ]);
 
         wp_send_json_success([
-            'certificate_url' => $certificate_url,
+            'certificate_url' => $secure_certificate_url,  // Use secure URL for admin access
             'membership_number' => $membership_number,
         ]);
 

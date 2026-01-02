@@ -74,54 +74,13 @@ class AIOWPSecurity_Firewall_Menu extends AIOWPSecurity_Admin_Menu {
 	 * @return void
 	 */
 	protected function render_php_rules() {
-		global $aio_wp_security, $aiowps_firewall_config, $aiowps_feature_mgr;
+		global $aio_wp_security;
 
-		$block_request_methods = array_map('strtolower', AIOS_Abstracted_Ids::get_firewall_block_request_methods());
+		$aios_commands = new AIOWPSecurity_Commands();
 
-		// Load required data from config
-		if (!empty($aiowps_firewall_config)) {
-			// firewall config is available
-			$methods = $aiowps_firewall_config->get_value('aiowps_6g_block_request_methods');
-			if (empty($methods)) {
-				$methods = array();
-			}
+		$php_firewall_data = $aios_commands->get_php_firewall_data();
 
-			$blocked_query     = (bool) $aiowps_firewall_config->get_value('aiowps_6g_block_query');
-			$blocked_request   = (bool) $aiowps_firewall_config->get_value('aiowps_6g_block_request');
-			$blocked_referrers = (bool) $aiowps_firewall_config->get_value('aiowps_6g_block_referrers');
-			$blocked_agents    = (bool) $aiowps_firewall_config->get_value('aiowps_6g_block_agents');
-
-			if (empty($methods) && (!$blocked_query && !$blocked_request && !$blocked_referrers && !$blocked_agents) && '1' == $aio_wp_security->configs->get_value('aiowps_enable_6g_firewall')) {
-				$aio_wp_security->configs->set_value('aiowps_enable_6g_firewall', '');
-				$aio_wp_security->configs->save_config();
-				$aiowps_feature_mgr->check_feature_status_and_recalculate_points();
-			}
-
-		} else {
-			// firewall config is unavailable
-			?>
-				<div class="notice notice-error">
-					<p><strong><?php esc_html_e('All-In-One Security', 'all-in-one-wp-security-and-firewall'); ?></strong></p>
-					<p><?php esc_html_e('We were unable to access the firewall\'s configuration file:', 'all-in-one-wp-security-and-firewall');?></p>
-					<pre style="max-width: 100%;background-color: #f0f0f0;border: #ccc solid 1px;padding: 10px;white-space: pre-wrap;"><?php echo esc_html(AIOWPSecurity_Utility_Firewall::get_firewall_rules_path() . 'settings.php'); ?></pre>
-					<p><?php esc_html_e('As a result, the firewall will be unavailable.', 'all-in-one-wp-security-and-firewall');?></p>
-					<p><?php esc_html_e('Please check your PHP error log for further information.', 'all-in-one-wp-security-and-firewall');?></p>
-					<p><?php esc_html_e('If you\'re unable to locate your PHP log file, please contact your web hosting company to ask them where it can be found on their setup.', 'all-in-one-wp-security-and-firewall');?></p>
-				</div>
-			<?php
-
-			//set default variables
-			$methods           = array();
-			$blocked_query     = false;
-			$blocked_request   = false;
-			$blocked_referrers = false;
-			$blocked_agents    = false;
-		}
-
-		$advanced_options_disabled = '1' !== $aio_wp_security->configs->get_value('aiowps_enable_6g_firewall');
-		$settings = array_merge(array('methods' => $methods), compact('blocked_query', 'blocked_request', 'blocked_referrers', 'blocked_agents', 'block_request_methods', 'aiowps_firewall_config', 'advanced_options_disabled'));
-
-		$aio_wp_security->include_template('wp-admin/firewall/php-firewall-rules.php', false, array('settings' => $settings));
+		$aio_wp_security->include_template('wp-admin/firewall/php-firewall-rules.php', false, compact('php_firewall_data'));
 	}
 
 	/**
@@ -132,7 +91,11 @@ class AIOWPSecurity_Firewall_Menu extends AIOWPSecurity_Admin_Menu {
 	protected function render_htaccess_rules() {
 		global $aio_wp_security;
 
-		$aio_wp_security->include_template('wp-admin/firewall/htaccess-firewall-rules.php');
+		$aios_commands = new AIOWPSecurity_Commands();
+
+		$htaccess_rules_data = $aios_commands->get_htaccess_rules_data();
+
+		$aio_wp_security->include_template('wp-admin/firewall/htaccess-firewall-rules.php', false, compact('htaccess_rules_data'));
 	}
 	
 	/**
@@ -177,7 +140,11 @@ class AIOWPSecurity_Firewall_Menu extends AIOWPSecurity_Admin_Menu {
 	protected function render_advanced_settings() {
 		global $aio_wp_security;
 
-		$aio_wp_security->include_template('wp-admin/firewall/advanced-settings.php');
+		$aios_commands = new AIOWPSecurity_Commands();
+
+		$advanced_settings_data = $aios_commands->get_firewall_advanced_settings_data();
+
+		$aio_wp_security->include_template('wp-admin/firewall/advanced-settings.php', false, compact('advanced_settings_data'));
 	}
 
 	/**
@@ -189,15 +156,13 @@ class AIOWPSecurity_Firewall_Menu extends AIOWPSecurity_Admin_Menu {
 	 * @return void
 	 */
 	protected function render_block_and_allow_lists() {
-		global $aio_wp_security, $aiowps_feature_mgr;
-		$result = 1;
+		global $aio_wp_security;
 
-		$aiowps_firewall_allow_list = AIOS_Firewall_Resource::request(AIOS_Firewall_Resource::ALLOW_LIST);
-		$aiowps_banned_ip_addresses = $aio_wp_security->configs->get_value('aiowps_banned_ip_addresses');
-		$aiowps_banned_user_agents = $aio_wp_security->configs->get_value('aiowps_banned_user_agents');
-		$allowlist = $aiowps_firewall_allow_list::get_ips();
+		$aios_commands = new AIOWPSecurity_Commands();
 
-		$aio_wp_security->include_template('wp-admin/firewall/block-and-allow-lists.php', false, array('result' => $result, 'aiowps_feature_mgr' => $aiowps_feature_mgr, 'aiowps_banned_user_agents' => $aiowps_banned_user_agents, 'aiowps_banned_ip_addresses' => $aiowps_banned_ip_addresses, 'allowlist' => $allowlist));
+		$block_allowlist_data = $aios_commands->get_block_allow_lists_data();
+
+		$aio_wp_security->include_template('wp-admin/firewall/block-and-allow-lists.php', false, $block_allowlist_data);
 	}
 
 	/**

@@ -158,7 +158,9 @@ class AIOWPSecurity_List_404 extends AIOWPSecurity_List_Table {
 	 * @return void
 	 */
 	private function process_bulk_action() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- PCP warning. This is the nonce.
 		if (empty($_REQUEST['_wpnonce']) || !isset($_REQUEST['_wp_http_referer'])) return;
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- PCP warning. Ignore.
 		$result = AIOWPSecurity_Utility_Permissions::check_nonce_and_user_cap($_REQUEST['_wpnonce'], 'bulk-items');
 		if (is_wp_error($result)) return;
 		
@@ -166,7 +168,8 @@ class AIOWPSecurity_List_404 extends AIOWPSecurity_List_Table {
 			if (!isset($_REQUEST['item'])) {
 				AIOWPSecurity_Admin_Menu::show_msg_error_st(__('Please select some records using the checkboxes', 'all-in-one-wp-security-and-firewall'));
 			} else {
-				$this->block_ip(($_REQUEST['item']));
+				// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- PCP warning, ignore. Sanitized later.
+				$this->block_ip(wp_unslash($_REQUEST['item']));
 			}
 		}
 
@@ -174,16 +177,19 @@ class AIOWPSecurity_List_404 extends AIOWPSecurity_List_Table {
 			if (!isset($_REQUEST['item'])) {
 				AIOWPSecurity_Admin_Menu::show_msg_error_st(__('Please select some records using the checkboxes', 'all-in-one-wp-security-and-firewall'));
 			} else {
-				$this->blacklist_ip_address(($_REQUEST['item']));
+				// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- PCP warning, ignore. Sanitized later.
+				$this->blacklist_ip_address(wp_unslash($_REQUEST['item']));
 			}
 		}
 		if ('delete' === $this->current_action()) {//Process delete bulk actions
 			if (!isset($_REQUEST['item'])) {
 				AIOWPSecurity_Admin_Menu::show_msg_error_st(__('Please select some records using the checkboxes', 'all-in-one-wp-security-and-firewall'));
 			} else {
-				$this->delete_404_event_records(($_REQUEST['item']));
+				// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- PCP warning, ignore. Sanitized later.
+				$this->delete_404_event_records(wp_unslash($_REQUEST['item']));
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended -- PCP warning. This is the nonce.
 	}
 
 	/**
@@ -201,8 +207,8 @@ class AIOWPSecurity_List_404 extends AIOWPSecurity_List_Table {
 			$entries = array_filter($entries, 'is_numeric'); //discard non-numeric ID values
 			$id_list = "(" .implode(",", $entries) .")"; //Create comma separate list for DB operation
 			$events_table = AIOWPSEC_TBL_EVENTS;
-			$query = "SELECT ip_or_host FROM $events_table WHERE ID IN ".$id_list;
-			$results = $wpdb->get_col($query);
+			// phpcs:ignore WordPress.DB.PreparedSQL, WordPress.DB.DirectDatabaseQuery -- PCP error. Ignore.
+			$results = $wpdb->get_col("SELECT ip_or_host FROM $events_table WHERE ID IN " . $id_list);
 			if (empty($results)) {
 				AIOWPSecurity_Admin_Menu::show_msg_error_st(__('Could not process the request because the IP addresses for the selected entries could not be found.', 'all-in-one-wp-security-and-firewall'));
 				return false;
@@ -235,8 +241,8 @@ class AIOWPSecurity_List_404 extends AIOWPSecurity_List_Table {
 			$entries = array_filter($entries, 'is_numeric'); //discard non-numeric ID values
 			$id_list = "(" .implode(",", $entries) .")"; //Create comma separate list for DB operation
 			$events_table = AIOWPSEC_TBL_EVENTS;
-			$query = "SELECT ip_or_host FROM $events_table WHERE ID IN ".$id_list;
-			$results = $wpdb->get_col($query);
+			// phpcs:ignore WordPress.DB.PreparedSQL, WordPress.DB.DirectDatabaseQuery -- PCP error. Ignore.
+			$results = $wpdb->get_col("SELECT ip_or_host FROM $events_table WHERE ID IN " . $id_list);
 			if (empty($results)) {
 				AIOWPSecurity_Admin_Menu::show_msg_error_st(__('Could not process the request because the IP addresses for the selected entries could not be found.', 'all-in-one-wp-security-and-firewall'));
 				return false;
@@ -276,8 +282,8 @@ class AIOWPSecurity_List_404 extends AIOWPSecurity_List_Table {
 			$entries = array_map('esc_sql', $entries); //escape every array element
 			$entries = array_filter($entries, 'is_numeric'); //discard non-numeric ID values
 			$id_list = "(" . implode(",", $entries) . ")"; //Create comma separate list for DB operation
-			$delete_command = "DELETE FROM " . $events_table . " WHERE id IN " . $id_list;
-			$result = $wpdb->query($delete_command);
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP error. Ignore.
+			$result = $wpdb->query("DELETE FROM " . $events_table . " WHERE id IN " . $id_list);
 			if ($result) {
 				AIOWPSecurity_Admin_Menu::show_msg_record_deleted_st();
 			} else {
@@ -303,7 +309,8 @@ class AIOWPSecurity_List_404 extends AIOWPSecurity_List_Table {
 		$columns = $this->get_columns();
 		$hidden = array();
 		$sortable = $this->get_sortable_columns();
-		$search_term = isset($_REQUEST['s']) ? sanitize_text_field(stripslashes($_REQUEST['s'])) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- PCP warning. Nonce checked in previous function.
+		$search_term = isset($_REQUEST['s']) ? sanitize_text_field(wp_unslash($_REQUEST['s'])) : '';
 
 		$this->_column_headers = array($columns, $hidden, $sortable);
 
@@ -314,8 +321,10 @@ class AIOWPSecurity_List_404 extends AIOWPSecurity_List_Table {
 
 		// Ordering parameters
 		// Parameters that are going to be used to order the result
-		$orderby = isset($_GET['orderby']) ? strip_tags($_GET['orderby']) : '';
-		$order = isset($_GET['order']) ? strip_tags($_GET['order']) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- PCP warning. No nonce.
+		$orderby = isset($_GET['orderby']) ? sanitize_text_field(wp_unslash($_GET['orderby'])) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- PCP warning. No nonce.
+		$order = isset($_GET['order']) ? sanitize_text_field(wp_unslash($_GET['order'])) : '';
 
 		$orderby = !empty($orderby) ? esc_sql($orderby) : 'id';
 		$order = !empty($order) ? esc_sql($order) : 'DESC';
@@ -324,9 +333,11 @@ class AIOWPSecurity_List_404 extends AIOWPSecurity_List_Table {
 		$order = AIOWPSecurity_Utility::sanitize_value_by_array($order, array('DESC' => '1', 'ASC' => '1'));
 
 		if (empty($search_term)) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
 			$data = $wpdb->get_results("SELECT * FROM $events_table_name WHERE `event_type` = '404' ORDER BY $orderby $order", ARRAY_A);
 		} else {
-			$data = $wpdb->get_results($wpdb->prepare("SELECT * FROM $events_table_name WHERE `ip_or_host` LIKE '%%%s%%' OR `url` LIKE '%%%s%%' OR `referer_info` LIKE '%%%s%%' ORDER BY $orderby $order", $search_term, $search_term, $search_term), ARRAY_A);
+			// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.LikeWildcardsInQueryWithPlaceholder, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP error. Ignore.
+			$data = $wpdb->get_results($wpdb->prepare("SELECT * FROM $events_table_name WHERE `ip_or_host` LIKE '%%%s%%' OR `url` LIKE '%%%s%%' OR `referer_info` LIKE '%%%s%%' ORDER BY $orderby $order", $wpdb->esc_like($search_term), $wpdb->esc_like($search_term), $wpdb->esc_like($search_term)), ARRAY_A);
 		}
 
 		if (!$ignore_pagination) {

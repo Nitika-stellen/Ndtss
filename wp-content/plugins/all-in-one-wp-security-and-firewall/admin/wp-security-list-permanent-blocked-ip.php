@@ -66,35 +66,34 @@ class AIOWPSecurity_List_Blocked_IP extends AIOWPSecurity_List_Table {
 	}
 
 	public function get_columns() {
-		$columns = array(
+		return array(
 			'cb' => '<input type="checkbox" />', //Render a checkbox
 			'id' => 'ID',
 			'blocked_ip' => __('Blocked IP', 'all-in-one-wp-security-and-firewall'),
 			'block_reason' => __('Reason', 'all-in-one-wp-security-and-firewall'),
 			'created' => __('Date and Time', 'all-in-one-wp-security-and-firewall')
 		);
-		return $columns;
 	}
 
 	public function get_sortable_columns() {
-		$sortable_columns = array(
+		return array(
 			'id' => array('id', false),
 			'blocked_ip' => array('blocked_ip', false),
 			'block_reason' => array('block_reason', false),
 			'created' => array('created', false)
 		);
-		return $sortable_columns;
 	}
 
 	public function get_bulk_actions() {
-		$actions = array(
+		return array(
 			'unblock' => __('Unblock', 'all-in-one-wp-security-and-firewall')
 		);
-		return $actions;
 	}
 
 	private function process_bulk_action() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- PCP warning. It IS the nonce. Ignore.
 		if (empty($_REQUEST['_wpnonce']) || !isset($_REQUEST['_wp_http_referer'])) return;
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- PCP warning. Ignore.
 		$result = AIOWPSecurity_Utility_Permissions::check_nonce_and_user_cap($_REQUEST['_wpnonce'], 'bulk-items');
 		if (is_wp_error($result)) return;
 
@@ -102,9 +101,11 @@ class AIOWPSecurity_List_Blocked_IP extends AIOWPSecurity_List_Table {
 			if (!isset($_REQUEST['item'])) {
 				AIOS_Helper::set_message('aios_list_message', __('Please select some records using the checkboxes', 'all-in-one-wp-security-and-firewall'), 'error');
 			} else {
-				$this->unblock_ip_address(($_REQUEST['item']));
+				// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- PCP warning. Sanitized later
+				$this->unblock_ip_address(wp_unslash($_REQUEST['item']));
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended -- PCP warning. It IS the nonce. Ignore.
 	}
 
 	/**
@@ -121,7 +122,7 @@ class AIOWPSecurity_List_Blocked_IP extends AIOWPSecurity_List_Table {
 
 			$entries = array_filter($entries, 'is_numeric'); //discard non-numeric ID values
 			$id_list = "(" . implode(",", $entries) . ")"; //Create comma separate list for DB operation
-			$delete_command = "DELETE FROM " . AIOWPSEC_TBL_PERM_BLOCK . " WHERE id IN " . $id_list;
+			$delete_command = "DELETE FROM " . AIOWPSEC_TBL_PERM_BLOCK . " WHERE id IN " . $id_list; // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $id_list cannot be prepared.
 			$result = $wpdb->query($delete_command);
 			if ($result) {
 				AIOS_Helper::set_message('aios_list_message', __('Successfully unblocked and deleted the selected record(s).', 'all-in-one-wp-security-and-firewall'));
@@ -133,6 +134,7 @@ class AIOWPSecurity_List_Blocked_IP extends AIOWPSecurity_List_Table {
 		} elseif (!empty($entries)) {
 			//Delete single record
 			$delete_command = "DELETE FROM " . AIOWPSEC_TBL_PERM_BLOCK . " WHERE id = %d";
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP error. Ignore.
 			$result = $wpdb->query($wpdb->prepare($delete_command, absint($entries)));
 			if (false === $result) {
 				// Error on single delete
@@ -182,7 +184,9 @@ class AIOWPSecurity_List_Blocked_IP extends AIOWPSecurity_List_Table {
 		$columns = $this->get_columns();
 		$hidden = array();
 		$sortable = $this->get_sortable_columns();
-		$search = isset($_REQUEST['s']) ? sanitize_text_field($_REQUEST['s']) : '';
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- PCP warning. No nonce.
+		$search = isset($_REQUEST['s']) ? sanitize_text_field(wp_unslash($_REQUEST['s'])) : '';
 
 		$this->_column_headers = array($columns, $hidden, $sortable);
 
@@ -193,8 +197,10 @@ class AIOWPSecurity_List_Blocked_IP extends AIOWPSecurity_List_Table {
 
 		// Ordering parameters
 		// Parameters that are going to be used to order the result
-		$orderby = isset($_GET["orderby"]) ? strip_tags($_GET["orderby"]) : '';
-		$order = isset($_GET["order"]) ? strip_tags($_GET["order"]) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- PCP warning. No nonce.
+		$orderby = isset($_GET["orderby"]) ? sanitize_text_field(wp_unslash($_GET["orderby"])) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- PCP warning. No nonce.
+		$order = isset($_GET["order"]) ? sanitize_text_field(wp_unslash($_GET["order"])) : '';
 
 		$orderby = !empty($orderby) ? esc_sql($orderby) : 'id';
 		$order = !empty($order) ? esc_sql($order) : 'DESC';
@@ -208,12 +214,15 @@ class AIOWPSecurity_List_Blocked_IP extends AIOWPSecurity_List_Table {
 
 		$search_query = $this->get_permanent_blocked_ip_list_where_sql($search);
 
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
 		$total_items = $wpdb->get_var("SELECT COUNT(*) FROM {$block_table_name}{$search_query}");
 
 		if ($ignore_pagination) {
-			$data = $wpdb->get_results("SELECT * FROM {$block_table_name} {$search_query} ORDER BY {$orderby} {$order}", 'ARRAY_A');
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
+			$data = $wpdb->get_results("SELECT * FROM {$block_table_name} {$search_query} ORDER BY $orderby$order", 'ARRAY_A');
 		} else {
-			$data = $wpdb->get_results("SELECT * FROM {$block_table_name}{$search_query} ORDER BY {$orderby} {$order} LIMIT {$per_page} OFFSET {$offset}", 'ARRAY_A');
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
+			$data = $wpdb->get_results("SELECT * FROM {$block_table_name}{$search_query} ORDER BY $orderby $order LIMIT $per_page OFFSET $offset", 'ARRAY_A');
 		}
 
 		$this->items = $data;

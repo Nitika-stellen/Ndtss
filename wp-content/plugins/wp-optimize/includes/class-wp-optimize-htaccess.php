@@ -166,11 +166,11 @@ class WP_Optimize_Htaccess {
 		$last = key($flat_array);
 
 		foreach ($flat_array as $key => $value) {
-			if ('' != $value && '#' == $value[0]) {
+			if ('' !== $value && '#' === $value[0]) {
 				// never add prefix for comment lines.
 				$flat_array[$key] = $value;
 			} else {
-				$flat_array[$key] = ($key == $first || $key == $last) ? $value : $prefix . $value;
+				$flat_array[$key] = ($key === $first || $key === $last) ? $value : $prefix . $value;
 			}
 		}
 
@@ -266,8 +266,8 @@ class WP_Optimize_Htaccess {
 
 			$value = $this->normalize_string($value);
 
-			if ($value == $section_begin_normalized) $section_begin_index = $i;
-			if ($value == $section_end_normalized) $section_end_index = $i;
+			if ($value === $section_begin_normalized) $section_begin_index = $i;
+			if ($value === $section_end_normalized) $section_end_index = $i;
 		}
 
 		if (false === $section_begin_index) {

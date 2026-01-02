@@ -111,6 +111,7 @@
 
 .wp_optimize_blink_animation-message_text--small {
   font-size: 18px;
+  word-wrap: break-word;
 }
 
 .wp_optimize_blink_animation-message_text--medium {

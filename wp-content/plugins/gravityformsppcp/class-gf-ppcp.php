@@ -435,6 +435,7 @@ class GF_PPCP extends GFPaymentAddOn {
 				'first_name'      => rgars( $feed, 'meta/billingInformation_first_name' ),
 				'last_name'       => rgars( $feed, 'meta/billingInformation_last_name' ),
 				'email'           => rgars( $feed, 'meta/billingInformation_email' ),
+				'telephone'       => rgars( $feed, 'meta/billingInformation_telephone' ),
 				'address_line1'   => rgars( $feed, 'meta/billingInformation_address' ),
 				'address_line2'   => rgars( $feed, 'meta/billingInformation_address2' ),
 				'address_city'    => rgars( $feed, 'meta/billingInformation_city' ),
@@ -680,7 +681,7 @@ class GF_PPCP extends GFPaymentAddOn {
 					),
 					'loader_text'      => wp_strip_all_tags( __( 'Please wait while we complete the onboarding process with PayPal. This may take a few seconds.', 'gravityformsppcp' ) ),
 					'activate_webhook_nonce'   => wp_create_nonce( 'gf_ppcp_activate_webhook' ),
-					'activate_webhook_error'   => esc_html__( 'An error occurred while trying to activate the webhook, please try setting the webhook ID manually or tr again later.', 'gravityformsppcp' ),
+					'activate_webhook_error'   => esc_html__( 'An error occurred while trying to activate the webhook. Please set the webhook ID manually or try again later.', 'gravityformsppcp' ),
 					'activate_webhook_loading' => esc_html__( 'Please wait, communicating with PayPal...', 'gravityformsppcp' ),
 					'activate_webhook_text'    => esc_html__( 'Automatically activate the webhook', 'gravityformsppcp' ),
 					'save_webhook_nonce'       => wp_create_nonce( 'gf_ppcp_save_webhook' ),
@@ -1564,7 +1565,7 @@ class GF_PPCP extends GFPaymentAddOn {
 				'/(src=\".*\")/',
 			);
 
-			$tag = preg_replace( $patterns, "$1 data-client-token='$client_token' data-partner-attribution-id='RocketGenius_PCP' data-identifier='gform_ppcp_js_sdk'", $tag );
+			$tag = preg_replace( $patterns, "$1 data-client-token='$client_token' data-partner-attribution-id='RocketGenius_PCP' data-identifier='gform_ppcp_js_sdk' data-page-type='checkout'", $tag );
 		}
 
 		return $tag;
@@ -1786,6 +1787,11 @@ class GF_PPCP extends GFPaymentAddOn {
 				'label'    => esc_html__( 'Last Name', 'gravityformsppcp' ),
 				'required' => false,
 
+			),
+			array(
+				'name'     => 'telephone',
+				'label'    => esc_html__( 'Telephone', 'gravityformsppcp' ),
+				'required' => false,
 			)
 		);
 

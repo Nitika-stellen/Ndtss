@@ -381,7 +381,14 @@ function examiner_dashboard() {
         if($entry_data['form_id'] == 15){
             echo '<div class="border rounded-lg p-4 mb-4 bg-gray-50 table_sidebar">';
             echo '<h3 class="text-md font-bold mb-2 mt-0">' . esc_html($method) . ' Marks</h3>';
-            $examiner_marks_url = admin_url("admin.php?page=examiner-marks-entry&entry_id=" . intval($entry_id) . "&method=" . urlencode($method) . "&examno=" . esc_attr($order_number));
+           // $examiner_marks_url = admin_url("admin.php?page=examiner-marks-entry&entry_id=" . intval($entry_id) . "&method=" . urlencode($method) . "&examno=" . esc_attr($order_number));
+             $examiner_marks_url = admin_url(
+                    "admin.php?page=examiner-marks-entry"
+                    . "&entry_id=" . intval($entry_id)
+                    . "&method=" . urlencode($method)
+                    . "&examno=" . esc_attr($order_number)
+                    . "&candidate_name=" . urlencode($candidate_name)
+                );
             echo '<a href="' . esc_url($examiner_marks_url) . '" class="button button-primary">Add Marks</a>';
             echo '</div>';
         }
@@ -396,7 +403,14 @@ function examiner_dashboard() {
             echo $order_number;
                 echo '<div class="border rounded-lg p-4 mb-4 bg-gray-50 table_sidebar">';
                 echo '<h3 class="text-md font-bold mb-2 mt-0">' . esc_html($method) . ' Marks</h3>';
-                $examiner_marks_url = admin_url("admin.php?page=examiner-marks-entry&entry_id=" . intval($entry_id) . "&method=" . urlencode($method) . "&examno=" . esc_attr($order_number));
+               //$examiner_marks_url = admin_url("admin.php?page=examiner-marks-entry&entry_id=" . intval($entry_id) . "&method=" . urlencode($method) . "&examno=" . esc_attr($order_number));
+                  $examiner_marks_url = admin_url(
+                    "admin.php?page=examiner-marks-entry"
+                    . "&entry_id=" . intval($entry_id)
+                    . "&method=" . urlencode($method)
+                    . "&examno=" . esc_attr($order_number)
+                    . "&candidate_name=" . urlencode($candidate_name)
+                );
                 echo '<a href="' . esc_url($examiner_marks_url) . '" class="button button-primary">Add Marks</a>';
                 echo '</div>';           
         }

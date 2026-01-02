@@ -3,8 +3,8 @@ Contributors: wpchill,silkalns,cdillon27
 Tags: testimonial plugin, testimonials slider, testimonial form, star ratings
 Requires at least: 5.2
 Requires PHP: 5.6
-Tested up to: 6.8
-Stable tag: 3.2.16
+Tested up to: 6.9
+Stable tag: 3.2.19
 License: GPLv3 or later
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 
@@ -189,6 +189,10 @@ Yes. This requires a lightbox so if your theme does not include one, you will ne
 
 No. If you already have testimonials in another plugin or theme, you will have to re-enter them. Why? Because every theme and plugin stores data differently.
 
+= Where do I report security bugs found in this plugin? =
+
+Please report security bugs found in the source code of the Strong Testimonials plugin through the [Patchstack Vulnerability Disclosure  Program](https://patchstack.com/database/vdp/9e5fb49c-26b1-4725-8172-ce6b7ffc67f2). The Patchstack team will assist you with verification, CVE assignment, and notify the developers of this plugin."
+
 == Screenshots ==
 
 1. Slideshow
@@ -201,6 +205,15 @@ No. If you already have testimonials in another plugin or theme, you will have t
 8. View editor
 
 == Changelog ==
+= 3.2.19 - 10.12.2025 -
+- Fixed: Security issue.
+
+= 3.2.18 - 03.11.2025 -
+- Added: Black Friday upsells & notifications updates.
+
+= 3.2.17 - 21.10.2025 -
+- Removed: Shortcode processing from the_content and the_excerpt filters.
+
 = 3.2.16 - 25.08.2025 -
 - Fixed: License activation/deactivation alternative server.
 

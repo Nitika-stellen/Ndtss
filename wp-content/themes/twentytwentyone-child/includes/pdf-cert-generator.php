@@ -55,37 +55,122 @@ function generate_exam_certificate_pdf($exam_entry_id, $marks_entry_id, $method)
 
     $sector = '';
     $exam_status = 'Initial';
-    $scope = [];
-    foreach ($exam_form['fields'] as $field) {
-        $field_id = $field->id;
-        $label = trim($field->label);
-        $value = $exam_entry[$field_id] ?? '';
+    $scope_values = [];
 
-        if (stripos($label, 'sector for ' . strtolower(trim($method))) !== false) {
-            $sector = $value;
-        }
-        // if (strpos($field->cssClass, 'exam_status_' . strtolower($method)) !== false) {
-        //     $exam_status = $value;
-        // }
-        if (strpos($field->cssClass, 'scope_' . strtolower($method)) !== false) {
-            foreach ($field->inputs as $input) {
-                $input_id = $input['id'];
-                if (!empty($exam_entry[$input_id])) {
-                    $scope[] = $exam_entry[$input_id];
+    $get_field_values = function ($field) use ($exam_entry) {
+        $values = [];
+        $field_id = isset($field->id) ? (string) $field->id : (isset($field['id']) ? (string) $field['id'] : '');
+        $field_inputs = isset($field->inputs) ? $field->inputs : (isset($field['inputs']) ? $field['inputs'] : []);
+
+        if (!empty($field_inputs) && is_array($field_inputs)) {
+            foreach ($field_inputs as $input) {
+                $input_id = is_array($input) && isset($input['id']) ? (string) $input['id'] : (string) $input;
+                if ($input_id === '') {
+                    continue;
+                }
+                $entry_value = $exam_entry[$input_id] ?? null;
+                if (is_array($entry_value)) {
+                    foreach ($entry_value as $val) {
+                        if ($val !== '' && $val !== null) {
+                            $values[] = trim((string) $val);
+                        }
+                    }
+                } elseif ($entry_value !== '' && $entry_value !== null) {
+                    $values[] = trim((string) $entry_value);
                 }
             }
         }
 
-        if ($sector && $exam_status) {
-            break;
+        if ($field_id !== '') {
+            $entry_value = $exam_entry[$field_id] ?? null;
+            if (is_array($entry_value)) {
+                foreach ($entry_value as $val) {
+                    if ($val !== '' && $val !== null) {
+                        $values[] = trim((string) $val);
+                    }
+                }
+            } elseif ($entry_value !== '' && $entry_value !== null) {
+                $values[] = trim((string) $entry_value);
+            }
+        }
+
+        $values = array_values(array_filter($values, static function ($val) {
+            return $val !== '';
+        }));
+
+        return array_values(array_unique($values));
+    };
+
+    foreach ($exam_form['fields'] as $field) {
+        $label = isset($field->label) ? trim($field->label) : '';
+        $css_class = isset($field->cssClass) ? $field->cssClass : (isset($field['cssClass']) ? $field['cssClass'] : '');
+        $field_values = $get_field_values($field);
+
+        // if (empty($sector) && !empty($field_values) && stripos($label, 'sector') !== false) {
+        //     $sector = implode(', ', $field_values);
+        // }
+
+        if (!empty($field_values) && ((stripos($label, 'scope') !== false) || (!empty($css_class) && strpos($css_class, 'scope_' . strtolower($method)) !== false))) {
+            $scope_values = array_merge($scope_values, $field_values);
+        }
+
+        if (!empty($field_values) && (
+            stripos($label, 'exam status') !== false ||
+            (stripos($label, 'initial') !== false && stripos($label, 'retest') !== false) ||
+            (!empty($css_class) && strpos($css_class, 'exam_status') !== false)
+        )) {
+            $exam_status = $field_values[0];
+        }
+
+        if (empty($sector) && !empty($field_values) && !empty($css_class) && strpos($css_class, 'sector_' . strtolower($method)) !== false) {
+            $sector = implode(', ', $field_values);
         }
     }
+
+    // Clean sector value - remove suffix after " -" from each comma-separated value
+    if (!empty($sector)) {
+        $sector_parts = array_map('trim', explode(',', $sector));
+        $cleaned_parts = array_map(function($part) {
+            return preg_replace('/\s*-\s*[a-z]+$/i', '', trim($part));
+        }, $sector_parts);
+        $sector = implode(', ', $cleaned_parts);
+    }
+
+$scope_values = array_values(array_unique(array_filter($scope_values, static function ($val) {
+        return $val !== '';
+    })));
+    $scope = $scope_values;
+    $scope_text = !empty($scope_values) ? implode(', ', $scope_values) : '';
 
     $method_slug = sanitize_title($method);
     $issue_date = date('d.m.Y');
     $issue_date_sql = current_time('mysql');
 
-   // Generate unique cert_number with a maximum attempt limit
+    // Generate unique cert_number with a maximum attempt limit
+    // Validation: Check for AQB Signature before processing
+    $marks_form = GFAPI::get_form($marks_entry['form_id']);
+    $signature_path = '';
+    foreach ($marks_form['fields'] as $field) {
+        $field_id = $field->id;
+        $value = $marks_entry[$field_id] ?? '';
+        if ($field_id == 18) {
+             // Re-fetch the entry to get the latest saved signature value
+             $updated_marks_entry = GFAPI::get_entry($marks_entry_id);
+             $value = $updated_marks_entry[$field_id] ?? '';
+             
+             if (!empty($value)) {
+                $upload_dir = wp_upload_dir();
+                $signature_url = $upload_dir['baseurl'] . '/gravity_forms/signatures/' . $value;
+                $signature_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $signature_url);
+             }
+        }
+    }
+
+    if (empty($signature_path) || !file_exists($signature_path)) {
+       ob_end_clean();
+       throw new Exception("AQB signature not found in marks form. Please add the signature and try again.");
+    }
+
     $table_certifications = $wpdb->prefix . 'sgndt_certifications'; // Re-declare to ensure scope
     $base_cert_number = 'SGNDT-' . $candidate_reg_number . '-' . strtoupper($method_slug);
     $cert_number = $base_cert_number;
@@ -181,7 +266,10 @@ function generate_exam_certificate_pdf($exam_entry_id, $marks_entry_id, $method)
     }
 
     // Determine if this is a retest
-    $is_retest = ($exam_status === 'Retest');
+    $is_retest = (stripos($exam_status, 'retest') !== false);
+    $exam_status_display = $exam_status !== '' ? $exam_status : 'Initial';
+    $sector_display = $sector !== '' ? $sector : 'N/A';
+    $scope_display = $scope_text !== '' ? $scope_text : 'N/A';
     $marks_result = [];
     if (in_array($exam_level, ['level 1', 'level 2'])) {
         $marks_result = generate_level_2_table($marks_entry, $passed_subjects, $is_retest);
@@ -239,7 +327,7 @@ function generate_exam_certificate_pdf($exam_entry_id, $marks_entry_id, $method)
         'method' => $method,
         'level' => $exam_level,
         'sector' => $sector,
-        'scope' => (!empty($scope) && is_array($scope) ? implode(', ', $scope) : ''),
+        'scope' => $scope_text,
         'result' => $overall_result,
         'issue_date' => $issue_date_sql,
         'expiry_date' => $expiry_date_sql,
@@ -378,7 +466,7 @@ function generate_exam_certificate_pdf($exam_entry_id, $marks_entry_id, $method)
         return false;
     }
     $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
-    $pdf->SetMargins(10, 8, 10);
+    $pdf->SetMargins(10, 5, 10);
     $pdf->SetAutoPageBreak(true, 8);
     $pdf->setPrintHeader(false);
     $pdf->setPrintFooter(false);
@@ -402,79 +490,150 @@ function generate_exam_certificate_pdf($exam_entry_id, $marks_entry_id, $method)
 
     $pdf->Ln(5);
     $pdf->SetTextColor(255, 0, 0);
-    $pdf->Cell(0, 6, 'NON-DESTRUCTIVE TESTING SOCIETY (SINGAPORE)', 0, 1, 'C');
+    $pdf->Cell(0, 5, 'NON-DESTRUCTIVE TESTING SOCIETY (SINGAPORE)', 0, 1, 'C');
     $pdf->SetTextColor(0, 0, 0);
-    $pdf->Cell(0, 6, '(SGNDT SCHEME IN ACCORDANCE WITH ISO 9712:2021)', 0, 1, 'C');
-    $pdf->Cell(0, 7, 'NOTIFICATION OF SGNDT EXAMINATION RESULTS', 0, 1, 'C');
-    $pdf->Ln(3);
+    $pdf->Cell(0, 4, '(SGNDT SCHEME IN ACCORDANCE WITH ISO 9712:2021)', 0, 1, 'C');
+    $pdf->Cell(0, 5, 'NOTIFICATION OF SGNDT EXAMINATION RESULTS', 0, 1, 'C');
+    $pdf->Ln(2);
 
-    // Process signature
-    $marks_form = GFAPI::get_form($marks_entry['form_id']);
-    $signature_path = '';
-    foreach ($marks_form['fields'] as $field) {
-        $field_id = $field->id;
-        $value = $marks_entry[$field_id] ?? '';
-        if ($field_id == 18 && !empty($value)) {
-            $upload_dir = wp_upload_dir();
-            $signature_url = $upload_dir['baseurl'] . '/gravity_forms/signatures/' . $value;
-            $signature_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $signature_url);
+
+
+    // Process signature image for embedding
+    $final_signature_path = '';
+    if (!empty($signature_path) && file_exists($signature_path) && is_readable($signature_path)) {
+        $signature_cropped_path = str_replace('.png', '_cropped.png', $signature_path);
+        try {
+            $cropped_ready = true;
+            if (function_exists('crop_signature_image')) {
+                $cropped_ready = crop_signature_image($signature_path, $signature_cropped_path);
+            }
+            if ($cropped_ready && file_exists($signature_cropped_path)) {
+                $final_signature_path = $signature_cropped_path;
+            } else {
+                // Fallback to original if crop fails but file exists
+                $final_signature_path = $signature_path;
+            }
+        } catch (Exception $e) {
+            error_log("Error processing signature image: " . $e->getMessage());
+            $final_signature_path = $signature_path; // Fallback
         }
     }
 
     // CSS for styling
     $css = "<style>
-    body { font-family: Times, serif; font-size: 10pt; line-height: 1.5; }
+    body { font-family: Times, serif; font-size: 10pt; line-height: 1.3; }
+    p { margin: 1px 0; }
     h1 { font-size: 14pt; font-weight: bold; }
     h2 { font-size: 13pt; }
-    h3 { font-size: 11pt; margin: 4px 0; }
-    th, td { font-size: 10.5pt; padding: 3px; text-align: left; }
+    h3 { font-size: 10pt; margin: 1px 0; }
+    th, td { padding: 1px; text-align: left; vertical-align: middle; }
     .footer-note { font-size: 7pt; font-style: italic; }
     table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #000; padding: 3px; }
-    th { background: #f0f0f0; width: 30%; }
+    th, td { border: 1px solid #000; }
+    th { background: #f0f0f0; }
+    img { border: none !important; }
     </style>";
 
+    // Get candidate photo from Exam Entry (Field 861)
+    $photo_url = rgar($exam_entry, '861');
+    $photo_html = '';
+    $has_photo = false;
+    
+    if (!empty($photo_url)) {
+        $upload_dir = wp_upload_dir();
+        $photo_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $photo_url);
+        if (file_exists($photo_path)) {
+            // Remove height to preserve aspect ratio
+            $photo_html = '<img src="' . $photo_path . '" width="110" style="border: none !important; padding: 0 !important;" />';
+            $has_photo = true;
+        }
+    }
+
+     if (!$has_photo) {
+        $profile_photo_url = get_user_meta($user_id, 'custom_profile_photo', true);
+        if (!empty($profile_photo_url)) {
+            $upload_dir = wp_upload_dir();
+            $profile_photo_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $profile_photo_url);
+            if (file_exists($profile_photo_path)) {
+                // Remove height to preserve aspect ratio
+                $photo_html = '<img src="' . $profile_photo_path . '" width="110" style="border: none !important; padding: 0 !important;" />';
+                $has_photo = true;
+            }
+        }
+    }
+
     // Build PDF content
-
     $content = $css;
-    $content .= "<h3>CANDIDATE INFORMATION</h3><table>";
-    $content .= "<tr><th>Name</th><td>" . (isset($candidate_name) ? esc_html($candidate_name) : 'N/A') . "</td></tr>";
-    $content .= "<tr><th>ID of Candidate</th><td>" . (isset($exam_entry['789']) ? esc_html($exam_entry['789']) : 'N/A') . "</td></tr>";
-    $content .= "<tr><th>Certificate Number</th><td>" . esc_html($cert_number) . "</td></tr>";
-    $content .= "<tr><th>Date of Birth</th><td>" . (isset($exam_entry['3']) ? esc_html($exam_entry['3']) : 'N/A') . "</td></tr>";
-    $content .= "<tr><th>Result Ref. No.</th><td>" . (isset($marks_entry['21']) ? esc_html($marks_entry['21']) : 'N/A') . "</td></tr>";
-    $content .= "<tr><th>Organization</th><td>" . (isset($exam_entry['17']) ? esc_html($exam_entry['17']) : 'N/A') . "</td></tr>";
-    $content .= "<tr><th>Address</th><td>" . esc_html($full_address) . "</td></tr></table>";
+    
+    // Column Widths
+    $col1_w = '30%';
+    $col2_w = $has_photo ? '45%' : '70%';
+    $col3_w = '25%';
 
-    $content .= "<h3>EXAMINATION DETAILS</h3><table>";
-    $content .= "<tr><th>Date of Exam</th><td>" . esc_html($exam_date) . "</td></tr>";
-    $content .= "<tr><th>Exam Center</th><td>" . (isset($exam_entry['833']) ? esc_html($exam_entry['833']) : 'N/A') . "</td></tr>";
-    $content .= "<tr><th>Method</th><td>" . esc_html($method) . "</td></tr>";
-    $content .= "<tr><th>Level / Sector</th><td>" . esc_html($marks_entry['1'] ?? 'N/A') . " / " . esc_html($sector) . "</td></tr>";
-    $content .= "<tr><th>Initial / Retest</th><td>" . esc_html($exam_status) . "</td></tr></table>";
+    $content .= "<h3 style='margin: 0px 0; padding: 1px 0; font-size: 8pt;'>CANDIDATE INFORMATION</h3><table style='font-size: 10pt;'>";
+    
+    // ROW 1: Name + Photo (Rowspan)
+    $content .= '<tr>
+        <th width="' . $col1_w . '">NAME</th>
+        <td width="' . $col2_w . '"><strong>' . (isset($candidate_name) ? strtoupper(esc_html($candidate_name)) : 'N/A') . '</strong></td>';
+    
+    if ($has_photo) {
+        $content .= '<td width="' . $col3_w . '" rowspan="7" align="center" style="vertical-align: middle; border: none !important; padding: 2px;">' . $photo_html . '</td>';
+    }
+    $content .= '</tr>';
+    
+    // Remaining Rows
+    $content .= '<tr><th>ID OF CANDIDATE</th><td>' . (isset($exam_entry['789']) ? esc_html($exam_entry['789']) : 'N/A') . '</td></tr>';
+    // $content .= '<tr><th>CERTIFICATE NUMBER</th><td>' . esc_html($cert_number) . '</td></tr>';
+    
+    // Format Date of Birth to DD/MM/YYYY
+    $dob_display = 'N/A';
+    if (isset($exam_entry['3']) && !empty($exam_entry['3'])) {
+        $dob_timestamp = strtotime($exam_entry['3']);
+        if ($dob_timestamp !== false) {
+            $dob_display = date('d/m/Y', $dob_timestamp);
+        } else {
+            $dob_display = esc_html($exam_entry['3']);
+        }
+    }
+    $content .= '<tr><th>DATE OF BIRTH</th><td>' . $dob_display . '</td></tr>';
+    $content .= '<tr><th>RESULT REF. NO.</th><td>' . (isset($marks_entry['21']) ? esc_html($marks_entry['21']) : 'N/A') . '</td></tr>';
+    $content .= '<tr><th>ORGANIZATION</th><td>' . (isset($exam_entry['17']) ? esc_html($exam_entry['17']) : 'N/A') . '</td></tr>';
+    $content .= '<tr><th>ADDRESS</th><td>' . esc_html($full_address) . '</td></tr>';
+    
+    $content .= '</table>';
 
-    $content .= "<h3>RESULTS OF EXAMINATION</h3>" . $marks_html;
+    $content .= "<h3 style='margin: 0px 0; padding: 1px 0; font-size: 8pt;'>EXAMINATION DETAILS</h3><table style='font-size: 10pt;'>";
+    $content .= "<tr><th>DATE OF EXAM</th><td>" . esc_html($exam_date) . "</td></tr>";
+    $content .= "<tr><th>EXAM CENTER</th><td>" . (isset($exam_entry['833']) ? esc_html($exam_entry['833']) : 'N/A') . "</td></tr>";
+    $content .= "<tr><th>METHOD</th><td>" . esc_html($method) . "</td></tr>";
+    $content .= "<tr><th>LEVEL / SECTOR</th><td>" . esc_html($marks_entry['1'] ?? 'N/A') . " / " . esc_html($sector_display) . "</td></tr>";
+    $content .= "<tr><th>SCOPE</th><td>" . esc_html($scope_display) . "</td></tr>";
+    $content .= "<tr><th>INITIAL / RETEST</th><td>" . esc_html($exam_status_display) . "</td></tr></table>";
 
-    $content .= "<h3>EXAMINATION AUTHORITY</h3>";
-    $content .= "<p><strong>EXAMINATION AUTHORITY:</strong> NDTSS CERTIFICATION BODY</p>";
-    $content .= "<p><strong>EXAMINER:</strong> " . esc_html($examiner_list) . "</p>";
-    $content .= "<p><strong>INVIGILATOR:</strong> " . esc_html($invigilator_list) . "</p>";
-    $content .= "<div style='border-top:1px solid #000; width:200px; margin-top:5px;'></div>";
+    $content .= "<h3 style='margin: 1px 0; font-size: 12pt;'>RESULTS OF EXAMINATION</h3>" . $marks_html . '<div style="height: 15px;"></div>';
+
+
+    $content .= "<p style='margin: 1px 0; font-size: 8pt;'><strong>EXAMINATION AUTHORITY:</strong> NDTSS CERTIFICATION BODY</p>";
+    $content .= "<p style='margin: 1px 0; font-size: 8pt;'><strong>EXAMINER:</strong> " . esc_html($examiner_list) . "</p>";
+    $content .= "<p style='margin: 1px 0; font-size: 8pt;'><strong>INVIGILATOR:</strong> " . esc_html($invigilator_list) . "</p>";
+    
+    // Add spacing or signature
+    if (!empty($final_signature_path)) {
+        // Embed signature image inline
+        $content .= '<div><img src="' . $final_signature_path . '" width="120" height="30" border="0" alt="Signature" /></div>';
+    } else {
+        // Placeholder space if no signature
+        $content .= '<br>';
+    }
+    
+    // Signature Line - Restore text based line for design consistency
     $content .= "<p>____________________ (Authorized Signatory)</p>";
+    
     $content .= "<p><strong>DATE OF ISSUE:</strong> " . esc_html($issue_date) . "</p>";
     $content .= "<p class='footer-note'>This is a notification of Results only. An official Certificate bearing SGNDT Logo & Accreditation Mark will be issued within 30 days from this notification for successful candidates.</p>";
 
     $pdf->writeHTML($content, true, false, true, false, '');
-
-    // Add signature image
-    if (!empty($signature_path) && file_exists($signature_path) && is_readable($signature_path)) {
-        $signature_cropped_path = str_replace('.png', '_cropped.png', $signature_path);
-        if (!function_exists('crop_signature_image') || !crop_signature_image($signature_path, $signature_cropped_path)) {
-            error_log("Failed to crop signature image: $signature_path");
-        } else {
-            $pdf->Image($signature_cropped_path, 50, $pdf->GetY() - 12, 50, 0, 'PNG');
-        }
-    }
 
     // Page 2 – Employer Auth + Interpretation
     $pdf->AddPage();
@@ -486,15 +645,15 @@ function generate_exam_certificate_pdf($exam_entry_id, $marks_entry_id, $method)
     if (file_exists($sgndt_logo_path)) {
         $pdf->Image($sgndt_logo_path, 12, 5, 30);
     }
-    $pdf->Ln(15);
+    $pdf->Ln(10);
     $pdf->SetFont('times', '', 12);
 
     $employer_auth = '';
     if (strtoupper($overall_result) === 'PASS') {
         $employer_auth = "<h3>EMPLOYER AUTHORIZATION</h3>
-        <p style='margin-bottom: 4px;'>The Employer shall authorize the holder of NDTSS SGNDT certificate to carry out testing on his behalf...</p>";
+        <p style='margin-bottom: 2px;'>The Employer shall authorize the holder of NDTSS SGNDT certificate to carry out testing on his behalf...</p>";
         for ($i = 0; $i < 5; $i++) {
-            $employer_auth .= "<table><tr><th style='width:25%'>Name of Employer</th><th style='width:25%'>Authorization</th><th style='width:25%'>Signature</th><th style='width:25%'>Date</th></tr><tr><td height='22'></td><td></td><td></td><td></td></tr></table><br><br>";
+            $employer_auth .= "<table><tr><th style='width:25%'>Name of Employer</th><th style='width:25%'>Authorization</th><th style='width:25%'>Signature</th><th style='width:25%'>Date</th></tr><tr><td height='20'></td><td></td><td></td><td></td></tr></table><br>";
         }
     }
 
@@ -562,8 +721,13 @@ function generate_exam_certificate_pdf($exam_entry_id, $marks_entry_id, $method)
 
     ob_end_clean();
 
-    // Send notification
-    $center_name = $exam_entry['833'] ?? 'N/A';
+    // Send notification - Get center name based on form type
+    $form_id = $exam_entry['form_id'];
+    if ($form_id == 30 || $form_id == 39) {
+        $center_name = $exam_entry['9'] ?? 'N/A';
+    } else {
+        $center_name = $exam_entry['833'] ?? 'N/A';
+    }
     $center_post = get_page_by_title($center_name, OBJECT, 'exam_center');
     if ($center_post) {
         gform_update_meta($exam_entry_id, '_linked_exam_center', $center_post->ID);
@@ -591,10 +755,29 @@ function send_certification_notification($entry_id, $marks_entry_id, $center_pos
     $user_data = get_userdata($user_id);
     $candidate_name = $user_data ? $user_data->display_name : 'N/A';
     $candidate_email = $user_data && is_email($user_data->user_email) ? $user_data->user_email : '';
-    $employer_email  = rgar($entry, '864.1');
-    $personal_email  = rgar($entry, '864.2');
-    $field_863_value = rgar($entry, '863');
-    $certificate_url = $certificate_data['url'] ?? '';
+    
+    // Get email fields based on form type
+    $form_id = $entry['form_id'];
+    if ($form_id == 30) {
+        // Retest form - field 26 is candidate email
+        $employer_email  = '';
+        $personal_email  = rgar($entry, '26');
+        $field_863_value = '';
+    } elseif ($form_id == 39) {
+        // Renewal form - field 12 is candidate email
+        $employer_email  = '';
+        $personal_email  = rgar($entry, '12');
+        $field_863_value = '';
+    } else {
+        // Initial form (15)
+        $employer_email  = rgar($entry, '864.1');
+        $personal_email  = rgar($entry, '864.2');
+        $field_863_value = rgar($entry, '863');
+    }
+   
+    // Get certificate file path for email attachment
+    $certificate_path = $certificate_data['path'] ?? '';
+    
     $issue_date = date('d.m.Y', strtotime($certificate_data['generated_at'] ?? 'now'));
     $center_name = get_the_title($center_post->ID);
     $center_admin_id = get_post_meta($center_post->ID, '_center_admin_id', true);
@@ -602,36 +785,73 @@ function send_certification_notification($entry_id, $marks_entry_id, $center_pos
     $admin_users = get_users([
         'role'   => 'administrator',
         'fields' => ['user_email'],
-    ]);    
+    ]);
+
+    $recipient_candidates = [
+        $candidate_email,
+        $personal_email,
+        $employer_email,
+        $field_863_value,
+    ];
+
     $to = [];
-    if (!empty($personal_email) && is_email($candidate_email)) {
-        $to[] = sanitize_email($candidate_email);
-    }
-    if (!empty($employer_email) && is_email($field_863_value)) {
-        $to[] = sanitize_email($field_863_value);
+    foreach ($recipient_candidates as $recipient_email) {
+        if (!empty($recipient_email) && is_email($recipient_email)) {
+            $to[] = sanitize_email($recipient_email);
+        }
     }
     $to = array_unique($to);
 
     // Candidate Email
     $sent_to_candidate = false;
-    if (!empty($to)) {
+    
+    // Check if result notification email is enabled in settings
+    $enable_notification_email = get_option('ndtss_enable_result_notification_email', 1);
+    
+    if ($enable_notification_email && !empty($to)) {
         error_log("Result for candidate: " . $result);
-        $subject = 'SGNDT Examination Result Notification';
-        $body = '
-        Dear ' . esc_html($candidate_name) . ',<br><br>
-        Your examination result has been released.<br><br>
-        <strong>Method:</strong> ' . esc_html($method) . '<br>
-        <strong>Result:</strong> ' . esc_html($result) . '<br>
-        <strong>Date of Issue:</strong> ' . esc_html($issue_date) . '<br><br>
-        <a href="' . esc_url($certificate_url) . '" target="_blank">Download Certificate</a><br><br>
-        Best regards,<br>
-        NDTSS Certification Team
-        ';
+        
+        // Determine exam type for email
+        $form_id = $entry['form_id'];
+        $exam_type_label = 'Examination';
+        if ($form_id == 30) {
+            $exam_type_label = 'Retest Examination';
+        } elseif ($form_id == 39) {
+            $exam_type_label = 'Renewal/Recertification Examination';
+        } else {
+            $exam_type_label = 'Initial Examination';
+        }
+        
+        // Get subject and body from settings or use default
+        $subject = get_option('ndtss_result_notification_subject', 'SGNDT ' . $exam_type_label . ' Result Notification');
+        $body_template = get_option('ndtss_result_notification_body', '');
+        
+        if (empty($body_template)) {
+            $body_template = "Dear {candidate_name},\n\nYour result has been released.\n\nMethod: {method}\nResult: {result}\nDate of Issue: {date}\n\nPlease find your result notification attached to this email as a PDF file.\n\nBest regards,\nNDTSS Certification Team";
+        }
+
+        // Replace placeholders
+        $body = str_replace(
+            ['{candidate_name}', '{method}', '{result}', '{date}'],
+            [esc_html($candidate_name), esc_html($method), esc_html($result), esc_html($issue_date)],
+            $body_template
+        );
+        $body = nl2br($body);
+        
         $message = function_exists('get_email_template') ? get_email_template($subject, $body) : "<html><body>$body</body></html>";
 
-        add_filter('wp_mail_content_type', function () { return 'text/html'; });
-        $sent_to_candidate = wp_mail($to, $subject, $message);
-        remove_filter('wp_mail_content_type', function () { return 'text/html'; });
+        // Attach PDF if file exists
+        $attachments = [];
+        if (!empty($certificate_path) && file_exists($certificate_path)) {
+            $attachments[] = $certificate_path;
+        }
+
+        $content_type_callback = static function () {
+            return 'text/html';
+        };
+        add_filter('wp_mail_content_type', $content_type_callback);
+        $sent_to_candidate = wp_mail($to, $subject, $message, [], $attachments);
+        remove_filter('wp_mail_content_type', $content_type_callback);
 
         $log['candidate_email'] = [
             'email' => $to,
@@ -639,10 +859,18 @@ function send_certification_notification($entry_id, $marks_entry_id, $center_pos
             'timestamp' => current_time('mysql'),
         ];
         if (!$sent_to_candidate) {
-            error_log("Failed to send email to candidate: $to");
+            error_log("Failed to send email to candidate: " . implode(', ', $to));
         }
     } else {
-        error_log("Invalid or missing candidate email for entry ID: $entry_id");
+        if (!$enable_notification_email) {
+            $log['candidate_email'] = [
+                'status' => 'skipped (disabled in settings)',
+                'timestamp' => current_time('mysql'),
+            ];
+            error_log("Result notification email disabled in settings. Skipping email to candidate.");
+        } else {
+             error_log("Invalid or missing candidate email for entry ID: $entry_id");
+        }
     }
 
     // Admin Emails
@@ -673,20 +901,40 @@ function send_certification_notification($entry_id, $marks_entry_id, $center_pos
     $sent_admin_emails = [];
     error_log("Result for candidate: " . $result);
     if (!empty($admin_emails)) {
-        $subject = '📢 Candidate Result Notification – ' . esc_html($candidate_name);
+        // Determine exam type for admin email
+        $form_id = $entry['form_id'];
+        $exam_type_label = 'Examination';
+        if ($form_id == 30) {
+            $exam_type_label = 'Retest Examination';
+        } elseif ($form_id == 39) {
+            $exam_type_label = 'Renewal/Recertification Examination';
+        } else {
+            $exam_type_label = 'Initial Examination';
+        }
+        
+        $subject = '📢 Candidate ' . $exam_type_label . ' Result Notification – ' . esc_html($candidate_name);
         $body = '
         <p><strong>Candidate Name:</strong> ' . esc_html($candidate_name) . '</p>
+        <p><strong>Exam Type:</strong> ' . esc_html($exam_type_label) . '</p>
         <p><strong>Method:</strong> ' . esc_html($method) . '</p>
         <p><strong>Result:</strong> ' . esc_html($result) . '</p>
         <p><strong>Exam Center:</strong> ' . esc_html($center_name) . '</p>
         <p><strong>Date of Issue:</strong> ' . esc_html($issue_date) . '</p>
-        <p><a href="' . esc_url($certificate_url) . '" target="_blank">Download Certificate</a></p>
         ';
         $message = function_exists('get_email_template') ? get_email_template($subject, $body) : "<html><body>$body</body></html>";
 
-        add_filter('wp_mail_content_type', function () { return 'text/html'; });
-        $sent_to_admins = wp_mail($admin_emails, $subject, $message);
-        remove_filter('wp_mail_content_type', function () { return 'text/html'; });
+        // Attach PDF if file exists
+        $attachments = [];
+        if (!empty($certificate_path) && file_exists($certificate_path)) {
+            $attachments[] = $certificate_path;
+        }
+
+        $content_type_callback_admin = static function () {
+            return 'text/html';
+        };
+        add_filter('wp_mail_content_type', $content_type_callback_admin);
+        $sent_to_admins = wp_mail($admin_emails, $subject, $message, [], $attachments);
+        remove_filter('wp_mail_content_type', $content_type_callback_admin);
 
         foreach ($admin_emails as $email) {
             $sent_admin_emails[] = [

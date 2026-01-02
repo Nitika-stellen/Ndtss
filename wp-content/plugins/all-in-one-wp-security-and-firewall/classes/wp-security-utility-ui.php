@@ -28,7 +28,7 @@ class AIOWPSecurity_Utility_UI {
 			<label class="aiowps_switch">
                 <?php // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $other_attributes is already escaped ?>
 				<input type="checkbox" id="<?php echo esc_attr($option);?>" name="<?php echo esc_attr($option);?>" <?php if ($is_active) echo ' checked="checked"'; ?> <?php echo $other_attributes;?> value="1">
-				<span class="slider round"></span>
+				<span class="aiowps_slider round"></span>
 			</label>
 			<label for="<?php echo esc_attr($option);?>" class="description"><?php echo esc_html($label); ?></label>
 		<?php

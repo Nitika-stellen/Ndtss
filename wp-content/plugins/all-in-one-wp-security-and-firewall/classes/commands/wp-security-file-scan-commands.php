@@ -112,6 +112,49 @@ trait AIOWPSecurity_File_Scan_Commands_Trait {
 		return $this->handle_response(true, '', $args);
 	}
 
+	/**
+	 * Retrieves the last file scan data and returns the data to UDC.
+	 *
+	 * @param array $data The request data.
+	 *
+	 * @return array|string[]|WP_Error
+	 */
+	public function get_last_scan_data($data) {
+		global $aio_wp_security;
+
+		if (!AIOWPSecurity_Utility_Permissions::has_manage_cap()) {
+			return new WP_Error(esc_html__('Sorry, you do not have enough privilege to execute the requested action.', 'all-in-one-wp-security-and-firewall'));
+		}
+
+		if ($data['reset_change_detected']) {
+			$aio_wp_security->configs->set_value('aiowps_fcds_change_detected', false, true);
+		}
+
+		$fcd_data = AIOWPSecurity_Scan::get_fcd_data();
+
+		$data = $fcd_data['last_scan_result'];
+
+		foreach (array('files_added', 'files_removed', 'files_changed') as $key) {
+			/* Normalize missing or non-array buckets to an empty array and skip processing */
+			if (!isset($data[$key]) || !is_array($data[$key])) {
+				$data[$key] = array();
+				continue;
+			}
+
+			/* Convert last_modified for each entry */
+			foreach ($data[$key] as &$info) {
+				if (is_array($info) && array_key_exists('last_modified', $info) && is_numeric($info['last_modified'])) {
+					$info['last_modified'] = AIOWPSecurity_Utility::convert_timestamp($info['last_modified']);
+				}
+			}
+
+			unset($info);
+		}
+
+		$fcd_data['last_scan_result'] = $data;
+
+		return $this->handle_response(true, false, array('extra_args' => $fcd_data));
+	}
 
 	/**
 	 * Gets the last file scan result and returns the scan result HTML template
@@ -157,6 +200,8 @@ trait AIOWPSecurity_File_Scan_Commands_Trait {
 			return $this->handle_response(false, $message);
 		}
 
+		$aio_wp_security->configs->set_value('aiowps_last_scan_time', time(), true);
+
 		// If this is first scan display special message
 		if (1 == $result['initial_scan']) {
 			$extra_args['result'] = __('This is your first file change detection scan.', 'all-in-one-wp-security-and-firewall').' '.__('The details from this scan will be used for future scans.', 'all-in-one-wp-security-and-firewall'). ' <a href="#" class="aiowps_view_last_fcd_results">' . __('View the file scan results', 'all-in-one-wp-security-and-firewall') . '</a>';
@@ -173,5 +218,63 @@ trait AIOWPSecurity_File_Scan_Commands_Trait {
 		);
 
 		return $this->handle_response(true, false, $args);
+	}
+
+	/**
+	 * Render the legacy UDC Scanner.
+	 *
+	 * @return array
+	 */
+	public function get_scanner_contents() {
+		global $aio_wp_security;
+
+		$GLOBALS['aiowps_feature_mgr'] = $this->get_feature_mgr_object();
+
+		$scanner_data = $this->get_scanner_data();
+
+		$content = $aio_wp_security->include_template('wp-admin/scanner/file-change-detect.php', true, $scanner_data);
+
+		return array(
+			'status' => 'success',
+			'content' => $content,
+		);
+	}
+
+	/**
+	 * Return file scanner data.
+	 *
+	 * @return array Array of option values,
+	 */
+	public function get_scanner_data() {
+		global $aio_wp_security;
+
+		$fcd_data = AIOWPSecurity_Scan::get_fcd_data();
+		$previous_scan = isset($fcd_data['last_scan_result']);
+
+		$next_fcd_scan_time = AIOWPSecurity_Scan::get_next_scheduled_scan();
+
+		$aiowps_fcds_change_detected = $aio_wp_security->configs->get_value('aiowps_fcds_change_detected');
+		$aiowps_enable_automated_fcd_scan = $aio_wp_security->configs->get_value('aiowps_enable_automated_fcd_scan');
+		$aiowps_fcd_scan_frequency = $aio_wp_security->configs->get_value('aiowps_fcd_scan_frequency');
+		$aiowps_fcd_scan_interval = $aio_wp_security->configs->get_value('aiowps_fcd_scan_interval');
+		$aiowps_fcd_exclude_filetypes = $aio_wp_security->configs->get_value('aiowps_fcd_exclude_filetypes');
+		$aiowps_fcd_exclude_files = $aio_wp_security->configs->get_value('aiowps_fcd_exclude_files');
+		$aiowps_send_fcd_scan_email = $aio_wp_security->configs->get_value('aiowps_send_fcd_scan_email');
+		$aiowps_fcd_scan_email_address = $aio_wp_security->configs->get_value('aiowps_fcd_scan_email_address');
+		$aiowps_last_scan_time = $aio_wp_security->configs->get_value('aiowps_last_scan_time');
+
+		return array(
+			'previous_scan' => $previous_scan,
+			'next_fcd_scan_time' => false === $next_fcd_scan_time ? '' : AIOWPSecurity_Utility::convert_timestamp($next_fcd_scan_time, 'D, F j, Y H:i'),
+			'aiowps_fcds_change_detected' => $aiowps_fcds_change_detected,
+			'aiowps_enable_automated_fcd_scan' => $aiowps_enable_automated_fcd_scan,
+			'aiowps_fcd_scan_frequency' => $aiowps_fcd_scan_frequency,
+			'aiowps_fcd_scan_interval' => $aiowps_fcd_scan_interval,
+			'aiowps_fcd_exclude_filetypes' => $aiowps_fcd_exclude_filetypes,
+			'aiowps_fcd_exclude_files' => $aiowps_fcd_exclude_files,
+			'aiowps_send_fcd_scan_email' => $aiowps_send_fcd_scan_email,
+			'aiowps_fcd_scan_email_address' => $aiowps_fcd_scan_email_address,
+			'aiowps_last_scan_time' => AIOWPSecurity_Utility::convert_timestamp($aiowps_last_scan_time, 'D, F j, Y H:i'),
+		);
 	}
 }

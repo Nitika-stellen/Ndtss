@@ -275,7 +275,7 @@ class Updraft_Smush_Manager extends Updraft_Task_Manager_1_4 {
 			return;
 
 		$task_options = $this->get_smush_options();
-		$task_options = array_merge(array('attachment_id' => $post_id, 'blog_id' => get_current_blog_id()), $task_options);
+		$task_options = array_merge($task_options, array('attachment_id' => $post_id, 'blog_id' => get_current_blog_id()));
 
 		if (filesize($file) > 5242880) {
 			$task_options['request_timeout'] = 180;
@@ -591,12 +591,12 @@ class Updraft_Smush_Manager extends Updraft_Task_Manager_1_4 {
 				);
 			}
 		}
-		$task_options  = $this->get_smush_options();
+		$default_task_options  = $this->get_smush_options();
 		foreach ($images as $image) {
 			// Skip if already in the queue
 			if (in_array($image, $queued_images)) continue;
 
-			$task_options = array_merge(array('attachment_id' => intval($image['attachment_id']), 'blog_id' => intval($image['blog_id'])), $task_options);
+			$task_options = array_merge($default_task_options, array('attachment_id' => intval($image['attachment_id']), 'blog_id' => intval($image['blog_id'])));
 			$server = $this->options->get_option('compression_server', $this->webservice);
 			$task_name = $this->get_associated_task($server);
 
@@ -785,6 +785,7 @@ class Updraft_Smush_Manager extends Updraft_Task_Manager_1_4 {
 					// translators: %s is a link
 					'<i>' . sprintf(__('(Also ensure IPs listed at the bottom of this %s page are whitelisted by your webserver).', 'wp-optimize'), $resmushit_article_link) . '</i>' .
 				'<br>' . __('Please try later.', 'wp-optimize'),
+			'exceeded_max_filesize'			  => __('This image is too large to be optimized — it exceeds the provider\'s size limit', 'wp-optimize'),
 			'please_select_images'		  	  => __('Please select the images you want compressed from the "Uncompressed images" panel first', 'wp-optimize'),
 			'please_updating_images_info'	  => __('Please wait: updating information about the selected image.', 'wp-optimize'),
 			'please_select_compressed_images' => __('Please select the images you want to mark as already compressed from the "Uncompressed images" panel first', 'wp-optimize'),

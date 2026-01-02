@@ -4,13 +4,13 @@ Plugin Name: Database Manager - WP Adminer
 Author: Pexle Chris
 Author URI: https://www.pexlechris.dev
 Tags: Adminer, Database, sql, mysql, mariadb
-Version: 4.1.3
-Stable tag: 4.1.3
-Adminer version: 5.3.0
+Version: 4.3.2
+Stable tag: 4.3.2
+Adminer version: 5.4.1
 Requires at least: 4.7.0
-Tested up to: 6.8.2
+Tested up to: 6.9
 Requires PHP: 7.0
-Tested up to PHP: 8.2
+Tested up to PHP: 8.3
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,7 +55,7 @@ You can access the WP Adminer from the below positions:
 
  * In the case of single site WordPress installations, only Administrators have access in WP Adminer, because by default only administrator have the `manage_options` capability.
  * In the case of WordPress Multisite installations, only Super Admins have access in WP Adminer, because by default only Super Admins have the `manage_network_options` capability.
-
+ * In all cases, the `manage_wp_adminer` capability now (versions **4.3.0** and above) grants access to WP Adminer. You can assign this capability to a role via code or through the User Role Editor plugin.
 
  = How to allow other capabilities or roles to have access to WP Adminer? =
  Just use the filter `pexlechris_adminer_access_capabilities` and return the array of desired capabilities that you want to have access to WP Adminer.
@@ -155,6 +155,28 @@ $dropdown_items = apply_filters('pexlechris_adminer_adminbar_dropdown_items', $d
 
 
 == Changelog ==
+= 4.3.2 =
+* [Enhancement]: Minor UI fixes
+
+= 4.3.1 =
+* [Enhancement]: Minor UI fixes
+
+= 4.3.0 =
+* Tested up to: 6.9
+* Tested up to PHP: 8.3
+* [Enhancement]: Support added for plain permalinks.
+* [Enhancement]: The WP Adminer dropdown links have been added also in WP Adminer Tolls Page as buttons.
+* [Enhancement]: In case of an Adminer login error, the system now automatically retries the login up to 3 times (After version 4.0.4, the number of retries had been reduced to 1).
+* [Enhancement]: Add `manage_wp_adminer` in capabilities that give access to WP Adminer.
+* [Enhancement]: Added polyfill for the deprecated each() function for environments where get_magic_quotes_gpc() exists and returns true.
+* [Bug Fix]: Respect PEXLECHRIS_ADMINER_HAVE_ACCESS_ONLY_IN_WP_DB to not show move database button if is this const is set to true.
+
+= 4.2.0 =
+* [New]: Update Adminer version to 5.4.1 [See Adminer 5.4.1 Release Notes](https://github.com/vrana/adminer/releases/tag/v5.4.1)
+* [New]: Added quick access links at the top-left corner of the Adminer UI (WP Admin, Home).
+* [New]: Filter `pexlechris_adminer_sticky_links` introduced in order to filter the above quick access links.
+* [Bug Fix]: Fixed issue where Adminer URL would break when `home_url()` contained query parameters (e.g., WPML language parameter: https://example.com?lang=en)
+
 = 4.1.3 =
 * Tested up to: 6.8.2
 * [Bug Fix]: In rare cases, WP Adminer was loading without its CSS and JS assets. This issue is now resolved by clearing the output buffer before including the Adminer file.
@@ -162,7 +184,7 @@ Special thanks to Alexia Kaklamani and [Jakub Vrána](https://wordpress.org/supp
 
 = 4.1.2 =
 * Tested up to: 6.8.1
-* [New]: Update Adminer version to 5.3.0
+* [New]: Update Adminer version to 5.3.0 [See Adminer 5.3.0 Release Notes](https://github.com/vrana/adminer/releases/tag/v5.3.0)
 * [Enhancement]: A key has been added for permanent login.
 
 = 4.1.1 =

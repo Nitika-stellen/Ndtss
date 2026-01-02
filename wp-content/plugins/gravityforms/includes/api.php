@@ -1931,7 +1931,7 @@ class GFAPI {
 
 		self::normalize_post_keys();
 
-		$_POST[ 'is_submit_' . $form_id ]                = true;
+		$_POST[ 'is_submit_' . $form_id ]                = '1';
 		$_POST['gform_submit']                           = $form_id;
 		$_POST[ 'gform_target_page_number_' . $form_id ] = absint( $target_page );
 		$_POST[ 'gform_source_page_number_' . $form_id ] = absint( $source_page );
@@ -2617,7 +2617,7 @@ class GFAPI {
 				'event'         => $event,
 				'data'          => $data,
 			) );
-			$processor->save()->dispatch();
+			$processor->save()->dispatch_on_shutdown();
 		} else {
 			GFCommon::send_notifications( $notifications_to_send, $form, $entry, true, $event, $data );
 		}

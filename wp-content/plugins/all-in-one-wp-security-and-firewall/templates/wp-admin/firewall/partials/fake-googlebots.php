@@ -29,7 +29,7 @@
 			<th scope="row"><?php esc_html_e('Block fake Googlebots', 'all-in-one-wp-security-and-firewall'); ?>:</th>
 			<td>
 				<div class="aiowps_switch_container">
-					<?php AIOWPSecurity_Utility_UI::setting_checkbox(esc_html__('Enable this if you want to block all fake Googlebots.', 'all-in-one-wp-security-and-firewall'), 'aiowps_block_fake_googlebots', $aiowps_firewall_config->get_value('aiowps_block_fake_googlebots')); ?>
+					<?php AIOWPSecurity_Utility_UI::setting_checkbox(esc_html__('Enable this if you want to block all fake Googlebots.', 'all-in-one-wp-security-and-firewall'), 'aiowps_block_fake_googlebots', $aiowps_block_fake_googlebots); ?>
 					<span class="aiowps_more_info_anchor"><span class="aiowps_more_info_toggle_char">+</span><span class="aiowps_more_info_toggle_text"><?php esc_html_e('More info', 'all-in-one-wp-security-and-firewall'); ?></span></span>
 					<div class="aiowps_more_info_body">
 						<?php
@@ -37,7 +37,7 @@
 						echo '<p class="description">'.esc_html__('It will then perform a few tests to verify if the bot is legitimately from Google and if so it will allow the bot to proceed.', 'all-in-one-wp-security-and-firewall').'</p>';
 						echo '<p class="description">'.esc_html__('If the bot fails the checks then the plugin will mark it as being a fake Googlebot and it will block it', 'all-in-one-wp-security-and-firewall').'</p>';
 						?>
-					</div>
+				</div>
 				</div>
 			</td>
 		</tr>

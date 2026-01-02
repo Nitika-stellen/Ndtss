@@ -60,12 +60,12 @@ function carm_invigilator_dashboard() {
         ],
     ];
 
-    // // Determine form ID and retest status
-    // $form_id = isset($_GET['form_id']) && $_GET['form_id'] == 30 ? 30 : 15;
-    // $is_retest = $form_id == 30;
-    // $is_renew_recert = $form_id == 31;
     // Detect form_id from URL, default to 15
-    $form_id = isset($_GET['form_id']) && in_array($_GET['form_id'], ['30', '39', '15']) ? intval($_GET['form_id']) : 15;
+    $form_id   = isset($_GET['form_id']) && in_array($_GET['form_id'], ['30', '39', '15'], true)
+        ? intval($_GET['form_id'])
+        : 15;
+    // Flag to indicate whether this is a retest entry (form 30)
+    $is_retest = ($form_id === 30);
     $config = $field_map['form_' . $form_id];
 
     if (isset($_GET['entry_id'])) {
@@ -279,12 +279,52 @@ function carm_invigilator_dashboard() {
                         $method_slots = is_array($method_slots) ? $method_slots : [];
                         $invigilator_data = gform_get_meta($entry_id, '_invigilator_update_record');
                         $invigilator_data = is_array($invigilator_data) ? $invigilator_data : [];
+                        
+                        // Get slot assignments for this entry
+                        $slot_assignments = gform_get_meta($entry_id, '_slot_invigilator_assignments');
+                        $slot_assignments = is_array($slot_assignments) ? $slot_assignments : [];
+                        
+                        // Filter slots to show only those assigned to current user OR unassigned slots
+                        $current_user_id = get_current_user_id();
+                        $user_assigned_slots = [];
+                        $has_assigned_slots = false;
+                        
+                        foreach ($method_slots as $method => $slots) {
+                            foreach ($slots as $slot_key => $slot) {
+                                $key = "{$method}|{$slot_key}";
+                                
+                                // Check if this slot is assigned to current user
+                                $assigned_to = isset($slot_assignments[$key]) ? $slot_assignments[$key] : null;
+                                
+                                // Show slot if: assigned to current user, OR no assignment exists yet
+                                if ($assigned_to === null || $assigned_to == $current_user_id) {
+                                    $user_assigned_slots[$method][$slot_key] = $slot;
+                                    if ($assigned_to == $current_user_id) {
+                                        $has_assigned_slots = true;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (empty($user_assigned_slots)) {
+                            echo '<p class="text-yellow-600 bg-yellow-50 p-4 rounded-lg border border-yellow-200">No slots have been assigned to you for this entry. Please contact the administrator.</p>';
+                        } else {
                         ?>
                         <form id="editInvigilatorForm" class="space-y-6">
-                            <?php foreach ($method_slots as $method => $slots): 
+                            <?php foreach ($user_assigned_slots as $method => $slots): 
                                 foreach ($slots as $slot_key => $slot): 
                                     if (empty($slot['date']) || empty($slot['time'])) continue;
                                     $key = "{$method}|{$slot_key}";
+                                    
+                                    // Check if this slot has been filled by someone
+                                    $filled_by = isset($invigilator_data[$key]['filled_by']) ? $invigilator_data[$key]['filled_by'] : null;
+                                    $is_filled_by_other = ($filled_by && $filled_by != $current_user_id);
+                                    $assigned_to = isset($slot_assignments[$key]) ? $slot_assignments[$key] : null;
+                                    $is_assigned_to_me = ($assigned_to == $current_user_id);
+                                    
+                                    // If slot is filled by another user, show read-only
+                                    $is_readonly = $is_filled_by_other;
+                                    
                                     $checkin_time = isset($invigilator_data[$key]['checkin_time']) ? $invigilator_data[$key]['checkin_time'] : '';
                                     $checkout_time = isset($invigilator_data[$key]['checkout_time']) ? $invigilator_data[$key]['checkout_time'] : '';
                                     $proofs_verified_status = isset($invigilator_data[$key]['proofs_verified_status']) ? $invigilator_data[$key]['proofs_verified_status'] : 'pending';
@@ -292,49 +332,78 @@ function carm_invigilator_dashboard() {
                                     $formatted_slot_label = ucfirst(str_replace('_', ' ', $slot_key));
                                     $formatted_method = ucfirst(str_replace('_', ' ', $method));
                                     $start_datetime = date('Y-m-d\TH:i', strtotime("{$slot['date']} {$slot['time']}"));
+                                    
+                                    // Get filled by user info
+                                    $filled_by_name = '';
+                                    if ($filled_by) {
+                                        $filled_by_user = get_userdata($filled_by);
+                                        $filled_by_name = $filled_by_user ? $filled_by_user->display_name : 'Unknown User';
+                                    }
                                     ?>
-                                    <div class="method-block border border-gray-200 rounded-lg p-4 bg-gray-50">
-                                        <h3 class="font-semibold mb-3 text-base text-gray-800"><?php echo esc_html("{$formatted_method} - {$formatted_slot_label}"); ?> Record</h3>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                                    Check-In Time (Scheduled: <?php echo esc_html(date('d M Y H:i', strtotime($slot['date'] . ' ' . $slot['time']))); ?>)
-                                                </label>
-                                                <input type="datetime-local" 
-                                                       name="checkin_time[<?php echo esc_attr($key); ?>]" 
-                                                       id="checkin_<?php echo esc_attr($key); ?>" 
-                                                       value="<?php echo esc_attr($checkin_time); ?>" 
-                                                       class="datetime-field block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2" />
+                                    <div class="method-block border border-gray-200 rounded-lg p-4 <?php echo $is_assigned_to_me ? 'bg-blue-50 border-blue-300' : 'bg-gray-50'; ?> <?php echo $is_readonly ? 'opacity-75' : ''; ?>">
+                                        <div class="flex justify-between items-start mb-3">
+                                            <h3 class="font-semibold text-base text-gray-800"><?php echo esc_html("{$formatted_method} - {$formatted_slot_label}"); ?> Record</h3>
+                                            <?php if ($is_assigned_to_me): ?>
+                                                <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-600 text-white">Assigned to You</span>
+                                            <?php elseif ($is_readonly): ?>
+                                                <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-600 text-white">Filled by <?php echo esc_html($filled_by_name); ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                        
+                                        <?php if ($is_readonly): ?>
+                                            <!-- Read-only view for slots filled by others -->
+                                            <div class="bg-white p-3 rounded border border-gray-200">
+                                                <p class="text-sm text-gray-600 mb-2"><strong>This slot has been completed by another invigilator.</strong></p>
+                                                <p class="text-sm"><strong>Check-In:</strong> <?php echo $checkin_time ? date('d M Y H:i', strtotime($checkin_time)) : 'N/A'; ?></p>
+                                                <p class="text-sm"><strong>Check-Out:</strong> <?php echo $checkout_time ? date('d M Y H:i', strtotime($checkout_time)) : 'N/A'; ?></p>
+                                                <p class="text-sm"><strong>Status:</strong> <?php echo ucfirst($proofs_verified_status); ?></p>
+                                                <?php if ($comments): ?>
+                                                    <p class="text-sm"><strong>Comments:</strong> <?php echo esc_html($comments); ?></p>
+                                                <?php endif; ?>
                                             </div>
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                                    Check-Out Time
-                                                </label>
-                                                <input type="datetime-local" 
-                                                       name="checkout_time[<?php echo esc_attr($key); ?>]" 
-                                                       id="checkout_<?php echo esc_attr($key); ?>" 
-                                                       value="<?php echo esc_attr($checkout_time); ?>" 
-                                                       class="datetime-field block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2" />
+                                        <?php else: ?>
+                                            <!-- Editable view for assigned or unassigned slots -->
+                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                        Check-In Time (Scheduled: <?php echo esc_html(date('d M Y H:i', strtotime($slot['date'] . ' ' . $slot['time']))); ?>)
+                                                    </label>
+                                                    <input type="datetime-local" 
+                                                           name="checkin_time[<?php echo esc_attr($key); ?>]" 
+                                                           id="checkin_<?php echo esc_attr($key); ?>" 
+                                                           value="<?php echo esc_attr($checkin_time); ?>" 
+                                                           class="datetime-field block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2" />
+                                                </div>
+                                                <div>
+                                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                        Check-Out Time
+                                                    </label>
+                                                    <input type="datetime-local" 
+                                                           name="checkout_time[<?php echo esc_attr($key); ?>]" 
+                                                           id="checkout_<?php echo esc_attr($key); ?>" 
+                                                           value="<?php echo esc_attr($checkout_time); ?>" 
+                                                           class="datetime-field block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2" />
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div class="mt-3">
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                                Document Verified
-                                            </label>
-                                            <select name="proofs_verified_status[<?php echo esc_attr($key); ?>]" 
-                                                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2">
-                                                <option value="pending" <?php selected($proofs_verified_status, 'pending'); ?>>Pending</option>
-                                                <option value="verified" <?php selected($proofs_verified_status, 'verified'); ?>>Verified</option>
-                                                <option value="not_verified" <?php selected($proofs_verified_status, 'not_verified'); ?>>Not Verified</option>
-                                            </select>
-                                        </div>
-                                        <div class="mt-3">
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                                Comments
-                                            </label>
-                                            <textarea name="comments[<?php echo esc_attr($key); ?>]" 
-                                                      class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2"><?php echo esc_textarea($comments); ?></textarea>
-                                        </div>
+                                            <div class="mt-3">
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    Document Verified
+                                                </label>
+                                                <select name="proofs_verified_status[<?php echo esc_attr($key); ?>]" 
+                                                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2">
+                                                    <option value="pending" <?php selected($proofs_verified_status, 'pending'); ?>>Pending</option>
+                                                    <option value="verified" <?php selected($proofs_verified_status, 'verified'); ?>>Verified</option>
+                                                    <option value="not_verified" <?php selected($proofs_verified_status, 'not_verified'); ?>>Not Verified</option>
+                                                </select>
+                                            </div>
+                                            <div class="mt-3">
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    Comments
+                                                </label>
+                                                <textarea name="comments[<?php echo esc_attr($key); ?>]" 
+                                                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2"><?php echo esc_textarea($comments); ?></textarea>
+                                            </div>
+                                        <?php endif; ?>
                                     </div>
                                 <?php endforeach; endforeach; ?>
                                 <button type="submit" class="button button-primary bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded mt-4">
@@ -346,6 +415,7 @@ function carm_invigilator_dashboard() {
                                 <div id="statusMessage" class="mt-4 text-center"></div>
                             </form>
                         <?php } ?>
+                    <?php } ?>
                     </div>
                 
             </div>
@@ -417,6 +487,45 @@ function carm_invigilator_dashboard() {
                         event.preventDefault();
                         const now = new Date();
                         let hasFutureError = false;
+                        let hasMissingCheckin = false;
+                        
+                        // Validate that at least one slot has check-in time
+                        let hasAtLeastOneCheckin = false;
+                        let hasInvalidSlot = false;
+                        
+                        jQuery('input[name^="checkin_time"]').each(function () {
+                            const val = jQuery(this).val();
+                            if (val && val.trim() !== '') {
+                                hasAtLeastOneCheckin = true;
+                                
+                                // If check-in is filled, validate it's not in future
+                                if (new Date(val) > now) {
+                                    hasInvalidSlot = true;
+                                    jQuery(this).addClass('border-red-500');
+                                } else {
+                                    jQuery(this).removeClass('border-red-500');
+                                }
+                            }
+                        });
+                        
+                        if (!hasAtLeastOneCheckin) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'No Data Entered',
+                                text: 'Please fill in at least one method slot before submitting.',
+                            });
+                            return;
+                        }
+                        
+                        if (hasInvalidSlot) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Invalid Time',
+                                text: 'Future time is not allowed. Please correct the highlighted fields.',
+                            });
+                            return;
+                        }
+                        
                         jQuery('.datetime-field').each(function () {
                             const val = jQuery(this).val();
                             if (val && new Date(val) > now) {
@@ -658,12 +767,6 @@ if (current_user_can('administrator')) {
         usort($entries, function ($a, $b) {
             return strtotime($b['date_created']) - strtotime($a['date_created']);
         });
-        $user_id = $entry['created_by'] ?? get_current_user_id();
-
-        $user_data = get_userdata($user_id);
-       $first_name = get_user_meta($user_data->ID, 'first_name', true);
-        $last_name = get_user_meta($user_data->ID, 'last_name', true);
-        $candidate_name = ($first_name || $last_name) ? trim($first_name . ' ' . $last_name) : 'N/A';
 
         // Output
         ?>
@@ -950,8 +1053,8 @@ if (current_user_can('administrator')) {
 
                     Array.from(rows).forEach(row => {
                         const cells = row.getElementsByTagName('td');
-                        const designatorCell = cells[3].innerText;
-                        const statusCell = cells[4].innerText.toLowerCase();
+                        const designatorCell = cells[4].innerText;
+                        const statusCell = cells[5].innerText.toLowerCase();
                         let searchMatch = true;
                         let designatorMatch = true;
                         let statusMatch = true;
@@ -968,7 +1071,8 @@ if (current_user_can('administrator')) {
                         }
 
                         if (selectedDesignator && selectedDesignator !== '') {
-                            designatorMatch = designatorCell.split(', ').includes(selectedDesignator);
+                            // Check if cell contains the designator (handling multiple values)
+                            designatorMatch = designatorCell.includes(selectedDesignator);
                             isFiltered = true;
                         }
 
@@ -1117,7 +1221,7 @@ function handle_invigilator_entry_response() {
         $center_post_name = trim(rgar($entry, $config['center_name']));
         $center_post = get_page_by_title($center_post_name, OBJECT, 'exam_center');
         $center_admin_id = $center_post ? get_post_meta($center_post->ID, '_center_admin_id', true) : 0;
-        $aqb_admin_id = $center_post ? get_post_meta($center_post->ID, '_aqb_admin_id', true) : 0;
+        $aqb_admin_id = $center_post ? get_post_meta($center_post->ID, '_aqb_admin_ids', true) : 0;
         $first_name = get_user_meta($user->ID, 'first_name', true);
         $last_name = get_user_meta($user->ID, 'last_name', true);
         $candidate_name = ($first_name || $last_name) ? trim($first_name . ' ' . $last_name) : 'N/A';
@@ -1211,19 +1315,51 @@ function update_invigilator_entry_handler() {
     $checkout_times = $_POST['checkout_time'] ?? [];
     $statuses = $_POST['proofs_verified_status'] ?? [];
     $comments = $_POST['comments'] ?? [];
+    
+    $current_user_id = get_current_user_id();
+    
+    // Get existing data
+    $existing_data = gform_get_meta($entry_id, '_invigilator_update_record');
+    $existing_data = is_array($existing_data) ? $existing_data : [];
+    
+    // Get slot assignments
+    $slot_assignments = gform_get_meta($entry_id, '_slot_invigilator_assignments');
+    $slot_assignments = is_array($slot_assignments) ? $slot_assignments : [];
 
-    $record_data = [];
-    foreach ($checkout_times as $method => $checkout_time) {
-        $record_data[$method] = [
-            'checkin_time' => sanitize_text_field($checkin_times[$method] ?? ''),
-            'checkout_time' => sanitize_text_field($checkout_time),
-            'proofs_verified_status' => sanitize_text_field($statuses[$method] ?? 'pending'),
-            'comments' => sanitize_textarea_field($comments[$method] ?? ''),
-        ];
+    $record_data = $existing_data; // Start with existing data to preserve other invigilators' work
+    
+    foreach ($checkin_times as $method => $checkin_time) {
+        // If check-in time is provided (slot is being filled)
+        if (!empty($checkin_time)) {
+            $record_data[$method] = [
+                'checkin_time' => sanitize_text_field($checkin_time),
+                'checkout_time' => sanitize_text_field($checkout_times[$method] ?? ''),
+                'proofs_verified_status' => sanitize_text_field($statuses[$method] ?? 'pending'),
+                'comments' => sanitize_textarea_field($comments[$method] ?? ''),
+                'filled_by' => $current_user_id, // Track who filled this slot
+                'filled_at' => current_time('mysql'), // Track when it was filled
+            ];
+            
+            // Automatically assign this slot to the current user if not already assigned
+            if (!isset($slot_assignments[$method]) || $slot_assignments[$method] === null) {
+                $slot_assignments[$method] = $current_user_id;
+            }
+        } else {
+            // If check-in time is empty, remove the slot data (user cleared it)
+            if (isset($record_data[$method])) {
+                unset($record_data[$method]);
+            }
+            // Also clear the slot assignment so other invigilators can see and fill it
+            if (isset($slot_assignments[$method])) {
+                unset($slot_assignments[$method]);
+            }
+        }
     }
 
     gform_update_meta($entry_id, '_invigilator_update_record', $record_data);
-    wp_send_json_success(['message' => 'Record updated.']);
+    gform_update_meta($entry_id, '_slot_invigilator_assignments', $slot_assignments);
+    
+    wp_send_json_success(['message' => 'Record updated successfully.']);
 }
 
 

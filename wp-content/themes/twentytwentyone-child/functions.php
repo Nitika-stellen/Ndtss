@@ -1,19 +1,66 @@
 <?php
 if ( !defined( 'ABSPATH' ) ) exit;
 
+/**
+ * Suppress PHP warnings on frontend (but keep in admin and logs)
+ * This hides warnings from Gravity Forms and other plugins on the frontend
+ */
+if ( !is_admin() ) {
+	// Suppress error display on frontend - run early before plugins load
+	@ini_set( 'display_errors', 0 );
+	
+	// Suppress warnings via WordPress error handler
+	add_filter( 'wp_php_error_args', function( $args, $error ) {
+		// Hide warnings from frontend display
+		if ( !is_admin() && in_array( $error['type'], [ E_WARNING, E_NOTICE ] ) ) {
+			// Suppress if from Gravity Forms or related plugins
+			if ( isset( $error['file'] ) && 
+			     ( strpos( $error['file'], 'gravityforms' ) !== false || 
+			       strpos( $error['file'], 'restrict-dates' ) !== false ) ) {
+				$args['message'] = false;
+				$args['backtrace'] = false;
+			}
+		}
+		return $args;
+	}, 10, 2 );
+	
+	// Use output buffering to catch any warnings that slip through
+	add_action( 'template_redirect', function() {
+		// Start output buffering with callback to filter warnings
+		ob_start( function( $buffer ) {
+			if ( empty( $buffer ) ) {
+				return $buffer;
+			}
+			// Remove PHP warnings from output (matches the exact format from Gravity Forms)
+			$buffer = preg_replace( '/Warning: Trying to access array offset on value of type.*?\n?/s', '', $buffer );
+			$buffer = preg_replace( '/Warning:.*?in C:.*?on line \d+.*?\n?/s', '', $buffer );
+			$buffer = preg_replace( '/Warning:.*?on line \d+.*?\n?/s', '', $buffer );
+			$buffer = preg_replace( '/Notice:.*?on line \d+.*?\n?/s', '', $buffer );
+			$buffer = preg_replace( '/foreach\(\) argument must be of type.*?\n?/s', '', $buffer );
+			return $buffer;
+		}, 0 );
+	}, 1 );
+}
+
 // Include Certificate Lifecycle Manager
 require_once get_stylesheet_directory() . '/certificate-lifecycle-manager.php';
 
-// Include Certificate Renewal Admin Dashboard
-if (is_admin()) {
-    require_once get_stylesheet_directory() . '/certificate-renewal-admin.php';
-}
+// Include Certificate Renewal Admin Dashboard - REMOVED
+// if (is_admin()) {
+//     require_once get_stylesheet_directory() . '/certificate-renewal-admin.php';
+// }
 
 // Include Certificate Lifecycle Test Suite
 require_once get_stylesheet_directory() . '/certificate-lifecycle-test-suite.php';
 
 // Include Certificate Lifecycle Migration
 require_once get_stylesheet_directory() . '/certificate-lifecycle-migration.php';
+
+// Include Legacy Certificate Import System//
+require_once get_stylesheet_directory() . '/panel/legacy-certificate-import.php';
+
+// Include Certificate Signature Settings
+require_once get_stylesheet_directory() . '/panel/certificate-signature-settings.php';
 
 require_once get_stylesheet_directory() . '/renew/renew-module.php';
 
@@ -102,6 +149,91 @@ add_filter('gform_noconflict_styles', function($styles) {
 	return $styles;
 });
 
+
+// Ensure profile form supports file uploads
+add_action('user_edit_form_tag', function () {
+    echo ' enctype="multipart/form-data"';
+});
+
+add_action('personal_options_update', 'ndtss_save_local_avatar');
+add_action('edit_user_profile_update', 'ndtss_save_local_avatar');
+function ndtss_save_local_avatar($user_id) {
+    // Allow if the user can upload files OR is updating their own profile
+    if (!current_user_can('upload_files') && get_current_user_id() !== (int) $user_id) {
+        return;
+    }
+    if (empty($_FILES['ndtss_local_avatar']['name'])) return;
+
+    // Ensure upload helpers are loaded
+    if (!function_exists('wp_handle_upload')) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+    }
+
+    $file = $_FILES['ndtss_local_avatar'];
+    $upload = wp_handle_upload($file, ['test_form' => false]);
+    if (!empty($upload['error'])) {
+        // Show admin notice on profile page
+        set_transient('ndtss_avatar_error_' . $user_id, $upload['error'], MINUTE_IN_SECONDS);
+        return;
+    }
+
+    $filetype = wp_check_filetype($upload['file'], null);
+    $attachment_id = wp_insert_attachment([
+        'guid'           => $upload['url'],
+        'post_mime_type' => $filetype['type'],
+        'post_title'     => sanitize_file_name($file['name']),
+        'post_content'   => '',
+        'post_status'    => 'inherit'
+    ], $upload['file']);
+
+    require_once ABSPATH . 'wp-admin/includes/image.php';
+    $attach_data = wp_generate_attachment_metadata($attachment_id, $upload['file']);
+    wp_update_attachment_metadata($attachment_id, $attach_data);
+
+    update_user_meta($user_id, 'ndtss_local_avatar_id', $attachment_id);
+
+    // Success notice
+    set_transient('ndtss_avatar_success_' . $user_id, 1, MINUTE_IN_SECONDS);
+}
+
+add_filter('get_avatar', 'ndtss_use_local_avatar', 10, 6);
+function ndtss_use_local_avatar($avatar, $id_or_email, $size, $default, $alt, $args) {
+    $user = false;
+    if (is_numeric($id_or_email)) {
+        $user = get_user_by('id', $id_or_email);
+    } elseif (is_object($id_or_email) && !empty($id_or_email->user_id)) {
+        $user = get_user_by('id', $id_or_email->user_id);
+    } elseif (is_email($id_or_email)) {
+        $user = get_user_by('email', $id_or_email);
+    }
+    if (!$user) return $avatar;
+
+    $avatar_id = get_user_meta($user->ID, 'ndtss_local_avatar_id', true);
+    if (!$avatar_id) return $avatar;
+
+    $img = wp_get_attachment_image_src($avatar_id, [$size, $size]);
+    if (!$img) return $avatar;
+
+    $src = esc_url($img[0]);
+    $alt = esc_attr($alt ?: $user->display_name);
+    $class = esc_attr($args['class'] ?? 'avatar');
+    return "<img src='{$src}' alt='{$alt}' class='{$class}' width='{$size}' height='{$size}' />";
+}
+
+// Display upload notices on profile save
+add_action('admin_notices', function() {
+    $user_id = get_current_user_id();
+    if (!$user_id) return;
+    if ($msg = get_transient('ndtss_avatar_error_' . $user_id)) {
+        delete_transient('ndtss_avatar_error_' . $user_id);
+        echo '<div class="notice notice-error"><p>Avatar upload failed: ' . esc_html($msg) . '</p></div>';
+    }
+    if (get_transient('ndtss_avatar_success_' . $user_id)) {
+        delete_transient('ndtss_avatar_success_' . $user_id);
+        echo '<div class="notice notice-success"><p>Profile photo updated.</p></div>';
+    }
+});
+
 add_action('admin_init', function () {
 	remove_all_actions('admin_notices');
 	remove_all_actions('all_admin_notices');
@@ -133,6 +265,10 @@ $custom_includes = [
 	'/membership/functions.php',
 	'/panel/assign_admins.php',
 	'/panel/certified_users.php',
+	'/cpd-management/class-cpd-manager.php',
+	'/panel/certificate-import.php',
+	'/panel/disk-space-cleanup.php',
+    '/panel/certificate-management-page.php'
 ];
 
 foreach ($custom_includes as $file) {
@@ -421,102 +557,102 @@ function populate_user_data_into_form($form) {
 				$field->defaultValue = get_user_meta($user_id, 'dob', true); 
 				break;
 
-			// Field 860: ID Proof Upload Field
-			case 860:
-				$id_proof_url = get_user_meta($user_id, 'custom_id_proof', true);
+			// // Field 860: ID Proof Upload Field
+			// case 860:
+			// 	$id_proof_url = get_user_meta($user_id, 'custom_id_proof', true);
 				
-				// Check if ID proof file exists and is accessible
-				if (!empty($id_proof_url) && is_file_accessible($id_proof_url)) {
-					// Check if preview already exists to prevent duplicates
-					$existing_description = get_field_description($field);
-					if (strpos($existing_description, 'data-field-id="860"') === false) {
-						// Add preview of existing ID proof to field description
-						$field->description = $existing_description . 
-							'<div class="existing-file-preview" data-field-id="860">
-								<div class="file-preview-header">
-									<strong>Current ID Proof:</strong>
-									<p class="file-preview-note">Upload a new ID proof only if you want to replace this one.</p>
-								</div>
-								<div class="file-preview-container">
-									<a href="' . esc_url($id_proof_url) . '" target="_blank" class="file-preview-link">
-										<img src="' . esc_url($id_proof_url) . '" alt="Current ID Proof" 
-											 class="file-preview-image" 
-											 style="max-width:150px; max-height:150px; border:1px solid #ccc; padding:5px; border-radius:4px;">
-									</a>
-									<div class="file-preview-actions">
-										<small><em>Click to view full size</em></small>
-									</div>
-								</div>
-							</div>';
-					}
+			// 	// Check if ID proof file exists and is accessible
+			// 	if (!empty($id_proof_url) && is_file_accessible($id_proof_url)) {
+			// 		// Check if preview already exists to prevent duplicates
+			// 		$existing_description = get_field_description($field);
+			// 		if (strpos($existing_description, 'data-field-id="860"') === false) {
+			// 			// Add preview of existing ID proof to field description
+			// 			$field->description = $existing_description . 
+			// 				'<div class="existing-file-preview" data-field-id="860">
+			// 					<div class="file-preview-header">
+			// 						<strong>Current ID Proof:</strong>
+			// 						<p class="file-preview-note">Upload a new ID proof only if you want to replace this one.</p>
+			// 					</div>
+			// 					<div class="file-preview-container">
+			// 						<a href="' . esc_url($id_proof_url) . '" target="_blank" class="file-preview-link">
+			// 							<img src="' . esc_url($id_proof_url) . '" alt="Current ID Proof" 
+			// 								 class="file-preview-image" 
+			// 								 style="max-width:150px; max-height:150px; border:1px solid #ccc; padding:5px; border-radius:4px;">
+			// 						</a>
+			// 						<div class="file-preview-actions">
+			// 							<small><em>Click to view full size</em></small>
+			// 						</div>
+			// 					</div>
+			// 				</div>';
+			// 		}
 					
-					// Make field optional since file already exists
-					$field->isRequired = false;
+			// 		// Make field optional since file already exists
+			// 		$field->isRequired = false;
 					
-					// Add CSS class for styling
-					if (!isset($field->cssClass)) {
-						$field->cssClass = '';
-					}
-					if (strpos($field->cssClass, 'has-existing-file') === false) {
-						$field->cssClass .= ' has-existing-file';
-					}
-				} else {
-					// Clean up invalid file reference if URL is not accessible
-					if (!empty($id_proof_url)) {
-						delete_user_meta($user_id, 'custom_id_proof');
-					}
-				}
-				break;
+			// 		// Add CSS class for styling
+			// 		if (!isset($field->cssClass)) {
+			// 			$field->cssClass = '';
+			// 		}
+			// 		if (strpos($field->cssClass, 'has-existing-file') === false) {
+			// 			$field->cssClass .= ' has-existing-file';
+			// 		}
+			// 	} else {
+			// 		// Clean up invalid file reference if URL is not accessible
+			// 		if (!empty($id_proof_url)) {
+			// 			delete_user_meta($user_id, 'custom_id_proof');
+			// 		}
+			// 	}
+			// 	break;
 
-			// Field 861: Profile Photo Upload Field (Required)
-			case 861:
-				$photo_url = get_user_meta($user_id, 'custom_profile_photo', true);
+			// // Field 861: Profile Photo Upload Field (Required)
+			// case 861:
+			// 	$photo_url = get_user_meta($user_id, 'custom_profile_photo', true);
 				
-				// Check if profile photo exists and is accessible
-				if (!empty($photo_url) && is_file_accessible($photo_url)) {
-					// Check if preview already exists to prevent duplicates
-					$existing_description = get_field_description($field);
-					if (strpos($existing_description, 'data-field-id="861"') === false) {
-						// Add preview of existing photo to field description
-						$field->description = $existing_description . 
-							'<div class="existing-file-preview" data-field-id="861">
-								<div class="file-preview-header">
-									<strong>Current Profile Photo:</strong>
-									<p class="file-preview-note">Upload a new photo only if you want to replace this one. Please ensure it\'s passport size.</p>
-								</div>
-								<div class="file-preview-container">
-									<img src="' . esc_url($photo_url) . '" alt="Current Profile Photo" 
-										 class="file-preview-image profile-photo-preview" 
-										 style="max-width:150px; max-height:150px; border:1px solid #ccc; padding:5px; border-radius:4px;">
-									<div class="file-preview-actions">
-										<small><em>This photo will be used as your profile picture</em></small>
-									</div>
-								</div>
-							</div>';
-					}
+			// 	// Check if profile photo exists and is accessible
+			// 	if (!empty($photo_url) && is_file_accessible($photo_url)) {
+			// 		// Check if preview already exists to prevent duplicates
+			// 		$existing_description = get_field_description($field);
+			// 		if (strpos($existing_description, 'data-field-id="861"') === false) {
+			// 			// Add preview of existing photo to field description
+			// 			$field->description = $existing_description . 
+			// 				'<div class="existing-file-preview" data-field-id="861">
+			// 					<div class="file-preview-header">
+			// 						<strong>Current Profile Photo:</strong>
+			// 						<p class="file-preview-note">Upload a new photo only if you want to replace this one. Please ensure it\'s passport size.</p>
+			// 					</div>
+			// 					<div class="file-preview-container">
+			// 						<img src="' . esc_url($photo_url) . '" alt="Current Profile Photo" 
+			// 							 class="file-preview-image profile-photo-preview" 
+			// 							 style="max-width:150px; max-height:150px; border:1px solid #ccc; padding:5px; border-radius:4px;">
+			// 						<div class="file-preview-actions">
+			// 							<small><em>This photo will be used as your profile picture</em></small>
+			// 						</div>
+			// 					</div>
+			// 				</div>';
+			// 		}
 					
-					// Make field optional since photo already exists
-					$field->isRequired = false;
+			// 		// Make field optional since photo already exists
+			// 		$field->isRequired = false;
 					
-					// Add CSS class for styling
-					if (!isset($field->cssClass)) {
-						$field->cssClass = '';
-					}
-					if (strpos($field->cssClass, 'has-existing-file') === false) {
-						$field->cssClass .= ' has-existing-file';
-					}
-					if (strpos($field->cssClass, 'profile-photo-field') === false) {
-						$field->cssClass .= ' profile-photo-field';
-					}
-				} else {
-					// Clean up invalid file reference if URL is not accessible
-					if (!empty($photo_url)) {
-						delete_user_meta($user_id, 'custom_profile_photo');
-						// Also clean up WP user avatar if it was set
-						delete_user_meta($user_id, 'wp_user_avatar');
-					}
-				}
-				break;
+			// 		// Add CSS class for styling
+			// 		if (!isset($field->cssClass)) {
+			// 			$field->cssClass = '';
+			// 		}
+			// 		if (strpos($field->cssClass, 'has-existing-file') === false) {
+			// 			$field->cssClass .= ' has-existing-file';
+			// 		}
+			// 		if (strpos($field->cssClass, 'profile-photo-field') === false) {
+			// 			$field->cssClass .= ' profile-photo-field';
+			// 		}
+			// 	} else {
+			// 		// Clean up invalid file reference if URL is not accessible
+			// 		if (!empty($photo_url)) {
+			// 			delete_user_meta($user_id, 'custom_profile_photo');
+			// 			// Also clean up WP user avatar if it was set
+			// 			delete_user_meta($user_id, 'wp_user_avatar');
+			// 		}
+			// 	}
+			// 	break;
 
 			// Prefix handling (dropdown with custom option)
 			case 839:
@@ -647,6 +783,682 @@ function gf_auto_lock_inline_script() {
 			applyReadOnly();
 			$('.gf_auto_lock input').on('input', applyReadOnly);
 		});
+
+	jQuery(document).ready(function($) {
+    // Field IDs - update these to match your form
+    var formId = 5; // Your form ID
+    var dobFieldId = 43; // Date of Birth field ID
+    var classificationFieldId = 24; // Classification field ID
+    var productFieldId = 54; // Product field ID (radio buttons)
+    var totalFieldId = 55; // Total price field ID
+    var hasLifetimeOption = false;
+    
+    // Function to get field value - works across pages
+    function getFieldValue(fieldId, fieldType) {
+        // Try to get from DOM first (if field is visible)
+        var $field = $('#input_' + formId + '_' + fieldId);
+        if ($field.length && $field.is(':visible')) {
+            if (fieldType === 'radio' || fieldType === 'checkbox') {
+                var checked = $('input[name="input_' + fieldId + '"]:checked').val();
+                return checked || '';
+            }
+            return $field.val() || '';
+        }
+        
+        // If not visible, try to get from Gravity Forms data or form serialization
+        if (typeof window.gform !== 'undefined' && window.gform.getFieldValue) {
+            var value = window.gform.getFieldValue(formId, fieldId);
+            return value || '';
+        }
+        
+        // Fallback: try to read from hidden input or form data
+        var $hiddenInput = $('input[name="input_' + fieldId + '"], input[id="input_' + formId + '_' + fieldId + '"]');
+        if ($hiddenInput.length) {
+            if (fieldType === 'radio' || fieldType === 'checkbox') {
+                var checked = $('input[name="input_' + fieldId + '"]:checked').val();
+                return checked || '';
+            }
+            return $hiddenInput.val() || '';
+        }
+        
+        // Last resort: try to get from form serialization
+        try {
+            var formData = $('#gform_' + formId).serializeArray();
+            for (var i = 0; i < formData.length; i++) {
+                if (formData[i].name === 'input_' + fieldId || formData[i].name.indexOf('input_' + fieldId + '_') === 0) {
+                    return formData[i].value || '';
+                }
+            }
+        } catch (e) {
+            console.error('Error getting field value:', e);
+        }
+        
+        return '';
+    }
+    
+    // Function to check if user is eligible for lifetime membership
+    function isEligibleForLifetime() {
+        // Get values using helper function that works across pages
+        var dob = getFieldValue(dobFieldId, 'text');
+        var classification = getFieldValue(classificationFieldId, 'radio');
+        var isFellow = (classification && classification.toLowerCase() === 'fellow');
+        
+        if (!dob || !isFellow) return false;
+        
+        try {
+            // Parse date in d/m/Y format
+            var parts = dob.split('/');
+            if (parts.length !== 3) return false;
+            
+            var dobDate = new Date(parts[2], parts[1] - 1, parts[0]);
+            if (isNaN(dobDate.getTime())) return false; // Invalid date
+            
+            var today = new Date();
+            var age = today.getFullYear() - dobDate.getFullYear();
+            
+            // Adjust age if birthday hasn't occurred yet this year
+            var monthDiff = today.getMonth() - dobDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate())) {
+                age--;
+            }
+            
+            return age >= 50;
+        } catch (e) {
+            console.error('Error checking eligibility:', e);
+            return false;
+        }
+    }
+    
+    // Function to update product field
+    function updateProductField() {
+        if (isEligibleForLifetime()) {
+            // Get the radio button container
+            var $radioContainer = $('.ginput_container_radio', '#field_' + formId + '_' + productFieldId);
+            var $radioList = $('.gfield_radio', '#field_' + formId + '_' + productFieldId);
+            
+            // Check if our custom lifetime option already exists
+            var $existingLifetime = $('#lifetime_membership_option');
+            
+            // If it doesn't exist, we need to add it
+            if ($existingLifetime.length === 0 && !hasLifetimeOption) {
+                // Store current selection if any
+                var currentSelection = $('input[type="radio"]:checked', $radioContainer).val();
+                
+                // FIRST: Remove ALL existing lifetime options (both original and any duplicates)
+                $radioList.find('input[type="radio"]').each(function() {
+                    var $radio = $(this);
+                    var radioValue = $radio.val() || '';
+                    var $choice = $radio.closest('.gchoice');
+                    var labelText = $choice.find('label').text() || '';
+                    
+                    // Check if this is a lifetime option (check both value and label)
+                    if (radioValue.toLowerCase().indexOf('lifetime') !== -1 || labelText.toLowerCase().indexOf('lifetime') !== -1) {
+                        $choice.remove();
+                    }
+                });
+                
+                // Also remove any duplicate custom lifetime options if they exist
+                $('#lifetime_membership_option').remove();
+                
+                // Disable all remaining radio buttons
+                $('input[type="radio"]', $radioContainer).prop('disabled', true);
+                
+                // Create new radio button for Lifetime membership
+                var lifetimeOption = $('<div class="gchoice gchoice_' + formId + '_' + productFieldId + '_lifetime" id="lifetime_membership_option">' +
+                    '<input type="radio" name="input_' + productFieldId + '" value="Lifetime|0.00" ' +
+                    'id="choice_' + formId + '_' + productFieldId + '_lifetime" checked="checked" ' +
+                    'onclick="gformToggleRadioOther(\'' + formId + '_' + productFieldId + '\', this)">' +
+                    '<label for="choice_' + formId + '_' + productFieldId + '_lifetime" id="label_' + formId + '_' + productFieldId + '_lifetime">' +
+                    'Lifetime Membership <span style="color:green;font-weight:bold;">(Free for Fellows 50+)</span>' +
+                    '</label>' +
+                    '</div>');
+                
+                // Add the new option (only one)
+                $radioList.append(lifetimeOption);
+                
+                // Update flag
+                hasLifetimeOption = true;
+                
+                // Update the total price to 0
+                $('#input_' + formId + '_' + totalFieldId).val('0.00');
+                
+                // Clear any validation errors on this field
+                clearFieldValidationErrors(productFieldId);
+                
+                // If using Gravity Forms calculation, trigger the update
+                if (typeof window.gform && window.gform.calculation) {
+                    window.gform.calculation();
+                }
+                
+                // Add description
+                if ($('.fellow-discount-note').length === 0) {
+                    $('#field_' + formId + '_' + productFieldId).append(
+                        '<div class="fellow-discount-note" style="color:green;font-style:italic;margin-top:10px;padding:8px;background:#f0f8ff;border-left:3px solid #0073aa;border-radius:0 4px 4px 0;">' +
+                        'Fellows aged 50+ are eligible for a free lifetime membership. The Lifetime Membership option has been automatically selected for you.' +
+                        '</div>'
+                    );
+                }
+                
+                // Trigger change event to ensure Gravity Forms recognizes the selection
+                setTimeout(function() {
+                    $('#choice_' + formId + '_' + productFieldId + '_lifetime').trigger('change');
+                    $('#choice_' + formId + '_' + productFieldId + '_lifetime').trigger('click');
+                }, 100);
+            } else if ($existingLifetime.length > 0) {
+                // Option already exists, just ensure it's selected and enabled
+                hasLifetimeOption = true;
+                $('#choice_' + formId + '_' + productFieldId + '_lifetime').prop('checked', true);
+            }
+        } else {
+            // Remove lifetime option if it exists
+            if (hasLifetimeOption) {
+                $('#lifetime_membership_option').remove();
+                $('.fellow-discount-note').remove();
+                
+                // Re-enable all radio buttons
+                $('#field_' + formId + '_' + productFieldId + ' input[type="radio"]').prop('disabled', false);
+                
+                // Trigger recalculation
+                if (typeof window.gform && window.gform.calculation) {
+                    window.gform.calculation();
+                }
+                
+                hasLifetimeOption = false;
+            }
+        }
+    }
+    
+    // Function to clear validation errors from a field
+    function clearFieldValidationErrors(fieldId) {
+        var $field = $('#field_' + formId + '_' + fieldId);
+        if ($field.length) {
+            // Remove Gravity Forms validation error messages
+            $field.find('.gfield_description.validation_message').remove();
+            $field.find('.validation_message').remove();
+            $field.find('.gfield_validation_message').remove();
+            
+            // Remove error styling
+            $field.removeClass('gfield_error gfield_contains_required');
+            $field.find('input, select, textarea').removeClass('gfield_error');
+            
+            // Remove aria-invalid attribute
+            $field.find('input, select, textarea').attr('aria-invalid', 'false');
+            
+            // Clear any custom validation errors
+            $field.find('.lifetime-validation-error').remove();
+            
+            // Remove Gravity Forms validation error state
+            if (typeof window.gform !== 'undefined' && window.gform.clearMessage) {
+                window.gform.clearMessage('#field_' + formId + '_' + fieldId);
+            }
+        }
+    }
+    
+    // Function to remove duplicate lifetime options
+    function removeDuplicateLifetimeOptions() {
+        var $radioList = $('.gfield_radio', '#field_' + formId + '_' + productFieldId);
+        var lifetimeOptionsFound = 0;
+        var $firstLifetimeOption = null;
+        
+        // Count lifetime options and keep track of the first one
+        $radioList.find('input[type="radio"]').each(function() {
+            var $radio = $(this);
+            var radioValue = $radio.val() || '';
+            var $choice = $radio.closest('.gchoice');
+            var labelText = $choice.find('label').text() || '';
+            
+            // Check if this is a lifetime option
+            if (radioValue.toLowerCase().indexOf('lifetime') !== -1 || labelText.toLowerCase().indexOf('lifetime') !== -1) {
+                lifetimeOptionsFound++;
+                if (lifetimeOptionsFound === 1) {
+                    $firstLifetimeOption = $choice;
+                } else {
+                    // Remove duplicate lifetime options (keep only the first one)
+                    $choice.remove();
+                }
+            }
+        });
+        
+        // Also check our custom lifetime option
+        var customLifetimeCount = $('#lifetime_membership_option').length;
+        if (customLifetimeCount > 1) {
+            // Keep only the first one
+            $('#lifetime_membership_option').not(':first').remove();
+        }
+    }
+    
+    // Function to check fields and update accordingly
+    function checkAndUpdateFields() {
+        // Check if product field is visible (on current page)
+        var $productField = $('#field_' + formId + '_' + productFieldId);
+        if ($productField.length && $productField.is(':visible')) {
+            // First, remove any duplicate lifetime options
+            removeDuplicateLifetimeOptions();
+            
+            // Use enhanced eligibility check that works across pages
+            var currentlyEligible = isEligibleForLifetimeWithStorage();
+            if (currentlyEligible !== hasLifetimeOption) {
+                updateProductField();
+            } else if (currentlyEligible && hasLifetimeOption) {
+                // If already eligible and lifetime option exists, ensure no validation errors
+                var selectedProduct = $('input[name="input_' + productFieldId + '"]:checked').val();
+                if (selectedProduct && selectedProduct.indexOf('Lifetime') !== -1) {
+                    clearFieldValidationErrors(productFieldId);
+                }
+            }
+        }
+    }
+    
+    // Store eligibility status for use across pages
+    function storeEligibilityStatus() {
+        var isEligible = isEligibleForLifetimeWithStorage();
+        // Store in hidden field or data attribute
+        $('#gform_' + formId).data('lifetime-eligible', isEligible);
+        // Also store in sessionStorage
+        try {
+            sessionStorage.setItem('gf_' + formId + '_eligible', isEligible ? '1' : '0');
+        } catch (e) {
+            console.error('Error storing eligibility:', e);
+        }
+        // Also store in a hidden input if available
+        var $hiddenInput = $('#lifetime_eligibility_status');
+        if ($hiddenInput.length === 0) {
+            $hiddenInput = $('<input type="hidden" id="lifetime_eligibility_status" name="lifetime_eligibility_status" value="' + (isEligible ? '1' : '0') + '">');
+            $('#gform_' + formId).append($hiddenInput);
+        } else {
+            $hiddenInput.val(isEligible ? '1' : '0');
+        }
+    }
+    
+    // Initial check on page load
+    var checkCount = 0;
+    var checkInterval = setInterval(function() {
+        if (typeof window.gform && window.gform.initializeOnLoaded) {
+            clearInterval(checkInterval);
+            setTimeout(function() {
+                storeEligibilityStatus();
+                checkAndUpdateFields();
+            }, 500);
+        } else if (checkCount++ > 10) {
+            clearInterval(checkInterval);
+        }
+    }, 500);
+    
+    // Add event listeners
+    $(document).on('change', '#input_' + formId + '_' + dobFieldId, function() {
+        storeEligibilityStatus();
+        checkAndUpdateFields();
+    });
+    $(document).on('change', 'input[name="input_' + classificationFieldId + '"]', function() {
+        storeEligibilityStatus();
+        checkAndUpdateFields();
+    });
+    
+    // Handle page navigation - check when page 2 loads
+    $(document).on('gform_page_loaded', function(event, form_id, current_page) {
+        if (form_id == formId) {
+            // Capture and store eligibility status from page 1 before navigation
+            captureFormValues();
+            storeEligibilityStatus();
+            
+            // If we're on page 2 (or later), check and update product field
+            setTimeout(function() {
+                var $productField = $('#field_' + formId + '_' + productFieldId);
+                if ($productField.length && $productField.is(':visible')) {
+                    // First remove any duplicates
+                    removeDuplicateLifetimeOptions();
+                    
+                    // Check if lifetime option already exists in DOM
+                    var existingCount = $('#lifetime_membership_option').length;
+                    hasLifetimeOption = existingCount > 0;
+                    
+                    // Ensure we have stored values
+                    captureFormValues();
+                    checkAndUpdateFields();
+                    
+                    // Clear any validation errors after page loads
+                    setTimeout(function() {
+                        var selectedProduct = $('input[name="input_' + productFieldId + '"]:checked').val();
+                        if (selectedProduct && selectedProduct.indexOf('Lifetime') !== -1) {
+                            if (isEligibleForLifetimeWithStorage()) {
+                                clearFieldValidationErrors(productFieldId);
+                            }
+                        }
+                    }, 200);
+                }
+            }, 500);
+        }
+    });
+    
+    // Also check when form is loaded via AJAX or re-rendered
+    $(document).on('gform_post_render', function(event, form_id, current_page) {
+        if (form_id == formId) {
+            // Capture values before checking
+            captureFormValues();
+            storeEligibilityStatus();
+            setTimeout(function() {
+                var $productField = $('#field_' + formId + '_' + productFieldId);
+                if ($productField.length && $productField.is(':visible')) {
+                    // First remove any duplicates
+                    removeDuplicateLifetimeOptions();
+                    
+                    // Check if lifetime option already exists in DOM
+                    var existingCount = $('#lifetime_membership_option').length;
+                    hasLifetimeOption = existingCount > 0;
+                    
+                    checkAndUpdateFields();
+                    
+                    // Clear any validation errors after render
+                    setTimeout(function() {
+                        var selectedProduct = $('input[name="input_' + productFieldId + '"]:checked').val();
+                        if (selectedProduct && selectedProduct.indexOf('Lifetime') !== -1) {
+                            if (isEligibleForLifetimeWithStorage()) {
+                                clearFieldValidationErrors(productFieldId);
+                            }
+                        }
+                    }, 200);
+                }
+            }, 500);
+        }
+    });
+    
+    // Function to get stored eligibility status (for when fields are on different pages)
+    function getStoredEligibilityStatus() {
+        // Try sessionStorage first
+        try {
+            var stored = sessionStorage.getItem('gf_' + formId + '_eligible');
+            if (stored !== null) {
+                return stored === '1';
+            }
+        } catch (e) {}
+        
+        // Try data attribute
+        var storedStatus = $('#gform_' + formId).data('lifetime-eligible');
+        if (storedStatus !== undefined) {
+            return storedStatus;
+        }
+        
+        // Fallback: use enhanced check with storage
+        return isEligibleForLifetimeWithStorage();
+    }
+    
+    // Validate lifetime membership before page navigation or submission
+    function validateLifetimeMembership() {
+        var selectedProduct = $('input[name="input_' + productFieldId + '"]:checked').val();
+        
+        if (selectedProduct && selectedProduct.indexOf('Lifetime') !== -1) {
+            // Check eligibility using enhanced function that works across pages
+            var isEligible = isEligibleForLifetimeWithStorage();
+            
+            if (!isEligible) {
+                var $field = $('#field_' + formId + '_' + productFieldId);
+                var $errorMsg = $field.find('.lifetime-validation-error');
+                
+                if ($errorMsg.length === 0) {
+                    $errorMsg = $('<div class="lifetime-validation-error" style="color:#d63638;font-weight:bold;margin-top:10px;padding:8px;background:#ffebee;border-left:3px solid #d63638;border-radius:0 4px 4px 0;"></div>');
+                    $field.append($errorMsg);
+                }
+                
+                $errorMsg.html('You are not eligible for the Lifetime Membership. Please select another membership option.');
+                
+                // Remove error after 5 seconds
+                setTimeout(function() {
+                    $errorMsg.fadeOut(function() {
+                        $(this).remove();
+                    });
+                }, 5000);
+                
+                // Scroll to error
+                $('html, body').animate({
+                    scrollTop: $field.offset().top - 100
+                }, 500);
+                
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    // Store form values before page navigation
+    function captureFormValues() {
+        // Store DOB and classification values before navigation
+        var dob = $('#input_' + formId + '_' + dobFieldId).val() || '';
+        var classification = $('input[name="input_' + classificationFieldId + '"]:checked').val() || '';
+        
+        // Calculate eligibility directly
+        var isEligible = false;
+        if (dob && classification) {
+            var isFellow = (classification.toLowerCase() === 'fellow');
+            if (isFellow) {
+                try {
+                    var parts = dob.split('/');
+                    if (parts.length === 3) {
+                        var dobDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                        if (!isNaN(dobDate.getTime())) {
+                            var today = new Date();
+                            var age = today.getFullYear() - dobDate.getFullYear();
+                            var monthDiff = today.getMonth() - dobDate.getMonth();
+                            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate())) {
+                                age--;
+                            }
+                            isEligible = age >= 50;
+                        }
+                    }
+                } catch (e) {
+                    isEligible = false;
+                }
+            }
+        }
+        
+        // Store in sessionStorage for cross-page access
+        try {
+            sessionStorage.setItem('gf_' + formId + '_dob', dob);
+            sessionStorage.setItem('gf_' + formId + '_classification', classification);
+            sessionStorage.setItem('gf_' + formId + '_eligible', isEligible ? '1' : '0');
+        } catch (e) {
+            console.error('Error storing form values:', e);
+        }
+    }
+    
+    // Retrieve stored form values
+    function getStoredFormValues() {
+        try {
+            var storedDob = sessionStorage.getItem('gf_' + formId + '_dob') || '';
+            var storedClassification = sessionStorage.getItem('gf_' + formId + '_classification') || '';
+            return {
+                dob: storedDob,
+                classification: storedClassification
+            };
+        } catch (e) {
+            return { dob: '', classification: '' };
+        }
+    }
+    
+    // Enhanced eligibility check using stored values if needed
+    function isEligibleForLifetimeWithStorage() {
+        // First try to get from current form
+        var dob = getFieldValue(dobFieldId, 'text');
+        var classification = getFieldValue(classificationFieldId, 'radio');
+        
+        // If not available, try stored values
+        if (!dob || !classification) {
+            var stored = getStoredFormValues();
+            if (stored.dob) dob = stored.dob;
+            if (stored.classification) classification = stored.classification;
+        }
+        
+        var isFellow = (classification && classification.toLowerCase() === 'fellow');
+        
+        if (!dob || !isFellow) return false;
+        
+        try {
+            var parts = dob.split('/');
+            if (parts.length !== 3) return false;
+            
+            var dobDate = new Date(parts[2], parts[1] - 1, parts[0]);
+            if (isNaN(dobDate.getTime())) return false;
+            
+            var today = new Date();
+            var age = today.getFullYear() - dobDate.getFullYear();
+            var monthDiff = today.getMonth() - dobDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate())) {
+                age--;
+            }
+            
+            return age >= 50;
+        } catch (e) {
+            return false;
+        }
+    }
+    
+    // Capture values when fields change (on page 1)
+    $(document).on('change blur', '#input_' + formId + '_' + dobFieldId + ', input[name="input_' + classificationFieldId + '"]', function() {
+        captureFormValues();
+        storeEligibilityStatus();
+    });
+    
+    // Validate before page navigation (when clicking Next/Previous)
+    $(document).on('click', '#gform_' + formId + ' .gform_next_button, #gform_' + formId + ' .gform_previous_button, #gform_' + formId + ' input[type="submit"]', function(e) {
+        // Capture current form values before navigation
+        captureFormValues();
+        
+        // Check if we're on a page with the product field
+        var $productField = $('#field_' + formId + '_' + productFieldId);
+        if ($productField.length && $productField.is(':visible')) {
+            if (!validateLifetimeMembership()) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return false;
+            }
+        }
+    });
+    
+    // Client-side validation before form submission
+    $(document).on('submit', '#gform_' + formId, function(e) {
+        captureFormValues(); // Ensure we have latest values
+        if (!validateLifetimeMembership()) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+    });
+    
+    // Hook into Gravity Forms validation
+    if (typeof window.gform !== 'undefined') {
+        // Override Gravity Forms validation for our field
+        window.gform.addFilter('gform_validation_' + formId, function(result, form) {
+            // Check if lifetime is selected and if eligible, mark as valid
+            var productValue = '';
+            for (var i = 0; i < form.fields.length; i++) {
+                if (form.fields[i].id == productFieldId) {
+                    productValue = form.fields[i].value || '';
+                    break;
+                }
+            }
+            
+            if (productValue && productValue.indexOf('Lifetime') !== -1) {
+                var isEligible = isEligibleForLifetimeWithStorage();
+                if (isEligible) {
+                    // If eligible, ensure the field passes validation
+                    for (var j = 0; j < result.fields.length; j++) {
+                        if (result.fields[j].id == productFieldId) {
+                            result.fields[j].failed_validation = false;
+                            result.fields[j].validation_message = '';
+                            break;
+                        }
+                    }
+                    // Make sure overall validation passes if this was the only issue
+                    var allValid = true;
+                    for (var k = 0; k < result.fields.length; k++) {
+                        if (result.fields[k].failed_validation && result.fields[k].id != productFieldId) {
+                            allValid = false;
+                            break;
+                        }
+                    }
+                    if (allValid) {
+                        result.is_valid = true;
+                    }
+                } else {
+                    // If not eligible, show error
+                    result.is_valid = false;
+                    for (var l = 0; l < result.fields.length; l++) {
+                        if (result.fields[l].id == productFieldId) {
+                            result.fields[l].failed_validation = true;
+                            result.fields[l].validation_message = 'You are not eligible for the Lifetime Membership. Please select another membership option.';
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            return result;
+        });
+    }
+    
+    // Clear validation errors after Gravity Forms validation runs
+    $(document).on('gform_post_validation', function(event, validationResult, formId_validation, validator) {
+        if (formId_validation == formId) {
+            setTimeout(function() {
+                var selectedProduct = $('input[name="input_' + productFieldId + '"]:checked').val();
+                if (selectedProduct && selectedProduct.indexOf('Lifetime') !== -1) {
+                    if (isEligibleForLifetimeWithStorage()) {
+                        clearFieldValidationErrors(productFieldId);
+                        // Also trigger a re-validation to clear the error state
+                        if (typeof window.gform !== 'undefined' && window.gform.validateForm) {
+                            // The validation will pass because we've cleared the errors
+                        }
+                    }
+                }
+            }, 100);
+        }
+    });
+    
+    // Validate on field change to provide immediate feedback
+    $(document).on('change', 'input[name="input_' + productFieldId + '"]', function() {
+        var selectedProduct = $(this).val();
+        
+        if (selectedProduct && selectedProduct.indexOf('Lifetime') !== -1) {
+            var isEligible = isEligibleForLifetimeWithStorage();
+            if (!isEligible) {
+                $(this).prop('checked', false);
+                
+                // Show error message
+                var $field = $('#field_' + formId + '_' + productFieldId);
+                var $errorMsg = $field.find('.lifetime-validation-error');
+                
+                if ($errorMsg.length === 0) {
+                    $errorMsg = $('<div class="lifetime-validation-error" style="color:#d63638;font-weight:bold;margin-top:10px;padding:8px;background:#ffebee;border-left:3px solid #d63638;border-radius:0 4px 4px 0;"></div>');
+                    $field.append($errorMsg);
+                }
+                
+                $errorMsg.html('You are not eligible for the Lifetime Membership. This option is only available for Fellows aged 50 or older.');
+                
+                // Remove error after 5 seconds
+                setTimeout(function() {
+                    $errorMsg.fadeOut(function() {
+                        $(this).remove();
+                    });
+                }, 5000);
+            } else {
+                // Clear all validation errors if lifetime is validly selected
+                clearFieldValidationErrors(productFieldId);
+                $('#field_' + formId + '_' + productFieldId + ' .lifetime-validation-error').remove();
+            }
+        } else {
+            // Clear error messages for non-lifetime selections
+            clearFieldValidationErrors(productFieldId);
+            $('#field_' + formId + '_' + productFieldId + ' .lifetime-validation-error').remove();
+        }
+    });
+    
+    // Clear validation errors when eligibility changes
+    $(document).on('change', '#input_' + formId + '_' + dobFieldId + ', input[name="input_' + classificationFieldId + '"]', function() {
+        setTimeout(function() {
+            $('#field_' + formId + '_' + productFieldId + ' .lifetime-validation-error').remove();
+        }, 600);
+    });
+});
 	</script>
 	<?php  
 }
@@ -925,7 +1737,8 @@ function send_retest_submission_notification($entry_id, $center_post) {
     }
 
     // AQB Admins (optional)
-    $aqb_admin_ids = (array) get_post_meta($center_post->ID, '_aqb_admin_id', true);
+   // $aqb_admin_ids = (array) get_post_meta($center_post->ID, '_aqb_admin_id', true);
+    $aqb_admin_ids = (array) get_post_meta($center_post->ID, '_aqb_admin_ids', true);
     foreach ($aqb_admin_ids as $user_id) {
         $user = get_userdata($user_id);
         if ($user && is_email($user->user_email) && !in_array($user->user_email, $admin_emails)) {
@@ -1077,6 +1890,112 @@ function restrict_exam_center_caps() {
 }
 
 
+// Redirect users to appropriate page when clicking main menu
+add_action('load-post-new.php', 'redirect_exam_center_to_list');
+function redirect_exam_center_to_list() {
+	global $typenow;
+	
+	if ($typenow !== 'exam_center') {
+		return;
+	}
+	
+	// Only redirect if coming from main menu (no referer or from dashboard)
+	$referer = wp_get_referer();
+	if ($referer && strpos($referer, 'post-new.php') !== false) {
+		return; // User explicitly wants to add new
+	}
+	
+	// Administrators go to list page
+	if (current_user_can('administrator')) {
+		wp_redirect(admin_url('edit.php?post_type=exam_center'));
+		exit;
+	}
+	
+	// Non-administrators: redirect to first accessible submenu
+	if (current_user_can('custom_center') || current_user_can('aqb_admin')) {
+		// Redirect to Submitted Forms (their first accessible page)
+		wp_redirect(admin_url('admin.php?page=submitted-forms'));
+		exit;
+	}
+	
+	// If no access, let WordPress handle the error
+}
+
+// Fix submenu ordering to ensure 'All Examination Centers' is first for administrators
+add_action('admin_menu', 'fix_exam_center_submenu_order', 9999);
+function fix_exam_center_submenu_order() {
+	global $submenu;
+	
+	if (!current_user_can('administrator')) {
+		return;
+	}
+	
+	if (isset($submenu['edit.php?post_type=exam_center'])) {
+		// Find and move 'All Examination Centers' to position 0
+		$all_centers_item = null;
+		$all_centers_key = null;
+		
+		foreach ($submenu['edit.php?post_type=exam_center'] as $key => $item) {
+			if ($item[2] === 'edit.php?post_type=exam_center') {
+				$all_centers_item = $item;
+				$all_centers_key = $key;
+				break;
+			}
+		}
+		
+		if ($all_centers_item && $all_centers_key !== 0) {
+			unset($submenu['edit.php?post_type=exam_center'][$all_centers_key]);
+			array_unshift($submenu['edit.php?post_type=exam_center'], $all_centers_item);
+		}
+	}
+}
+
+// Ensure administrators with multiple roles can see exam_center menus
+add_filter('user_has_cap', 'ensure_admin_exam_center_caps', 1, 4);
+function ensure_admin_exam_center_caps($allcaps, $caps, $args, $user) {
+	// If user has administrator role, grant all exam_center capabilities
+	if (isset($user->roles) && in_array('administrator', $user->roles)) {
+		$exam_center_caps = [
+			'edit_exam_center',
+			'edit_exam_centers',
+			'edit_others_exam_centers',
+			'publish_exam_centers',
+			'read_exam_center',
+			'delete_exam_center',
+			'delete_exam_centers',
+			'delete_others_exam_centers',
+			'delete_published_exam_centers',
+			'read_private_exam_centers',
+			'edit_published_exam_centers',
+			'edit_private_exam_centers',
+			'delete_private_exam_centers'
+		];
+		
+		foreach ($exam_center_caps as $cap) {
+			$allcaps[$cap] = true;
+		}
+	}
+	
+	return $allcaps;
+}
+
+
+// Force the parent file to be the list page for administrators
+add_filter('parent_file', 'fix_exam_center_parent_file');
+function fix_exam_center_parent_file($parent_file) {
+	global $current_screen;
+	
+	if (!current_user_can('administrator')) {
+		return $parent_file;
+	}
+	
+	if ($current_screen && $current_screen->post_type === 'exam_center' && $current_screen->base === 'post') {
+		return 'edit.php?post_type=exam_center';
+	}
+	
+	return $parent_file;
+}
+
 add_action('admin_menu', 'remove_exam_center_add_new_menu', 999);
 function remove_exam_center_add_new_menu() {
 	if (!current_user_can('administrator')) {
@@ -1140,6 +2059,8 @@ function add_students_center_admin_page() {
         'display_form_31_entries_page'
     );
 }
+
+
 
 function custom_admin_notice_center_conflict() {
 	if (isset($_GET['center_conflict']) && $_GET['center_conflict'] === '1') {
@@ -1279,6 +2200,43 @@ function custom_user_fields_by_role($user) {
 		</table>
 		<?php
 	}
+		// Add invigilator method specializations
+	if (in_array('invigilator', $user_roles, true)) {
+	    $invigilator_specializations = get_user_meta($user->ID, '_invigilator_specializations', true);
+	    if (!is_array($invigilator_specializations)) {
+	        $invigilator_specializations = [];
+	    }
+	    $methods = [
+	        'UT' => 'UT',
+	        'RT' => 'RT',
+	        'MT' => 'MT',
+	        'PT' => 'PT',
+	        'VT' => 'VT',
+	        'ET' => 'ET',
+	        'TT' => 'TT',
+	        'PAUT' => 'PAUT',
+	        'TOFD' => 'TOFD'
+	    ];
+	    ?>
+	    <h3>Invigilator Method Specializations</h3>
+	    <table class="form-table">
+	        <?php foreach ($methods as $key => $label): ?>
+	            <tr>
+	                <th><label for="invigilator_specialization_<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></label></th>
+	                <td>
+	                    <input type="text"
+	                    name="invigilator_specializations[<?php echo esc_attr($key); ?>]"
+	                    id="invigilator_specialization_<?php echo esc_attr($key); ?>"
+	                    value="<?php echo esc_attr($invigilator_specializations[$key] ?? ''); ?>"
+	                    class="regular-text"
+	                    placeholder="e.g. Aerospace, Welding" />
+	                    <p class="description">Specialization for <?php echo esc_html($label); ?></p>
+	                </td>
+	            </tr>
+	        <?php endforeach; ?>
+	    </table>
+	    <?php
+	}
 }
 
 add_action('personal_options_update', 'save_custom_user_fields_by_role');
@@ -1316,6 +2274,12 @@ function save_custom_user_fields_by_role($user_id) {
 		$specializations = array_map('sanitize_text_field', $_POST['examiner_specializations']);
 		update_user_meta($user_id, '_examiner_specializations', $specializations);
 	}
+
+	// Save invigilator specializations
+	if (in_array('invigilator', $roles, true) && isset($_POST['invigilator_specializations'])) {
+		$invigilator_specializations = array_map('sanitize_text_field', $_POST['invigilator_specializations']);
+		update_user_meta($user_id, '_invigilator_specializations', $invigilator_specializations);
+	}
 }
 add_filter('manage_users_columns', 'add_custom_user_columns');
 function add_custom_user_columns($columns) {
@@ -1328,6 +2292,43 @@ function add_custom_user_columns($columns) {
 	}
 	return $new_columns;
 }
+
+// add_filter('manage_users_custom_column', 'show_custom_user_column_content', 10, 3);
+// function show_custom_user_column_content($value, $column_name, $user_id) {
+// 		if ($column_name === 'assigned_center') {
+// 			$user = get_userdata($user_id);
+// 			if (in_array('center_admin', (array) $user->roles, true)) {
+// 				$center_id = get_user_meta($user_id, '_exam_center', true);
+// 				if ($center_id) {
+// 					$center_post = get_post($center_id);
+// 					if ($center_post && $center_post->post_type === 'exam_center') {
+// 						return esc_html($center_post->post_title);
+// 					}
+// 				}
+// 				return '<em>No center assigned</em>';
+// 			}
+// 			return '<em>N/A</em>';
+// 		}
+
+// 	if ($column_name === 'examiner_specializations') {
+// 		$user = get_userdata($user_id);
+// 		if (in_array('examiner', (array) $user->roles, true)) {
+// 			$specializations = get_user_meta($user_id, '_examiner_specializations', true);
+// 			if (!empty($specializations) && is_array($specializations)) {
+// 				$display = [];
+// 				foreach ($specializations as $method => $value) {
+// 					if (!empty($value)) {
+// 						$display[] = esc_html($method . ': ' . $value);
+// 					}
+// 				}
+// 				return $display ? implode('<br>', $display) : '<em>None</em>';
+// 			}
+// 			return '<em>None</em>';
+// 		}
+// 		return '<em>N/A</em>';
+// 	}
+// 	return $value;
+// }
 
 add_filter('manage_users_custom_column', 'show_custom_user_column_content', 10, 3);
 function show_custom_user_column_content($value, $column_name, $user_id) {
@@ -1348,19 +2349,49 @@ function show_custom_user_column_content($value, $column_name, $user_id) {
 
 	if ($column_name === 'examiner_specializations') {
 		$user = get_userdata($user_id);
+		$display = [];
+		
+		// Check for examiner specializations
 		if (in_array('examiner', (array) $user->roles, true)) {
 			$specializations = get_user_meta($user_id, '_examiner_specializations', true);
 			if (!empty($specializations) && is_array($specializations)) {
-				$display = [];
+				$examiner_items = [];
 				foreach ($specializations as $method => $value) {
 					if (!empty($value)) {
-						$display[] = esc_html($method . ': ' . $value);
+						$examiner_items[] = esc_html($method . ': ' . $value);
 					}
 				}
-				return $display ? implode('<br>', $display) : '<em>None</em>';
+				if (!empty($examiner_items)) {
+					$display[] = '<strong>Examiner:</strong><br>' . implode('<br>', $examiner_items);
+				}
 			}
+		}
+		
+		// Check for invigilator specializations
+		if (in_array('invigilator', (array) $user->roles, true)) {
+			$invigilator_specializations = get_user_meta($user_id, '_invigilator_specializations', true);
+			if (!empty($invigilator_specializations) && is_array($invigilator_specializations)) {
+				$invigilator_items = [];
+				foreach ($invigilator_specializations as $method => $value) {
+					if (!empty($value)) {
+						$invigilator_items[] = esc_html($method . ': ' . $value);
+					}
+				}
+				if (!empty($invigilator_items)) {
+					$display[] = '<strong>Invigilator:</strong><br>' . implode('<br>', $invigilator_items);
+				}
+			}
+		}
+		
+		if (!empty($display)) {
+			return implode('<br><br>', $display);
+		}
+		
+		// If user has either role but no specializations
+		if (in_array('examiner', (array) $user->roles, true) || in_array('invigilator', (array) $user->roles, true)) {
 			return '<em>None</em>';
 		}
+		
 		return '<em>N/A</em>';
 	}
 	return $value;
@@ -1374,6 +2405,8 @@ function add_custom_admin_columns($columns) {
 		if ($key === 'date') {
 			$new_columns['center_admin'] = 'Center Admin(s)';
 			$new_columns['aqb_admin'] = 'AQB Admin(s)';
+			$new_columns['examiners'] = 'Examiner(s)';
+			$new_columns['invigilators'] = 'Invigilator(s)';
 		}
 		$new_columns[$key] = $value;
 	}
@@ -1383,14 +2416,26 @@ function add_custom_admin_columns($columns) {
 
 add_action('manage_exam_center_posts_custom_column', 'show_custom_admin_column_content', 10, 2);
 function show_custom_admin_column_content($column, $post_id) {
-	if ($column === 'center_admin' || $column === 'aqb_admin') {
-		$meta_key = ($column === 'center_admin') ? '_center_admin_id' : '_aqb_admin_id';
+	$meta_key = '';
+
+	if ($column === 'center_admin') {
+		$meta_key = '_center_admin_id';
+	} elseif ($column === 'aqb_admin') {
+		$meta_key = '_aqb_admin_ids';
+	} elseif ($column === 'examiners') {
+		$meta_key = 'assign_examiners';
+	} elseif ($column === 'invigilators') {
+		$meta_key = 'assign_invigilator';
+	}
+
+	if ($meta_key) {
 		$user_ids = (array) get_post_meta($post_id, $meta_key, true);
 
 		if (!empty($user_ids)) {
 			$names = [];
 
 			foreach ($user_ids as $user_id) {
+				if (empty($user_id)) continue;
 				$user = get_userdata($user_id);
 				if ($user) {
 					$names[] = esc_html($user->display_name);
@@ -1412,6 +2457,8 @@ add_filter('manage_edit-exam_center_sortable_columns', 'make_custom_admin_column
 function make_custom_admin_columns_sortable($columns) {
 	$columns['center_admin'] = 'center_admin';
 	$columns['aqb_admin'] = 'aqb_admin';
+	$columns['center_admin'] = 'examiners';
+	$columns['invigilators'] = 'invigilators';
 	return $columns;
 }
 
@@ -1429,7 +2476,7 @@ function sort_admin_columns_query($query) {
 	}
 
 	if ($orderby === 'aqb_admin') {
-		$query->set('meta_key', '_aqb_admin_id');
+		$query->set('meta_key', '_aqb_admin_ids');
 		$query->set('orderby', 'meta_value_num');
 	}
 }
@@ -1471,16 +2518,30 @@ function handle_exam_assignments_ajax() {
 		$candidate_email = rgar($entry, '26');
 		$candidate_name  = rgar($entry, '19');
 		$center_name     = trim(rgar($entry, '9'));
+	} elseif ($entry['form_id'] == 39) {
+		$exam_type       = 'Renewal/Recertification Exam';
+		$field_789_value = rgar($entry, '12');
+		$candidate_email = rgar($entry, '31');
+		$candidate_name  = rgar($entry, '19');
+		$center_name     = trim(rgar($entry, '9'));
 	} else {
 		$exam_type       = 'Initial Exam';
 		$field_789_value = rgar($entry, '789');
 		$candidate_email = rgar($entry, '12');
 		$candidate_name  = rgar($entry, '840'); 
 		$center_name     = trim(rgar($entry, '833')); 
-	}	
-
+	}		
 	$assigned_examiners = isset($_POST['assigned_examiners']) && is_array($_POST['assigned_examiners']) ? array_map('intval', $_POST['assigned_examiners']) : [];
 	$assigned_invigilators = isset($_POST['assigned_invigilators']) && is_array($_POST['assigned_invigilators']) ? array_map('intval', $_POST['assigned_invigilators']) : [];
+
+
+	if (empty($assigned_examiners) ) {
+		wp_send_json_error('Please select at least one examiner before saving the assignment.');
+	}
+	if (empty($assigned_invigilators)) {
+		wp_send_json_error('Please select at least one invigilator before saving the assignment.');
+	}
+
 
 	$method_slots = isset($_POST['method_slots']) ? $_POST['method_slots'] : [];
 	$sanitized_method_slots = [];
@@ -1640,7 +2701,7 @@ function handle_exam_assignments_ajax() {
 	
 	$center_post     = get_page_by_title($center_name, OBJECT, 'exam_center');
 	$center_admin_id = get_post_meta($center_post->ID, '_center_admin_id', true);
-	$aqb_admin_id    = get_post_meta($center_post->ID, '_aqb_admin_id', true);
+	$aqb_admin_id    = get_post_meta($center_post->ID, '_aqb_admin_ids', true);
 
 	$center_admin = get_userdata($center_admin_id);
 	$aqb_admin    = get_userdata($aqb_admin_id);
@@ -1693,16 +2754,40 @@ function handle_exam_assignments_ajax() {
 		        <p>Best wishes,<br>Administration Team</p>
 		    </div>";
 
+		// Validate and send candidate email
+		// If form field email is empty, try to get from user account
+		if (empty($candidate_email) || !is_email($candidate_email)) {
+			$user_id = $entry['created_by'];
+			$user_data = get_userdata($user_id);
+			if ($user_data && is_email($user_data->user_email)) {
+				$candidate_email = $user_data->user_email;
+				error_log("Assignment notification: Using user email for entry {$entry_id}, form {$entry['form_id']}: {$candidate_email}");
+			} else {
+				error_log("Assignment notification: No valid email found for entry {$entry_id}, form {$entry['form_id']}");
+			}
+		}
 
 		add_filter('wp_mail_content_type', function () { return 'text/html'; });
 		if (is_email($candidate_email)) {
-			wp_mail($candidate_email, $candidate_subject, $candidate_body);
+			// Use email template if available
+			$candidate_message = function_exists('get_email_template') 
+				? get_email_template($candidate_subject, $candidate_body) 
+				: $candidate_body;
+			
+			$sent = wp_mail($candidate_email, $candidate_subject, $candidate_message);
+			
+			if ($sent) {
+				error_log("Assignment notification sent to candidate: {$candidate_email} for entry {$entry_id}");
+			} else {
+				error_log("Failed to send assignment notification to candidate: {$candidate_email} for entry {$entry_id}");
+			}
+		} else {
+			error_log("Invalid candidate email for entry {$entry_id}, form {$entry['form_id']}: " . var_export($candidate_email, true));
 		}
 		remove_filter('wp_mail_content_type', '__return_true');
 
 		wp_send_json_success('Assignments saved and emails sent successfully.');
 }
-
 if (!function_exists('get_email_template')) {
 	function get_email_template($subject, $body) {
 		return "<!DOCTYPE html><html><head><title>{$subject}</title></head><body style=\"margin: 0; padding: 0; background-color: #f7f7f7;\"><div style=\"background-color: #ffffff; padding: 20px; margin: 20px auto; max-width: 600px; border: 1px solid #ddd;\">$body</div></body></html>";
@@ -1847,7 +2932,7 @@ function examiner_entry_response() {
 		}
 		$center_post     = get_page_by_title($center_post_name, OBJECT, 'exam_center');
 		$center_admin_id = get_post_meta($center_post->ID, '_center_admin_id', true);
-		$aqb_admin_id    = get_post_meta($center_post->ID, '_aqb_admin_id', true);
+		$aqb_admin_id    = get_post_meta($center_post->ID, '_aqb_admin_ids', true);
 
 		$subject = "Examiner Accepted: Exam Order #$order_number";
 		$body = "<p><strong>{$user->display_name}</strong> has accepted the examiner assignment.</p>";
@@ -1903,7 +2988,7 @@ function examiner_entry_response() {
 		$center_name = get_the_title($center_id);
 		$center_post     = get_page_by_title($center_post_name, OBJECT, 'exam_center');
 		$center_admin_id = get_post_meta($center_post->ID, '_center_admin_id', true);
-		$aqb_admin_id    = get_post_meta($center_post->ID, '_aqb_admin_id', true);
+		$aqb_admin_id    = get_post_meta($center_post->ID, '_aqb_admin_ids', true);
 
 		$subject = "Examiner Declined: Exam Order #$order_number";
 		$body = "<p><strong>{$user->display_name}</strong> has declined the examiner assignment.</p>";
@@ -2064,7 +3149,7 @@ function save_examiner_marks_entry_id_update($form, $entry_id, $entry) {
 
 function send_marks_submission_notification($entry_id, $method, $order_number, $center_post) {
 	$center_admin_ids = (array) get_post_meta($center_post->ID, '_center_admin_id', true);
-	$aqb_admin_ids    = (array) get_post_meta($center_post->ID, '_aqb_admin_id', true);
+	$aqb_admin_ids    = (array) get_post_meta($center_post->ID, '_aqb_admin_ids', true);
 
 	$emails = [];
 
@@ -2345,60 +3430,82 @@ function render_examiner_assignment_dashboard() {
 			<?php foreach ($field_188_values as $method): ?>
 				<div class="border p-4 rounded-md bg-gray-50">
 					<h3 class="text-md font-semibold text-blue-600"><?= esc_html($method); ?></h3>
-					<?php if (isset($entries_by_method[$method])) {
-						$method_key = sanitize_title($method);
-						$marks_entry_id = gform_get_meta($entry_id, '_examiner_marks_entry_id_' . $method_key);
-						if (!empty($marks_entry_id) && is_numeric($marks_entry_id)) {
-							$marks_entry_data = GFAPI::get_entry($marks_entry_id);
-
-							if (!is_wp_error($marks_entry_data)) {
-								$marks_form = GFAPI::get_form($marks_entry_data['form_id']);
-								$marks_combined = [];
-								$other_fields = [];
-
-								foreach ($marks_form['fields'] as $field) {
-									$field_id = $field->id;
-									$label = trim($field->label);
-									$value = $marks_entry_data[$field_id] ?? '';
-
-									if (empty($value) || in_array($field->type, ['html', 'hidden']) || in_array($field_id, [18])) {
-										continue;
-									}
-
-									if (stripos($label, 'Marks Obtained') !== false) {
-										$base = trim(str_ireplace('Marks Obtained', '', $label));
-										$marks_combined[$base]['obtained'] = $value;
-										$marks_combined[$base]['label'] = $base;
-									} elseif (stripos($label, 'Total Marks') !== false) {
-										$base = trim(str_ireplace('Total Marks', '', $label));
-										$marks_combined[$base]['total'] = $value;
-										$marks_combined[$base]['label'] = $base;
-									} else {
-										$other_fields[$label] = $value;
-									}
+					<?php 
+					$has_verified_slot = false;
+					if (!empty($invigilator_data)) {
+						foreach ($invigilator_data as $slot_key => $slot_info) {
+							if (strpos($slot_key, $method . '|') === 0) {
+								$checkin = $slot_info['checkin_time'] ?? '';
+								$checkout = $slot_info['checkout_time'] ?? '';
+								if (!empty($checkin) && !empty($checkout)) {
+									$has_verified_slot = true;
+									break;
 								}
-
-								echo '<table class="wp-list-table widefat striped"><tbody>';
-								foreach ($other_fields as $label => $value) {
-									echo '<tr><td><strong>' . esc_html($label) . ':</strong></td><td>' . esc_html($value) . '</td></tr>';
-								}
-								foreach ($marks_combined as $data) {
-									echo '<tr><td><strong>' . esc_html($data['label']) . ':</strong></td>';
-									echo '<td>' . esc_html($data['obtained'] ?? '-') . '/' . esc_html($data['total'] ?? '-') . '</td></tr>';
-								}
-								echo '</tbody></table>';
-
-								$edit_link = esc_url(admin_url("admin.php?page=gf_entries&view=entry&id=24&lid={$marks_entry_id}"));
-								echo '<a href="' . $edit_link . '" class="button button-secondary" target="_blank">View/Edit Marks</a>';
-							} else {
-								echo '<p><em>Could not load marks entry.</em></p>';
 							}
-						} else {
-							$examiner_marks_url = admin_url("admin.php?page=examiner-marks-entry&entry_id=" . intval($entry_id) . "&method=" . urlencode($method) . "&examno=" . esc_attr($entry_data['789']));
-							echo '<a href="' . esc_url($examiner_marks_url) . '" class="button button-primary add-marks-button">Add Marks</a>';
 						}
+					}
+
+					if ($has_verified_slot) { ?>
+						<p class="text-green-600 mb-2 text-sm"><strong>✅ Invigilator has added the entry record.</strong></p>
+						<?php if (isset($entries_by_method[$method])) {
+							$method_key = sanitize_title($method);
+							$marks_entry_id = gform_get_meta($entry_id, '_examiner_marks_entry_id_' . $method_key);
+							if (!empty($marks_entry_id) && is_numeric($marks_entry_id)) {
+								$marks_entry_data = GFAPI::get_entry($marks_entry_id);
+
+								if (!is_wp_error($marks_entry_data)) {
+									$marks_form = GFAPI::get_form($marks_entry_data['form_id']);
+									$marks_combined = [];
+									$other_fields = [];
+
+									foreach ($marks_form['fields'] as $field) {
+										$field_id = $field->id;
+										$label = trim($field->label);
+										$value = $marks_entry_data[$field_id] ?? '';
+
+										if (empty($value) || in_array($field->type, ['html', 'hidden']) || in_array($field_id, [18])) {
+											continue;
+										}
+
+										if (stripos($label, 'Marks Obtained') !== false) {
+											$base = trim(str_ireplace('Marks Obtained', '', $label));
+											$marks_combined[$base]['obtained'] = $value;
+											$marks_combined[$base]['label'] = $base;
+										} elseif (stripos($label, 'Total Marks') !== false) {
+											$base = trim(str_ireplace('Total Marks', '', $label));
+											$marks_combined[$base]['total'] = $value;
+											$marks_combined[$base]['label'] = $base;
+										} else {
+											$other_fields[$label] = $value;
+										}
+									}
+
+									echo '<table class="wp-list-table widefat striped mb-3"><tbody>';
+									foreach ($other_fields as $label => $value) {
+										echo '<tr><td><strong>' . esc_html($label) . ':</strong></td><td>' . esc_html($value) . '</td></tr>';
+									}
+									foreach ($marks_combined as $data) {
+										echo '<tr><td><strong>' . esc_html($data['label']) . ':</strong></td>';
+										echo '<td>' . esc_html($data['obtained'] ?? '-') . '/' . esc_html($data['total'] ?? '-') . '</td></tr>';
+									}
+									echo '</tbody></table>';
+
+									$edit_link = esc_url(admin_url("admin.php?page=gf_entries&view=entry&id=24&lid={$marks_entry_id}"));
+									echo '<a href="' . $edit_link . '" class="button button-secondary" target="_blank">View/Edit Marks</a>';
+								} else {
+									echo '<p><em>Could not load marks entry.</em></p>';
+								}
+							} else {
+								$examiner_marks_url = admin_url("admin.php?page=examiner-marks-entry&entry_id=" . intval($entry_id) . "&method=" . urlencode($method) . "&examno=" . esc_attr($entry_data['789']));
+								echo '<a href="' . esc_url($examiner_marks_url) . '" class="button button-primary add-marks-button">Add Marks</a>';
+							}
+						} else { ?>
+							<p style="color: red;"><em>Marks not added by examiner yet for this method.</em></p>
+						<?php } 
 					} else { ?>
-						<p style="color: red;"><em>Marks not added by examiner yet for this method.</em></p>
+						<p class="text-red-900 bg-red-50 p-3 rounded border border-red-200 text-sm">
+							<em>⚠️ Invigilator has not added the entry record yet.</em>
+						</p>
 					<?php } ?>
 				</div>
 			<?php endforeach; ?>
@@ -2444,8 +3551,7 @@ function display_invigilator_acceptance_summary($entry_id) {
 }
 
 add_action('wp_ajax_generate_notification', function () {
-	echo "<pre>"; 
-	print_r($_POST);
+	
     $response = [];    
     if (
         isset($_POST['generate_certificate']) &&
@@ -2742,7 +3848,16 @@ function display_user_retest_status($cert) {
 }
 
 function percent($obtained, $total) {
-    return ($total > 0) ? round(($obtained / $total) * 100, 2) : 0;
+    if ($total > 0) {
+        return round(($obtained / $total) * 100, 2);
+    }
+
+    if ($obtained > 0) {
+        // Treat raw marks as percentage when total is missing; clamp to 100 to avoid overflow.
+        return round(min($obtained, 100), 2);
+    }
+
+    return 0;
 }
 
 function format_cell($value) {
@@ -2788,13 +3903,60 @@ function generate_level_2_table($entry, $passed_subjects = [], $is_retest = fals
         }
     }
 
-    // Instruction Writing
+	  // Method Mutual Recognition
+    if (!$is_retest || isset($entry["59"])) {
+        $method_mutual_obt = floatval($get_val("59", ''));
+        $method_mutual_total = floatval($get_val("60", ''));
+        if ($method_mutual_obt != 0 || $method_mutual_total != 0) {
+            $method_mutual_percent = percent($method_mutual_obt, $method_mutual_total);
+            $subjects['Method Mutual Recognition'] = [
+                'name' => 'Mutual Recognition ',
+                'obtained' => $method_mutual_obt,
+                'total' => $method_mutual_total,
+                'percent' => $method_mutual_percent
+            ];
+        }
+    }
+
+    // --- Prepare Practical Data (Samples only) ---
+    $practical_block_rows = [];
+    $practical_combined_obt = 0;
+    $practical_combined_total = 0;
+    $has_practical_data = false;
+    $instruction_writing_subject = null;
+
+    // 1. Samples only (Practical)
+    $sample_count = 0;
+    if (!$is_retest || isset($entry["54"])) {
+        $practical_list_raw = maybe_unserialize($get_val("54", ''));
+        if (is_array($practical_list_raw) && !empty($practical_list_raw)) {
+            foreach ($practical_list_raw as $sample) {
+                $sample_name = $sample['Practical Samples'] ?? 'Sample ' . ($sample_count + 1);
+                $sample_marks = isset($sample['Marks']) ? floatval($sample['Marks']) : 0;
+                
+                if ($sample_marks != 0 || !empty($sample_name)) {
+                     $practical_block_rows[] = ['name' => $sample_name, 'marks' => $sample_marks];
+                     $practical_combined_obt += $sample_marks;
+                     $practical_combined_total += 100;
+                     $sample_count++;
+                     $has_practical_data = true;
+                }
+            }
+        }
+    }
+
+    // 2. Instruction Writing (Separate Subject - NOT part of Practical)
     if (!$is_retest || isset($entry["57"])) {
-        $procedure_obt = floatval($get_val("57", ''));
-        $procedure_total = floatval($get_val("38", ''));
-        if ($procedure_obt != 0 || $procedure_total != 0) {
+        $procedure_raw = $get_val("57", ''); // Get raw value to check for emptiness
+        
+        // Only include if marks are explicitly added (not empty)
+        if ($procedure_raw !== '') {
+            $procedure_obt = floatval($procedure_raw);
+            $procedure_total = floatval($get_val("38", ''));
+            if ($procedure_total <= 0) $procedure_total = 100;
+
             $procedure_percent = percent($procedure_obt, $procedure_total);
-            $subjects['Instruction Writing'] = [
+            $instruction_writing_subject = [
                 'name' => 'Instruction Writing',
                 'obtained' => $procedure_obt,
                 'total' => $procedure_total,
@@ -2803,40 +3965,20 @@ function generate_level_2_table($entry, $passed_subjects = [], $is_retest = fals
         }
     }
 
-    // Practical
-    if (!$is_retest || isset($entry["54"])) {
-        $practical_list_raw = maybe_unserialize($get_val("54", ''));
-        $practical_rows = '';
-        $practical_obt = 0;
-        $practical_total = 0;
-        $sample_count = 0;
+    // Add "Practical" Subject (samples only, without instruction writing)
+    if ($has_practical_data) {
+        $practical_percent_val = percent($practical_combined_obt, $practical_combined_total);
+        $subjects['Practical'] = [
+            'name' => 'Practical',
+            'obtained' => $practical_combined_obt,
+            'total' => $practical_combined_total,
+            'percent' => $practical_percent_val
+        ];
+    }
 
-        if (is_array($practical_list_raw) && !empty($practical_list_raw)) {
-            foreach ($practical_list_raw as $sample) {
-                $sample_name = $sample['Practical Samples'] ?? 'Sample ' . ($sample_count + 1);
-                $sample_marks = isset($sample['Marks']) ? floatval($sample['Marks']) : 0;
-                if ($sample_marks != 0) { // Only include non-zero samples
-                    $practical_obt += $sample_marks;
-                    $practical_total += 100;
-                    $sample_count++;
-                    $practical_rows .= '<tr><td style="width:50%">' . esc_html($sample_name) . '</td><td style="width:50%">' . format_cell($sample_marks) . '</td></tr>';
-                }
-            }
-        }
-        if ($sample_count == 0) {
-            $practical_rows = '<tr><td style="width:50%">No Samples</td><td style="width:50%">-</td></tr>';
-            error_log("No valid practical samples found for entry: " . print_r($entry, true));
-        }
-
-        if ($practical_obt != 0 || $practical_total != 0) {
-            $practical_percent = percent($practical_obt, $practical_total);
-            $subjects['Practical'] = [
-                'name' => 'Practical',
-                'obtained' => $practical_obt,
-                'total' => $practical_total,
-                'percent' => $practical_percent
-            ];
-        }
+    // Add Instruction Writing as separate subject (not part of Practical)
+    if ($instruction_writing_subject !== null) {
+        $subjects['Instruction Writing'] = $instruction_writing_subject;
     }
 
     if (!$is_retest) {
@@ -2847,6 +3989,7 @@ function generate_level_2_table($entry, $passed_subjects = [], $is_retest = fals
         }
     }
 
+    // Fail Logic
     $failed_subjects = [];
     foreach ($subjects as $name => $subject) {
         if (is_numeric($subject['percent']) && $subject['percent'] < 70) {
@@ -2855,7 +3998,9 @@ function generate_level_2_table($entry, $passed_subjects = [], $is_retest = fals
     }
 
     $overall_result = empty($failed_subjects) ? 'Pass' : 'Fail';
-    $retest = empty($failed_subjects) ? 'No' : 'Yes';
+    $overall_result_display = strtoupper($overall_result);
+
+    $retest = empty($failed_subjects) ? 'NO' : 'YES'; 
     $retest_details = !empty($failed_subjects) ? implode(', ', $failed_subjects) : '-';
 
     $percentages = array_map(function($subject) {
@@ -2865,33 +4010,83 @@ function generate_level_2_table($entry, $passed_subjects = [], $is_retest = fals
     $overall_calc_percent = !empty($percentages) ? round(array_sum($percentages) / count($percentages), 2) : 'N/A';
 
     $table_html = '
-    <table border="1" cellpadding="3" style="font-size:10.5pt; width:100%; border-collapse:collapse; border-color:#000;">
+    <table border="1" cellpadding="1" style="font-size:11pt; width:100%; border-collapse:collapse; border-color:#000;">
     <tbody>';
 
+    // 1. General / Specific / Mutual / Instruction Writing
     foreach ($subjects as $name => $subject) {
         if ($name !== 'Practical') {
-            $table_html .= '<tr><td style="width:30%">' . esc_html($name) . '</td><td style="width:40%" colspan="2"></td><td style="width:30%">' . format_cell($subject['obtained']) . '</td></tr>';
+            $percent_display = $subject['percent'];
+            $table_html .= '<tr>
+                <td style="width:25%">' . esc_html(strtoupper($subject['name'])) . '</td>
+                <td style="width:35%"></td>
+                <td style="width:20%"></td>
+                <td style="width:20%; text-align:center;">' . format_cell($percent_display) . '</td>
+            </tr>';
         }
     }
 
-    $table_html .= '
-    <tr><td style="width:30%" rowspan="' . ($sample_count + 1) . '">PRACTICAL LEVEL 2</td>
-    <td style="width:40%" colspan="2"><strong>Samples</strong></td>
-    <td style="width:30%" rowspan="' . ($sample_count + 1) . '">' . format_cell($practical_percent) . ($practical_percent !== '-' ? '%' : '') . '</td>
-    </tr>
-    ' . $practical_rows . '
+    // 2. Practical Block (samples only)
+    if ($has_practical_data) {
+        $rowspan = count($practical_block_rows);
+        if ($rowspan < 1) $rowspan = 1;
+        
+        $practical_percent_display = $subjects['Practical']['percent'];
+        
+        $first_row = true;
+        foreach ($practical_block_rows as $row) {
+            $table_html .= '<tr>';
+            if ($first_row) {
+                // Col 1: Label
+                $table_html .= '<td style="width:25%" rowspan="' . $rowspan . '">PRACTICAL LEVEL 2</td>';
+            }
+            
+            // Col 2: Name
+            $table_html .= '<td style="width:35%">' . esc_html($row['name']) . '</td>';
+            // Col 3: Marks
+            $table_html .= '<td style="width:20%; text-align:center;">' . format_cell($row['marks']) . '</td>';
+            
+            if ($first_row) {
+                // Col 4: Percent
+                $table_html .= '<td style="width:20%; text-align:center;" rowspan="' . $rowspan . '">' . format_cell($practical_percent_display) . '</td>';
+                $first_row = false;
+            }
+            $table_html .= '</tr>';
+        }
+    } else {
+         $table_html .= '<tr><td style="width:25%">PRACTICAL LEVEL 2</td><td style="width:35%">-</td><td style="width:20%">-</td><td style="width:20%">-</td></tr>';
+    }
 
-    <tr style="background-color:#f9f9f9;">
-    <td style="width:70%; text-align:center;" colspan="2"><strong>OVERALL RESULT</strong></td>
-    <td style="width:30%; text-align:center; font-weight:bold; font-size:13pt; border:2px solid #000;" colspan="2">
-    ' . format_cell($overall_result) . ' (' . ($overall_calc_percent !== 'N/A' ? $overall_calc_percent . '%' : '-') . ')
-    </td>
-    </tr>
+    // Footer
+    // Reason of failure - show only if candidate failed
+    $reason_of_failure = (strtoupper($overall_result) === 'FAIL' && !empty($entry["64"])) ? format_cell($entry["64"]) : 'N/A';
+    $table_html .= '<tr>
+        <td style="width:60%" colspan="2">Reason of failure (If any)</td>
+        <td style="width:40%" colspan="2" style="text-align:center;">' . $reason_of_failure . '</td>
+    </tr>';
+    
+    // Overall Result
+    $table_html .= '<tr>
+        <td style="width:25%">OVERALL RESULT</td>
+        <td style="width:35%"></td>
+        <td style="width:20%; text-align:center; font-weight:bold;">' . $overall_result_display . '</td>
+        <td style="width:20%; text-align:center; font-weight:bold;">' . ($overall_calc_percent !== 'N/A' ? $overall_calc_percent : '-') . '</td>
+    </tr>';
+    
+    // Retest Applicable
+    $table_html .= '<tr>
+        <td style="width:60%" colspan="2">RETEST APPLICABLE</td>
+        <td style="width:40%" colspan="2" style="text-align:center;">' . $retest . '</td>
+    </tr>';
 
-    <tr><td style="width:70%" colspan="2">RETEST APPLICABLE</td><td style="width:30%" colspan="2">' . format_cell($retest) . '</td></tr>
-    <tr><td style="width:70%" colspan="2">IF Yes (Details)</td><td style="width:30%" colspan="2">' . format_cell($retest_details) . '</td></tr>
-    </tbody>
-    </table>';
+    // Details 
+    $table_html .= '<tr>
+        <td style="width:25%">IF Yes (Details)</td>
+        <td style="width:35%"></td>
+        <td style="width:40%" colspan="2" style="text-align:center;">' . format_cell($retest_details) . '</td>
+    </tr>';
+
+    $table_html .= '</tbody></table>';
 
     return [
         'table_html' => $table_html,
@@ -2967,12 +4162,12 @@ function generate_level_3_table($entry, $passed_subjects = [], $is_retest = fals
                     $practical_obt += $sample_marks;
                     $practical_total += 100;
                     $sample_count++;
-                    $practical_rows .= '<tr><td style="width:50%">' . esc_html($sample_name) . '</td><td style="width:50%">' . format_cell($sample_marks) . '</td></tr>';
+                    $practical_rows .= '<tr><td style="width:20%">' . esc_html($sample_name) . '</td><td style="width:20%; text-align:center;">' . format_cell($sample_marks) . '</td></tr>';
                 }
             }
         }
         if ($sample_count == 0) {
-            $practical_rows = '<tr><td style="width:50%">No Samples</td><td style="width:50%">-</td></tr>';
+            $practical_rows = '<tr><td style="width:20%">No Samples</td><td style="width:20%">-</td></tr>';
             error_log("No valid practical samples found for entry: " . print_r($entry, true));
         }
 
@@ -3060,27 +4255,30 @@ function generate_level_3_table($entry, $passed_subjects = [], $is_retest = fals
     $overall_calc_percent = !empty($percentages) ? round(array_sum($percentages) / count($percentages), 2) : 'N/A';
 
     // Build table HTML
-    $table_html = '<table border="1" cellpadding="3" style="font-size:10.5pt; width:100%; border-color:#000; border-collapse:collapse;">
+    $table_html = '<table border="1" cellpadding="1" style="font-size:11pt; width:100%; border-color:#000; border-collapse:collapse;">
     <tbody>
-    <tr><td style="width:30%" rowspan="3">BASIC</td><td style="width:20%">PART A</td><td style="width:20%">' . format_cell($entry["40"] ?? '') . '</td><td style="width:30%" rowspan="3">' . format_cell($basic_percent ?? '-') . ($basic_percent !== '-' ? '%' : '') . '</td></tr>
-    <tr><td style="width:20%">PART B</td><td style="width:20%">' . format_cell($entry["42"] ?? '') . '</td></tr>
-    <tr><td style="width:20%">PART C</td><td style="width:20%">' . format_cell($entry["44"] ?? '') . '</td></tr>';
+    <tr><td style="width:30%" rowspan="3">BASIC</td><td style="width:20%">PART A</td><td style="width:20%; text-align:center;">' . format_cell($entry["40"] ?? '') . '</td><td style="width:30%; text-align:center;" rowspan="3">' . format_cell($basic_percent ?? '-') . '</td></tr>
+    <tr><td style="width:20%">PART B</td><td style="width:20%; text-align:center;">' . format_cell($entry["42"] ?? '') . '</td></tr>
+    <tr><td style="width:20%">PART C</td><td style="width:20%; text-align:center;">' . format_cell($entry["44"] ?? '') . '</td></tr>';
 
     foreach ($subjects as $name => $subject) {
         if ($name !== 'Basic' && $name !== 'Practical') {
-            $table_html .= '<tr><td style="width:30%">' . esc_html($name) . '</td><td style="width:40%" colspan="2">' . esc_html($name) . '</td><td style="width:30%">' . format_cell($subject['obtained']) . '</td></tr>';
+            $percent_display = $subject['percent'];
+            $table_html .= '<tr><td style="width:30%">' . esc_html($name) . '</td><td style="width:20%"></td><td style="width:20%; text-align:center;">' . format_cell($subject['obtained']) . '</td><td style="width:30%; text-align:center;">' . format_cell($percent_display) . '</td></tr>';
         }
     }
 
     $table_html .= '<tr><td style="width:30%" rowspan="' . ($sample_count + 1) . '">PRACTICAL LEVEL 3</td>';
-    $table_html .= '<td style="width:40%" colspan="2"><strong>Samples</strong></td>';
-    $table_html .= '<td style="width:30%" rowspan="' . ($sample_count + 1) . '">' . format_cell($practical_percent ?? '-') . ($practical_percent !== '-' ? '%' : '') . '</td></tr>';
+    $table_html .= '<td style="width:20%"><strong>Samples</strong></td>';
+    $table_html .= '<td style="width:20%; text-align:center;"><strong>Marks</strong></td>';
+    $table_html .= '<td style="width:30%; text-align:center;" rowspan="' . ($sample_count + 1) . '">' . format_cell($practical_percent ?? '-') . '</td></tr>';
     $table_html .= $practical_rows;
 
-    $table_html .= '<tr><td style="width:70%" colspan="2">Reason of Failure (If any)</td><td style="width:30%" colspan="2">' . format_cell($entry["failure_reason"] ?? '') . '</td></tr>';
-    $table_html .= '<tr><td style="width:70%" colspan="2"><strong>OVERALL RESULT</strong></td><td style="width:30%" colspan="2"><strong>' . format_cell($overall_result) . ' (' . ($overall_calc_percent !== 'N/A' ? $overall_calc_percent . '%' : '-') . ')</strong></td></tr>';
-    $table_html .= '<tr><td style="width:70%" colspan="2">RETEST APPLICABLE</td><td style="width:30%" colspan="2">' . format_cell($retest) . '</td></tr>';
-    $table_html .= '<tr><td style="width:70%" colspan="2">IF Yes (Details)</td><td style="width:30%" colspan="2">' . format_cell($retest_details) . '</td></tr>';
+    $reason_of_failure = (strtoupper($overall_result) === 'FAIL' && !empty($entry["64"])) ? format_cell($entry["64"]) : 'N/A';
+    $table_html .= '<tr><td style="width:50%" colspan="2">Reason of Failure (If any)</td><td style="width:50%" colspan="2">' . $reason_of_failure . '</td></tr>';
+    $table_html .= '<tr><td style="width:50%" colspan="2"><strong>OVERALL RESULT</strong></td><td style="width:50%" colspan="2"><strong>' . format_cell($overall_result) . ' (' . ($overall_calc_percent !== 'N/A' ? $overall_calc_percent : '-') . ')</strong></td></tr>';
+    $table_html .= '<tr><td style="width:50%" colspan="2">RETEST APPLICABLE</td><td style="width:50%" colspan="2">' . format_cell($retest) . '</td></tr>';
+    $table_html .= '<tr><td style="width:50%" colspan="2">IF Yes (Details)</td><td style="width:50%" colspan="2">' . format_cell($retest_details) . '</td></tr>';
     $table_html .= '</tbody></table>';
    
 
@@ -3094,6 +4292,7 @@ function generate_level_3_table($entry, $passed_subjects = [], $is_retest = fals
         'failed_subjects' => $failed_subjects
     ];
 }
+
 
 
 add_filter('gform_pre_render_30', 'populate_user_home_address');
@@ -3286,6 +4485,9 @@ function handle_update_user_address_block() {
 add_action('wp_ajax_ndtss_search_cert', 'ndtss_search_cert_callback');
 add_action('wp_ajax_nopriv_ndtss_search_cert', 'ndtss_search_cert_callback');
 
+add_action('wp_ajax_ndtss_search_cert', 'ndtss_search_cert_callback');
+add_action('wp_ajax_nopriv_ndtss_search_cert', 'ndtss_search_cert_callback');
+
 function ndtss_search_cert_callback() {
     global $wpdb;
 
@@ -3322,6 +4524,7 @@ function ndtss_search_cert_callback() {
 
 
     $prepared = call_user_func_array([$wpdb, 'prepare'], array_merge([$query], $params));
+  // echo $prepared; // For debugging: output the prepared query
 	$results = $wpdb->get_results($prepared);
 
 
@@ -3340,6 +4543,7 @@ function ndtss_search_cert_callback() {
                 'expiry_date'        => date('d-M-Y', strtotime($r->expiry_date)),
             ];
         }
+    //    echo '<pre>'; print_r($data); echo '</pre>'; // For debugging: output the data array
 
         wp_send_json_success($data);
     } else {
@@ -3348,6 +4552,7 @@ function ndtss_search_cert_callback() {
 
     wp_die();
 }
+
 
 
 
@@ -3954,3 +5159,244 @@ add_action('admin_bar_menu', function($wp_admin_bar) {
         }
     }
 }, 999);
+
+
+add_filter('gform_pre_render_25', 'aqb_signature_visibility');
+add_filter('gform_pre_validation_25', 'aqb_signature_visibility');
+add_filter('gform_pre_submission_filter_25', 'aqb_signature_visibility');
+add_filter('gform_admin_pre_render_25', 'aqb_signature_visibility');
+
+function aqb_signature_visibility($form) {
+
+    if (!is_user_logged_in()) {
+        return $form;
+    }
+
+    $user  = wp_get_current_user();
+    $roles = (array) $user->roles;
+    
+    // Check if user is super admin (email matches admin_email option)
+    $admin_email = get_option('admin_email');
+    $is_super_admin = ($user->user_email === $admin_email);
+
+    // Allow aqb_admin role OR super admin
+    $is_aqb_admin = in_array('aqb_admin', $roles) || $is_super_admin;
+
+    foreach ($form['fields'] as &$field) {
+
+        if (strpos($field->cssClass, 'aqb-signature-only') !== false) {
+
+            if (!$is_aqb_admin) {
+                $field->isHidden   = true;
+                $field->isRequired = false;
+            }
+        }
+    }
+
+    return $form;
+}
+add_filter('gform_entry_pre_save_25', 'block_signature_for_non_aqb', 10, 2);
+function block_signature_for_non_aqb($entry, $form) {
+
+    $user  = wp_get_current_user();
+    $roles = (array) $user->roles;
+    
+    // Check if user is super admin (email matches admin_email option)
+    $admin_email = get_option('admin_email');
+    $is_super_admin = ($user->user_email === $admin_email);
+
+    // Allow aqb_admin role OR super admin
+    if (in_array('aqb_admin', $roles) || $is_super_admin) {
+        return $entry; // allowed
+    }
+
+    foreach ($form['fields'] as $field) {
+        if (strpos($field->cssClass, 'aqb-signature-only') !== false) {
+            $entry[$field->id] = ''; // force remove
+        }
+    }
+
+    return $entry;
+}
+
+// Block signature modification when EDITING entries (not just new submissions)
+// This filter intercepts the entry data BEFORE it's updated in the database
+add_filter('gform_update_entry', 'block_signature_edit_for_non_aqb', 10, 3);
+function block_signature_edit_for_non_aqb($entry, $original_entry, $form) {
+    
+    // Only apply to form 25
+    if (!isset($form['id']) || $form['id'] != 25) {
+        return $entry;
+    }
+    
+    $user  = wp_get_current_user();
+    $roles = (array) $user->roles;
+    
+    // Check if user is super admin (email matches admin_email option)
+    $admin_email = get_option('admin_email');
+    $is_super_admin = ($user->user_email === $admin_email);
+
+    // If user is aqb_admin OR super admin, allow all changes
+    if (in_array('aqb_admin', $roles) || $is_super_admin) {
+        return $entry;
+    }
+
+    // For non-aqb_admin users, restore original signature values
+    // This prevents them from modifying signature fields during entry edit
+    foreach ($form['fields'] as $field) {
+        if (strpos($field->cssClass, 'aqb-signature-only') !== false) {
+            // Force restore the original signature value
+            $entry[$field->id] = isset($original_entry[$field->id]) ? $original_entry[$field->id] : '';
+        }
+    }
+
+    return $entry;
+}
+
+// Additional layer: Verify after entry update and restore if needed
+add_action('gform_after_update_entry', 'verify_signature_after_update', 10, 3);
+function verify_signature_after_update($form, $entry_id, $original_entry) {
+    
+    // Only apply to form 25
+    if (!isset($form['id']) || $form['id'] != 25) {
+        return;
+    }
+    
+    $user  = wp_get_current_user();
+    $roles = (array) $user->roles;
+    
+    // Check if user is super admin
+    $admin_email = get_option('admin_email');
+    $is_super_admin = ($user->user_email === $admin_email);
+    
+    // If authorized, skip verification
+    if (in_array('aqb_admin', $roles) || $is_super_admin) {
+        return;
+    }
+    
+    // Get the updated entry
+    $updated_entry = GFAPI::get_entry($entry_id);
+    
+    if (is_wp_error($updated_entry)) {
+        return;
+    }
+    
+    // Check if signature fields were modified
+    $needs_restore = false;
+    foreach ($form['fields'] as $field) {
+        if (strpos($field->cssClass, 'aqb-signature-only') !== false) {
+            $original_value = isset($original_entry[$field->id]) ? $original_entry[$field->id] : '';
+            $updated_value = isset($updated_entry[$field->id]) ? $updated_entry[$field->id] : '';
+            
+            // If signature was changed by unauthorized user, restore it
+            if ($original_value !== $updated_value) {
+                $updated_entry[$field->id] = $original_value;
+                $needs_restore = true;
+            }
+        }
+    }
+    
+    // If signature was tampered with, restore the original
+    if ($needs_restore) {
+        GFAPI::update_entry($updated_entry);
+    }
+}
+
+// Add JavaScript to completely disable signature field for unauthorized users
+add_action('gform_enqueue_scripts_25', 'disable_signature_field_js', 10, 2);
+function disable_signature_field_js($form, $is_ajax) {
+    
+    $user  = wp_get_current_user();
+    $roles = (array) $user->roles;
+    
+    // Check if user is super admin
+    $admin_email = get_option('admin_email');
+    $is_super_admin = ($user->user_email === $admin_email);
+    
+    // If authorized, don't disable
+    if (in_array('aqb_admin', $roles) || $is_super_admin) {
+        return;
+    }
+    
+    // Get signature field IDs
+    $signature_field_ids = array();
+    foreach ($form['fields'] as $field) {
+        if (strpos($field->cssClass, 'aqb-signature-only') !== false) {
+            $signature_field_ids[] = $field->id;
+        }
+    }
+    
+    if (empty($signature_field_ids)) {
+        return;
+    }
+    
+    ?>
+    <script type="text/javascript">
+    jQuery(document).ready(function($) {
+        // Disable signature fields for unauthorized users
+        var signatureFields = <?php echo json_encode($signature_field_ids); ?>;
+        
+        signatureFields.forEach(function(fieldId) {
+            // Hide the entire field container
+            $('#field_25_' + fieldId).hide();
+            
+            // Disable canvas if it exists
+            $('#input_25_' + fieldId + ' canvas').css('pointer-events', 'none');
+            
+            // Disable all signature controls
+            $('#input_25_' + fieldId).find('.ginput_container_signature').css('pointer-events', 'none');
+            $('#input_25_' + fieldId).find('.gform_signature_container').css('pointer-events', 'none');
+            
+            // Remove any clear/reset buttons
+            $('#input_25_' + fieldId).find('.clear_signature_button').remove();
+        });
+    });
+    </script>
+    <?php
+}
+
+// Additional protection: Block direct GFAPI calls
+add_action('admin_init', 'protect_signature_on_direct_update');
+function protect_signature_on_direct_update() {
+    
+    // Check if this is a Gravity Forms entry update request
+    if (!isset($_POST['action']) || $_POST['action'] !== 'rg_update_lead_property') {
+        return;
+    }
+    
+    if (!isset($_POST['form_id']) || $_POST['form_id'] != 25) {
+        return;
+    }
+    
+    $user  = wp_get_current_user();
+    $roles = (array) $user->roles;
+    
+    // Check if user is super admin
+    $admin_email = get_option('admin_email');
+    $is_super_admin = ($user->user_email === $admin_email);
+    
+    // If authorized, allow
+    if (in_array('aqb_admin', $roles) || $is_super_admin) {
+        return;
+    }
+    
+    // Get the form
+    $form = GFAPI::get_form(25);
+    
+    if (!$form) {
+        return;
+    }
+    
+    // Check if they're trying to update a signature field
+    foreach ($form['fields'] as $field) {
+        if (strpos($field->cssClass, 'aqb-signature-only') !== false) {
+            $field_key = 'input_' . $field->id;
+            
+            // If they're trying to update a signature field, block it
+            if (isset($_POST[$field_key])) {
+                unset($_POST[$field_key]);
+            }
+        }
+    }
+}
+

@@ -41,9 +41,9 @@
 						$wp_optimize->wp_optimize_url('https://wordpress.org/plugins/'.$plugin.'/', '', '<span style="font-size: 11px;">'.esc_html($plugin).'</span>');
 					}
 
-					if (false == $status['installed']) {
+					if (false === $status['installed']) {
 						echo ' <span style="font-size: 11px; color: #9B0000; font-weight: bold;">['.esc_html__('not installed', 'wp-optimize').']</span>';
-					} elseif (false == $status['active']) {
+					} elseif (false === $status['active']) {
 						echo ' <span style="font-size: 11px; color: #9B0000; font-weight: bold;">['.esc_html__('inactive', 'wp-optimize').']</span>';
 					}
 				}

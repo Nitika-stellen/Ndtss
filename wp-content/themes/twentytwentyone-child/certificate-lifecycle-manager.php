@@ -8,9 +8,9 @@
  * 3. Recertification Certificate (10 years) - Generated after 9 years from initial
  * 
  * Certificate Number Pattern:
- * - Initial: A1034
- * - Renewal: A1034-01  
- * - Recertification: A1034-02
+ * - Initial: A1034 (no suffix or -01)
+ * - Renewal: A1034-02  
+ * - Recertification: A1034-03
  * 
  * @package SGNDT
  * @version 2.0.0
@@ -186,15 +186,15 @@ class CertificateLifecycleManager {
      * Get certificate type from certificate number
      */
     private function getCertificateType($certificate_number) {
-        // Check for recertification first (most specific)
-        if (preg_match('/-02$/', $certificate_number)) {
+        // Check for recertification first (most specific) - suffix -03
+        if (preg_match('/-03$/', $certificate_number)) {
             return self::CERT_TYPE_RECERTIFICATION;
         }
-        // Check for renewal (second most specific)  
-        elseif (preg_match('/-01$/', $certificate_number)) {
+        // Check for renewal (second most specific) - suffix -02
+        elseif (preg_match('/-02$/', $certificate_number)) {
             return self::CERT_TYPE_RENEWAL;
         }
-        // Default to initial for everything else
+        // Default to initial for everything else (no suffix or -01)
         else {
             return self::CERT_TYPE_INITIAL;
         }
@@ -204,8 +204,8 @@ class CertificateLifecycleManager {
      * Get base certificate number (without suffix)
      */
     private function getBaseCertificateNumber($certificate_number) {
-        // Remove renewal/recertification suffixes
-        $base_number = preg_replace('/-0[12]$/', '', $certificate_number);
+        // Remove renewal/recertification suffixes (-02 or -03)
+        $base_number = preg_replace('/-0[23]$/', '', $certificate_number);
         
         // Log for debugging
         error_log("Getting base number from: {$certificate_number} -> {$base_number}");
@@ -261,19 +261,23 @@ class CertificateLifecycleManager {
         }
         
         // Check recertification eligibility (9 years from initial issue)
+        // Recertification takes priority over renewal if eligible
         if ($lifecycle['initial'] && !$lifecycle['recertification']) {
             $issue_date = new DateTime($lifecycle['initial']['issue_date']);
             $years_since_issue = $current_date->diff($issue_date)->y;
             
             error_log("Recertification check - Years since initial issue: {$years_since_issue}, Required: 9");
             
+            // Recertification is eligible if 9+ years from initial issue
+            // Even if renewal exists, recertification takes priority after 9 years
             if ($years_since_issue >= 9) {
-                error_log("Recertification eligible - 9+ years from initial issue");
+                error_log("Recertification eligible - 9+ years from initial issue (priority over renewal)");
                 return 'recertification';
             }
         }
         
         // Check renewal eligibility for active certificate
+        // Only check renewal if recertification is not eligible
         $active_cert = $lifecycle['recertification'] ?: $lifecycle['renewal'] ?: $lifecycle['initial'];
         if ($active_cert) {
             $expiry = new DateTime($active_cert['expiry_date']);
@@ -350,21 +354,34 @@ class CertificateLifecycleManager {
         }
         
         // Check recertification eligibility
+        // Recertification is eligible if 9+ years from initial issue date
+        // This takes priority over renewal, even if renewal certificate exists
         if ($lifecycle['initial'] && !$lifecycle['recertification']) {
             $issue_date = new DateTime($lifecycle['initial']['issue_date']);
             $years_since_issue = $current_date->diff($issue_date)->y;
+            $months_since_issue = ($current_date->diff($issue_date)->y * 12) + $current_date->diff($issue_date)->m;
             
-            error_log("Recertification check - Years since initial issue: {$years_since_issue}");
+            error_log("Recertification eligibility check:");
+            error_log("  - Initial certificate issue date: {$issue_date->format('Y-m-d')}");
+            error_log("  - Years since initial issue: {$years_since_issue}");
+            error_log("  - Months since initial issue: {$months_since_issue}");
+            error_log("  - Required: 9 years (108 months)");
             
             if ($years_since_issue >= 9) {
                 $eligibility['recertification'] = true;
                 $eligibility['recertification_window_open'] = true;
-                error_log("RECERTIFICATION ELIGIBLE - 9+ years from initial issue");
+                error_log("RECERTIFICATION ELIGIBLE - 9+ years from initial issue (priority over renewal)");
             } else {
-                error_log("RECERTIFICATION NOT ELIGIBLE - only {$years_since_issue} years from initial issue");
+                $remaining_years = 9 - $years_since_issue;
+                error_log("RECERTIFICATION NOT ELIGIBLE - only {$years_since_issue} years from initial issue (need {$remaining_years} more years)");
             }
         } else {
-            error_log("RECERTIFICATION NOT ELIGIBLE - no initial certificate or recertification already exists");
+            if (!$lifecycle['initial']) {
+                error_log("RECERTIFICATION NOT ELIGIBLE - no initial certificate found");
+            }
+            if ($lifecycle['recertification']) {
+                error_log("RECERTIFICATION NOT ELIGIBLE - recertification certificate already exists");
+            }
         }
         
         return $eligibility;
@@ -376,9 +393,9 @@ class CertificateLifecycleManager {
     public function generateCertificateNumber($base_number, $cert_type) {
         switch ($cert_type) {
             case self::CERT_TYPE_RENEWAL:
-                return $base_number . '-01';
-            case self::CERT_TYPE_RECERTIFICATION:
                 return $base_number . '-02';
+            case self::CERT_TYPE_RECERTIFICATION:
+                return $base_number . '-03';
             default:
                 return $base_number;
         }
@@ -426,7 +443,7 @@ class CertificateLifecycleManager {
             }
         } elseif ($cert_type === self::CERT_TYPE_RECERTIFICATION) {
             // Recertification: Get renewal certificate's expiry date
-            $renewal_number = $certificate_number . '-01';
+            $renewal_number = $certificate_number . '-02';
             $previous_cert = $wpdb->get_row($wpdb->prepare(
                 "SELECT expiry_date FROM {$table} 
                  WHERE user_id = %d AND certificate_number = %s 
@@ -798,7 +815,7 @@ class CertificateLifecycleManager {
      */
     public function handleCertificateGeneration($final_certification_id, $certificate_number, $user_id, $cert_data, $exam_entry_id) {
         // Check if this is a renewal/recertification certificate
-        if (preg_match('/-0[12]$/', $certificate_number)) {
+        if (preg_match('/-0[23]$/', $certificate_number)) {
             $base_number = $this->getBaseCertificateNumber($certificate_number);
             $cert_type = $this->getCertificateType($certificate_number);
             
@@ -870,7 +887,7 @@ class CertificateLifecycleManager {
             // Direct cert_id lookup
             $cert_id = intval($certificate_identifier);
             $cert_record = $wpdb->get_row($wpdb->prepare(
-                "SELECT renewal_status, renewal_method, renewal_submitted_date, renewal_approved_date, renewal_rejected_date, renewal_rejection_reason 
+                "SELECT certificate_number, renewal_status, renewal_method, renewal_submitted_date, renewal_approved_date, renewal_rejected_date, renewal_rejection_reason, renewal_generated_date
                  FROM {$wpdb->prefix}sgndt_final_certifications 
                  WHERE final_certification_id = %d AND user_id = %d",
                 $cert_id, $user_id
@@ -878,7 +895,7 @@ class CertificateLifecycleManager {
         } else {
             // Get certificate data from certificate number
             $cert_record = $wpdb->get_row($wpdb->prepare(
-                "SELECT final_certification_id, renewal_status, renewal_method, renewal_submitted_date, renewal_approved_date, renewal_rejected_date, renewal_rejection_reason 
+                "SELECT final_certification_id, certificate_number, renewal_status, renewal_method, renewal_submitted_date, renewal_approved_date, renewal_rejected_date, renewal_rejection_reason, renewal_generated_date
                  FROM {$wpdb->prefix}sgndt_final_certifications 
                  WHERE user_id = %d AND certificate_number = %s 
                  ORDER BY issue_date DESC LIMIT 1",
@@ -896,9 +913,86 @@ class CertificateLifecycleManager {
             return false;
         }
         
+        // IMPORTANT: If renewal certificate has been generated, don't return status
+        // Extract base certificate number to check for renewal/recertification certificates
+        // Certificate number is stored clean (e.g., "A010402-01"), user_id is in separate column
+        $cert_number_cleaned = trim($cert_record->certificate_number);
+        $base_cert_number = preg_replace('/-0[123]$/', '', $cert_number_cleaned);
+        
+        $renewal_cert_number = $base_cert_number . '-02';
+        $recert_cert_number = $base_cert_number . '-03';
+        
+        error_log("Checking for renewal/recertification certificates:");
+        error_log("  - Original cert_number: {$cert_record->certificate_number}");
+        error_log("  - Base cert_number: {$base_cert_number}");
+        error_log("  - Looking for renewal: {$renewal_cert_number}");
+        error_log("  - Looking for recert: {$recert_cert_number}");
+        error_log("  - User ID: {$user_id}");
+        
+        $renewal_cert_exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}sgndt_final_certifications
+             WHERE user_id = %d 
+             AND (certificate_number = %s OR certificate_number = %s)
+             AND status = 'issued'",
+            $user_id,
+            $renewal_cert_number,
+            $recert_cert_number
+        ));
+        
+        error_log("  - Renewal/recert certificate exists: {$renewal_cert_exists}");
+        
+        // If renewal/recertification certificate exists, don't return status (return false/empty)
+        // BUT: If status is 'approved' and certificate doesn't exist yet, still show status
+        if ($renewal_cert_exists > 0) {
+            error_log("Certificate status check: Renewal/recertification certificate exists for {$cert_record->certificate_number}, returning empty status");
+            return false; // Return false so no status is displayed
+        }
+        
+        // If renewal_generated_date is set but certificate doesn't exist, still show status
+        // (This handles cases where generation failed or is in progress)
+        // Also log for debugging
+        if (!empty($cert_record->renewal_generated_date) && $renewal_cert_exists == 0) {
+            error_log("Certificate status check: renewal_generated_date is set but certificate not found. Showing status anyway. cert_number: {$cert_record->certificate_number}, generated_date: {$cert_record->renewal_generated_date}");
+        }
+        
         // Determine the status and date based on renewal status
+        // First check database, then fallback to user meta
         $status = $cert_record->renewal_status;
         $status_date = null;
+        
+        // Debug logging
+        error_log("Certificate status retrieval for cert_id: {$cert_id}, cert_number: {$cert_record->certificate_number}");
+        error_log("  - renewal_status from DB: " . ($status ?: 'empty'));
+        error_log("  - renewal_method from DB: " . ($cert_record->renewal_method ?: 'empty'));
+        error_log("  - renewal_generated_date: " . ($cert_record->renewal_generated_date ?: 'empty'));
+        error_log("  - renewal_cert_exists check result: {$renewal_cert_exists}");
+        
+        // If status is empty in database, check user meta as fallback
+        if (empty($status)) {
+            $cert_number_for_meta = is_numeric($certificate_identifier) 
+                ? $cert_record->certificate_number
+                : $certificate_identifier;
+            
+            if ($cert_number_for_meta) {
+                // Check user meta for status (both cert_number and cert_id based keys)
+                $status_from_meta = get_user_meta($user_id, 'cert_status_' . $cert_number_for_meta, true);
+                if (empty($status_from_meta)) {
+                    $status_from_meta = get_user_meta($user_id, 'cert_status_id_' . $cert_id, true);
+                }
+                
+                if (!empty($status_from_meta)) {
+                    $status = $status_from_meta;
+                    // Get status date from user meta
+                    $status_date_from_meta = get_user_meta($user_id, 'cert_status_' . $cert_number_for_meta . '_date', true);
+                    if (empty($status_date_from_meta)) {
+                        $status_date_from_meta = get_user_meta($user_id, 'cert_status_id_' . $cert_id . '_date', true);
+                    }
+                    if (!empty($status_date_from_meta)) {
+                        $status_date = $status_date_from_meta;
+                    }
+                }
+            }
+        }
         
         // If no active renewal status, check if there was a recent rejection
         if (empty($status) && !empty($cert_record->renewal_rejected_date)) {
@@ -911,33 +1005,81 @@ class CertificateLifecycleManager {
                 $status_date = $cert_record->renewal_rejected_date;
             }
         } else {
-            switch ($status) {
-                case 'submitted':
-                    $status_date = $cert_record->renewal_submitted_date;
-                    break;
-                case 'approved':
-                    $status_date = $cert_record->renewal_approved_date;
-                    break;
-                case 'rejected':
-                    $status_date = $cert_record->renewal_rejected_date;
-                    break;
+            // If status date is not set from user meta, get it from database
+            if (empty($status_date)) {
+                switch ($status) {
+                    case 'submitted':
+                        $status_date = $cert_record->renewal_submitted_date;
+                        break;
+                    case 'approved':
+                        $status_date = $cert_record->renewal_approved_date;
+                        break;
+                    case 'rejected':
+                        $status_date = $cert_record->renewal_rejected_date;
+                        break;
+                }
             }
         }
         
-        return array(
+        // Get rejection reason from user meta if available (for better display)
+        $rejection_reason = $cert_record->renewal_rejection_reason;
+        if (empty($rejection_reason) && $status === 'rejected') {
+            // Try to get from user meta
+            $cert_number = $wpdb->get_var($wpdb->prepare(
+                "SELECT certificate_number FROM {$wpdb->prefix}sgndt_final_certifications 
+                 WHERE final_certification_id = %d",
+                $cert_id
+            ));
+            if ($cert_number) {
+                $rejection_reason = get_user_meta($user_id, 'cert_status_' . $cert_number . '_rejection_reason', true);
+            }
+        }
+        
+        // Get renewal_method from database, fallback to user meta if not in database
+        $renewal_method = $cert_record->renewal_method;
+        if (empty($renewal_method)) {
+            // Try to get from user meta as fallback
+            $cert_number_for_meta = is_numeric($certificate_identifier) 
+                ? $wpdb->get_var($wpdb->prepare(
+                    "SELECT certificate_number FROM {$wpdb->prefix}sgndt_final_certifications 
+                     WHERE final_certification_id = %d",
+                    $cert_id
+                ))
+                : $certificate_identifier;
+            
+            if ($cert_number_for_meta) {
+                $renewal_method = get_user_meta($user_id, 'cert_status_' . $cert_number_for_meta . '_renewal_method', true);
+            }
+        }
+        
+        $result = array(
             'status' => $status,
             'status_date' => $status_date,
             'cert_id' => $cert_id,
-            'renewal_method' => $cert_record->renewal_method,
-            'rejection_reason' => $cert_record->renewal_rejection_reason
+            'renewal_method' => $renewal_method,
+            'rejection_reason' => $rejection_reason
         );
+        
+        // Debug logging - what we're returning
+        error_log("Certificate status result for cert_id: {$cert_id}:");
+        error_log("  - status: " . ($result['status'] ?: 'empty'));
+        error_log("  - status_date: " . ($result['status_date'] ?: 'empty'));
+        error_log("  - renewal_method: " . ($result['renewal_method'] ?: 'empty'));
+        
+        return $result;
     }
     
     /**
      * Get user-friendly status display
      */
     public function getStatusDisplay($status_info, $certificate_number) {
+        // Debug logging
+        error_log("=== getStatusDisplay called ===");
+        error_log("  - certificate_number: {$certificate_number}");
+        error_log("  - status_info: " . print_r($status_info, true));
+        
         if (!$status_info || empty($status_info['status'])) {
+            error_log("  - No status_info or empty status, returning action button");
             return $this->getActionButton($certificate_number);
         }
         
@@ -947,13 +1089,31 @@ class CertificateLifecycleManager {
         $formatted_date = $status_date ? date('d/m/Y', strtotime($status_date)) : 'N/A';
         $method_badge = !empty($renewal_method) ? '<span class="renewal-method-badge">' . strtoupper($renewal_method) . '</span>' : '';
         
+        error_log("  - status: {$status}");
+        error_log("  - status_date: " . ($status_date ?: 'empty'));
+        error_log("  - renewal_method: " . ($renewal_method ?: 'empty'));
+        error_log("  - formatted_date: {$formatted_date}");
+        
         switch ($status) {
             case 'submitted':
             case 'reviewing':
+                // Determine status text based on renewal method
+                $renewal_method_upper = strtoupper($renewal_method);
+                if ($renewal_method_upper === 'RECERT') {
+                    // Recertification application
+                    $status_text = 'Applied for recert';
+                } elseif ($renewal_method_upper === 'CPD') {
+                    // CPD renewal application
+                    $status_text = 'Applied for renewal CPD';
+                } else {
+                    // Exam-based renewal (default)
+                    $status_text = 'Applied for Renewal';
+                }
+                
                 return '<div class="renewal-status-wrapper status-applied">
                     <div class="status-header">
                         <span class="status-icon">📝</span>
-                        <span class="status-text">Applied for Renewal</span>
+                        <span class="status-text">' . esc_html($status_text) . '</span>
                         ' . $method_badge . '
                     </div>
                     <div class="status-details">
@@ -963,10 +1123,10 @@ class CertificateLifecycleManager {
                 </div>';
                 
             case 'approved':
-                return '<div class="renewal-status-wrapper status-approved">
+                $approved_html = '<div class="renewal-status-wrapper status-approved">
                     <div class="status-header">
                         <span class="status-icon">✅</span>
-                        <span class="status-text">Renewal Approved</span>
+                        <span class="status-text">Approved</span>
                         ' . $method_badge . '
                     </div>
                     <div class="status-details">
@@ -974,8 +1134,17 @@ class CertificateLifecycleManager {
                         <small class="status-note">Certificate will be issued soon</small>
                     </div>
                 </div>';
+                error_log("  - Returning approved status HTML (length: " . strlen($approved_html) . ")");
+                return $approved_html;
                 
             case 'rejected':
+                $rejection_reason = isset($status_info['rejection_reason']) ? $status_info['rejection_reason'] : '';
+                $renewal_method_upper = strtoupper($renewal_method);
+                $application_type = ($renewal_method_upper === 'RECERT') ? 'recertification' : 'renewal';
+                $rejection_note = !empty($rejection_reason) 
+                    ? 'Reason: ' . esc_html($rejection_reason) 
+                    : 'Your ' . $application_type . ' application was rejected.';
+                
                 return '<div class="renewal-status-wrapper status-rejected">
                     <div class="status-header">
                         <span class="status-icon">❌</span>
@@ -984,12 +1153,17 @@ class CertificateLifecycleManager {
                     </div>
                     <div class="status-details">
                         <small>Rejected: ' . esc_html($formatted_date) . '</small><br>
-                        <small class="status-note">Your ' . strtolower($renewal_method) . ' renewal was rejected. Please try renewal by exam.</small>
+                        <small class="status-note">' . $rejection_note . '</small>
                     </div>
                 </div>';
                 
             case 'recently_rejected':
                 $rejection_reason = isset($status_info['rejection_reason']) ? $status_info['rejection_reason'] : 'No reason provided';
+                $renewal_method_upper = strtoupper($renewal_method);
+                $application_type = ($renewal_method_upper === 'RECERT') ? 'recertification' : 'renewal';
+                $action_message = ($renewal_method_upper === 'RECERT') 
+                    ? 'You can now apply for recertification again.' 
+                    : 'You can now apply for renewal using a different method.';
                 return '<div class="renewal-status-wrapper status-rejected">
                     <div class="status-header">
                         <span class="status-icon">❌</span>
@@ -998,19 +1172,24 @@ class CertificateLifecycleManager {
                     <div class="status-details">
                         <small>Rejected: ' . esc_html($formatted_date) . '</small><br>
                         <small class="status-note">Reason: ' . esc_html($rejection_reason) . '</small><br>
-                        <small class="status-note">You can now apply for renewal using a different method.</small>
+                        <small class="status-note">' . $action_message . '</small>
                     </div>
                 </div>' . $this->getActionButton($certificate_number);
                 
             case 'renewed':
+                // Check if this is a recertification certificate (-03) or renewal certificate (-02)
+                $is_recert_cert = preg_match('/-03$/', $certificate_number);
+                $status_text = $is_recert_cert ? 'Successfully Recertified' : 'Successfully Renewed';
+                $status_icon = $is_recert_cert ? '🎓' : '🔄';
+                
                 return '<div class="renewal-status-wrapper status-renewed">
                     <div class="status-header">
-                        <span class="status-icon">🔄</span>
-                        <span class="status-text">Successfully Renewed</span>
+                        <span class="status-icon">' . $status_icon . '</span>
+                        <span class="status-text">' . esc_html($status_text) . '</span>
                         ' . $method_badge . '
                     </div>
                     <div class="status-details">
-                        <small>Renewed: ' . esc_html($formatted_date) . '</small>
+                        <small>' . ($is_recert_cert ? 'Recertified' : 'Renewed') . ': ' . esc_html($formatted_date) . '</small>
                     </div>
                 </div>';
                 

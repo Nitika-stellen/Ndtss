@@ -250,6 +250,8 @@ class AIOWPSecurity_Process_Renamed_Login_Page {
 
 		status_header(404);
 		$wp_query->set_404();
+		do_action('template_redirect'); // Trigger 'template_redirect' to allow third-party plugins to intercept and inject custom logic before rendering the fallback template.
+
 		$template = get_404_template();
 		if (empty($template)) $template = get_index_template();
 		$template = apply_filters('template_include', $template);

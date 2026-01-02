@@ -65,7 +65,7 @@
 										value="<?php echo esc_attr($option['value']); ?>"
 										placeholder="<?php echo esc_attr($option['placeholder']); ?>"
 										<?php echo $option['data_validate_attr']; // phpcs:ignore WordPress.Security.EscapeOutput -- Output is already escaped 
-										?> "/>
+										?>/>
 									<?php
 								}
 							}

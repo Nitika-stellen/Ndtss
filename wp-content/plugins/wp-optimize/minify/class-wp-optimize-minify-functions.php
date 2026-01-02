@@ -59,7 +59,7 @@ class WP_Optimize_Minify_Functions {
 		foreach ($locations as $l) {
 			$l = preg_replace('/^https?:\/\//i', '', trim($l));
 			$l = trim(trim(preg_replace('/^www./', '', $l), '/'));
-			if (stripos($src, $l) !== false && false === $ret) {
+			if (false !== stripos($src, $l) && false === $ret) {
 				$ret = true;
 			}
 		}
@@ -97,13 +97,13 @@ class WP_Optimize_Minify_Functions {
 		$wp_home = rtrim($wp_home, '/');
 
 		// apply some filters
-		if (substr($hurl, 0, 2) === "//") {
+		if ("//" === substr($hurl, 0, 2)) {
 			$hurl = $protocol.ltrim($hurl, "/");
 		}//end if
-		if (substr($hurl, 0, 4) === "http" && stripos($hurl, $wp_domain) === false) {
+		if ("http" === substr($hurl, 0, 4) && false === stripos($hurl, $wp_domain)) {
 			return $hurl;
 		}//end if
-		if (substr($hurl, 0, 4) !== "http" && stripos($hurl, $wp_domain) !== false) {
+		if ("http" !== substr($hurl, 0, 4) && false !== stripos($hurl, $wp_domain)) {
 			$hurl = $wp_home.'/'.ltrim($hurl, "/");
 		}//end if
 
@@ -126,7 +126,7 @@ class WP_Optimize_Minify_Functions {
 		if ("/".WPINC === substr($hurl, 0, 12)
 			|| "/wp-admin" === substr($hurl, 0, 9)
 			|| "/$wp_content_folder" === substr($hurl, 0, 11)
-			|| 1 == $proceed
+			|| 1 === $proceed
 		) {
 			$hurl = $wp_home.'/'.ltrim($hurl, "/");
 		}
@@ -135,10 +135,10 @@ class WP_Optimize_Minify_Functions {
 		$hurl = $protocol.preg_replace('/^https?:\/\//i', '', $hurl); // enforce protocol
 
 		// no query strings
-		if (stripos($hurl, '.js?v') !== false) {
+		if (false !== stripos($hurl, '.js?v')) {
 			$hurl = stristr($hurl, '.js?v', true).'.js';
 		}//end if
-		if (stripos($hurl, '.css?v') !== false) {
+		if (false !== stripos($hurl, '.css?v')) {
 			$hurl = stristr($hurl, '.css?v', true).'.css';
 		}//end if
 
@@ -159,16 +159,16 @@ class WP_Optimize_Minify_Functions {
 		if (substr($hurl, 0, strlen($wp_home)) === $wp_home) {
 			return true;
 		}
-		if (stripos($hurl, $wp_home) !== false) {
+		if (false !== stripos($hurl, $wp_home)) {
 			return true;
 		}
-		if (isset($_SERVER['HTTP_HOST']) && stripos($hurl, preg_replace('/:\d+$/', '', sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST'])))) !== false) {
+		if (isset($_SERVER['HTTP_HOST']) && false !== stripos($hurl, preg_replace('/:\d+$/', '', sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST']))))) {
 			return true;
 		}
-		if (isset($_SERVER['SERVER_NAME']) && stripos($hurl, preg_replace('/:\d+$/', '', sanitize_text_field(wp_unslash($_SERVER['SERVER_NAME'])))) !== false) {
+		if (isset($_SERVER['SERVER_NAME']) && false !== stripos($hurl, preg_replace('/:\d+$/', '', sanitize_text_field(wp_unslash($_SERVER['SERVER_NAME']))))) {
 			return true;
 		}
-		if (isset($_SERVER['SERVER_ADDR']) && '::1' != sanitize_text_field(wp_unslash($_SERVER['SERVER_ADDR'])) && stripos($hurl, preg_replace('/:\d+$/', '', sanitize_text_field(wp_unslash($_SERVER['SERVER_ADDR'])))) !== false) {
+		if (isset($_SERVER['SERVER_ADDR']) && '::1' !== sanitize_text_field(wp_unslash($_SERVER['SERVER_ADDR'])) && false !== stripos($hurl, preg_replace('/:\d+$/', '', sanitize_text_field(wp_unslash($_SERVER['SERVER_ADDR']))))) {
 			return true;
 		}
 
@@ -177,7 +177,7 @@ class WP_Optimize_Minify_Functions {
 			$merge_allowed_urls = array_map('trim', explode("\n", $wpo_minify_options['merge_allowed_urls']));
 			if (is_array($merge_allowed_urls) && strlen(implode($merge_allowed_urls)) > 0) {
 				foreach ($merge_allowed_urls as $e) {
-					if (stripos($hurl, $e) !== false && !empty($e)) {
+					if (false !== stripos($hurl, $e) && !empty($e)) {
 						return true;
 					}
 				}
@@ -232,9 +232,9 @@ class WP_Optimize_Minify_Functions {
 	private static function compat_urls($code) {
 		$wpo_minify_options = wp_optimize_minify_config()->get();
 		$default_protocol = $wpo_minify_options['default_protocol'];
-		if ('dynamic' == $default_protocol) {
-			if ((isset($_SERVER['HTTPS']) && ('on' == $_SERVER['HTTPS'] || 1 == $_SERVER['HTTPS']))
-				|| (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && 'https' == $_SERVER['HTTP_X_FORWARDED_PROTO'])
+		if ('dynamic' === $default_protocol) {
+			if ((isset($_SERVER['HTTPS']) && ('on' === $_SERVER['HTTPS'] || 1 === (int) $_SERVER['HTTPS']))
+				|| (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && 'https' === $_SERVER['HTTP_X_FORWARDED_PROTO'])
 			) {
 				$default_protocol = 'https://';
 			} else {
@@ -279,7 +279,7 @@ class WP_Optimize_Minify_Functions {
 		// exclude minification on already minified files + jquery (because minification might break those)
 		$excl = array('jquery.js', '.min.js', '-min.js', '/uploads/fusion-scripts/', '/min/', '.packed.js', '/includes/builder/scripts/');
 		foreach ($excl as $e) {
-			if (stripos(basename($url), $e) !== false) {
+			if (false !== stripos(basename($url), $e)) {
 				$enable_js_minification = false;
 				break;
 			}
@@ -304,7 +304,7 @@ class WP_Optimize_Minify_Functions {
 
 		// needed when merging js files
 		$js = trim($js);
-		if (substr($js, -1) != ';') {
+		if (';' !== substr($js, -1)) {
 			$js = $js.';';
 		}
 		if ($wpo_minify_options['debug']) {
@@ -333,7 +333,7 @@ class WP_Optimize_Minify_Functions {
 		// PHP Minify from https://github.com/matthiasmullie/minify
 		$minifier = new Minify\JS($js);
 		$min = $minifier->minify();
-		if (false !== $min && (strlen(trim($js)) == strlen(trim($min)) || strlen(trim($min)) > 0)) {
+		if (false !== $min && (strlen(trim($js)) === strlen(trim($min)) || strlen(trim($min)) > 0)) {
 			return self::compat_urls($min);
 		}
 		
@@ -485,7 +485,7 @@ class WP_Optimize_Minify_Functions {
 		preg_match_all("/url\(\s*['\"]?(?!data:)(?!http)(?![\/'\"])(.+?)['\"]?\s*\)/ui", $css, $matches);
 		foreach ($matches[1] as $a) {
 			$b = trim($a);
-			if ($b != $a) {
+			if ($b !== $a) {
 				$css = str_replace($a, $b, $css);
 			}
 		}
@@ -580,7 +580,7 @@ class WP_Optimize_Minify_Functions {
 		);
 
 		// defaults
-		if (false != $enable_minification) {
+		if (false !== $enable_minification) {
 			$enable_minification = true;
 		}
 		if (empty($inline)) {
@@ -616,7 +616,7 @@ class WP_Optimize_Minify_Functions {
 			return wp_json_encode($return);
 		}
 
-		if ('js' == $type) {
+		if ('js' === $type) {
 			$code = self::get_js($hurl, $code, $enable_minification);
 		} else {
 			$code = self::get_css($hurl, $code.$inline, $enable_minification);
@@ -624,7 +624,7 @@ class WP_Optimize_Minify_Functions {
 
 		// log, save and return
 		if ($wpo_minify_options['debug']) {
-			$version_msg = ('' != $version) ? "[Version: $version]" : "";
+			$version_msg = ('' !== $version) ? "[Version: $version]" : "";
 			$log['debug'] = $print_handle . $version_msg . ' was '.('local' === $asset_content['method'] ? 'opened' : 'fetched').' from '.$hurl;
 		}
 		$log['success'] = true;
@@ -655,7 +655,7 @@ class WP_Optimize_Minify_Functions {
 			if (file_exists($f)) {
 				$content = file_get_contents($f);
 				// check for php code, skip if found
-				if ("<?php" != strtolower(substr($content, 0, 5)) && false === stripos($content, "<?php")) {
+				if ("<?php" !== strtolower(substr($content, 0, 5)) && false === stripos($content, "<?php")) {
 					return array('content' => $content, 'method' => 'local');
 				}
 			}
@@ -666,7 +666,7 @@ class WP_Optimize_Minify_Functions {
 		$content = self::download_remote($url);
 		if (false !== $content
 			&& !empty($content)
-			&& strtolower(substr($content, 0, 9)) != "<!doctype"
+			&& "<!doctype" !== strtolower(substr($content, 0, 9))
 		) {
 			// check if we got HTML instead of js or css code
 			return array('content' => $content, 'method' => 'remote');
@@ -674,10 +674,10 @@ class WP_Optimize_Minify_Functions {
 
 
 		// fallback when home_url != site_url
-		if (stripos($url, $wp_domain) !== false && home_url() != site_url()) {
+		if (false !== stripos($url, $wp_domain) && home_url() !== site_url()) {
 			$nhurl = str_ireplace(site_url(), home_url(), $url);
 			$content = self::download_remote($nhurl);
-			if (false !== $content && !empty($content) && '<!doctype' != strtolower(substr($content, 0, 9))) {
+			if (false !== $content && !empty($content) && '<!doctype' !== strtolower(substr($content, 0, 9))) {
 				return array('content' => $content, 'method' => 'remote');
 			}
 		}
@@ -758,10 +758,10 @@ class WP_Optimize_Minify_Functions {
 		$cdn_url = trim(trim(preg_replace('/^https?:\/\//i', '', trim($cdn_url, '/'))), '/');
 		
 		// process cdn rewrite
-		if (!empty($cdn_url) && self::is_local_domain($url) !== false) {
+		if (!empty($cdn_url) && false !== self::is_local_domain($url)) {
 			
 			// for js files, we need to consider thew defer for insights option
-			if (substr($url, -3) == '.js') {
+			if ('.js' === substr($url, -3)) {
 				$async_using_js = 'all' === $wpo_minify_options['enable_defer_js'] && 'async_using_js' === $wpo_minify_options['defer_js_type'];
 				if (!$async_using_js
 					|| $wpo_minify_options['cdn_force']
@@ -774,9 +774,9 @@ class WP_Optimize_Minify_Functions {
 		}
 
 		// enforce protocol if needed
-		if ('dynamic' == $default_protocol) {
-			if ((isset($_SERVER['HTTPS']) && ('on' == $_SERVER['HTTPS'] || 1 == $_SERVER['HTTPS']))
-				|| (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && 'https' == $_SERVER['HTTP_X_FORWARDED_PROTO'])
+		if ('dynamic' === $default_protocol) {
+			if ((isset($_SERVER['HTTPS']) && ('on' === $_SERVER['HTTPS'] || 1 === (int) $_SERVER['HTTPS']))
+				|| (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && 'https' === $_SERVER['HTTP_X_FORWARDED_PROTO'])
 			) {
 				$default_protocol = 'https://';
 			} else {
@@ -800,15 +800,20 @@ class WP_Optimize_Minify_Functions {
 		if (isset($_SERVER['REQUEST_URI']) && !empty($_SERVER['REQUEST_URI'])) {
 			$disable_on_url = array_filter(array_map('trim', explode("\n", get_option('wpo_min_disable_on_url', ''))));
 			foreach ($disable_on_url as $url) {
-				if (wp_parse_url(esc_url_raw(wp_unslash($_SERVER['REQUEST_URI'])), PHP_URL_PATH) == $url) {
+				if (wp_parse_url(esc_url_raw(wp_unslash($_SERVER['REQUEST_URI'])), PHP_URL_PATH) === $url) {
 					return true;
 				}
 			}
 		}
 	
 		// for compatibility, let's always skip the checkout page
-		if (function_exists('is_checkout') && is_checkout() === true) {
+		if (function_exists('is_checkout') && true === is_checkout()) {
 			return true;
+		}
+		
+		if (isset($_SERVER['REQUEST_URI'])) {
+			$is_txt_extension = '.txt' === strtolower(substr(esc_url_raw(wp_unslash($_SERVER['REQUEST_URI'])), -4));
+			$is_xml_extension = '.xml' === strtolower(substr(esc_url_raw(wp_unslash($_SERVER['REQUEST_URI'])), -4));
 		}
 
 		// exclude processing here
@@ -828,8 +833,8 @@ class WP_Optimize_Minify_Functions {
 			|| (defined('SHORTINIT') && SHORTINIT)
 			|| (defined('REST_REQUEST') && REST_REQUEST)
 			|| (isset($_SERVER['REQUEST_METHOD']) && 'POST' === $_SERVER['REQUEST_METHOD'])
-			|| (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower(sanitize_text_field(wp_unslash($_SERVER['HTTP_X_REQUESTED_WITH']))) == 'xmlhttprequest')
-			|| (isset($_SERVER['REQUEST_URI']) && (strtolower(substr(esc_url_raw(wp_unslash($_SERVER['REQUEST_URI'])), -4)) == '.txt' || strtolower(substr(esc_url_raw(wp_unslash($_SERVER['REQUEST_URI'])), -4)) == '.xml'))
+			|| (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 'xmlhttprequest' === strtolower(sanitize_text_field(wp_unslash($_SERVER['HTTP_X_REQUESTED_WITH']))))
+			|| (isset($_SERVER['REQUEST_URI']) && ($is_txt_extension || $is_xml_extension))
 		) {
 			return true;
 		}
@@ -851,7 +856,7 @@ class WP_Optimize_Minify_Functions {
 		if (is_array($_GET)) {
 			foreach ($_GET as $k => $v) {
 				if (is_string($v) && is_string($k)) {
-					if (stripos($k, 'elementor') !== false || stripos($v, 'elementor') !== false) {
+					if (false !== stripos($k, 'elementor') || false !== stripos($v, 'elementor')) {
 						return true;
 					}
 				}
@@ -1039,7 +1044,7 @@ class WP_Optimize_Minify_Functions {
 		);
 
 		$res_code = wp_remote_retrieve_response_code($response);
-		if (200 == $res_code) {
+		if (200 === $res_code) {
 			$data = wp_remote_retrieve_body($response);
 			if (strlen($data) > 1) {
 				return $data;

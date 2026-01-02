@@ -120,7 +120,7 @@ abstract class WP_Optimize_Preloader extends Updraft_Task_Manager_1_4 {
 
 		$status = $this->get_status($this->task_type);
 
-		if (0 == $status['all_tasks'] && $lock) {
+		if (0 === (int) $status['all_tasks'] && $lock) {
 			if (is_multisite()) {
 				$sites = WP_Optimize()->get_sites();
 
@@ -177,7 +177,7 @@ abstract class WP_Optimize_Preloader extends Updraft_Task_Manager_1_4 {
 		if ($interrupt) return $interrupt;
 
 		static $memory_threshold = null;
-		if (null == $memory_threshold) {
+		if (null === $memory_threshold) {
 			/**
 			 * Filters the minimum memory required before stopping a queue. Default: 10MB
 			 */
@@ -241,7 +241,7 @@ abstract class WP_Optimize_Preloader extends Updraft_Task_Manager_1_4 {
 		if ($this->is_semaphore_locked('wpo_' . $this->preload_type . '_preloader_creating_tasks') && !$this->is_cancelled()) {
 			// we are still creating tasks.
 			return $this->get_preloading_message($preload_data);
-		} elseif ($status['complete_tasks'] == $status['all_tasks']) {
+		} elseif ((int) $status['complete_tasks'] === (int) $status['all_tasks']) {
 			$gmt_offset = (int) (3600 * get_option('gmt_offset'));
 
 			$last_preload_time = $this->options->get_option('wpo_last_' . $this->preload_type . '_preload');
@@ -257,7 +257,7 @@ abstract class WP_Optimize_Preloader extends Updraft_Task_Manager_1_4 {
 			$preload_resuming_in = $preload_resuming_time ? $preload_resuming_time - time() : 0;
 			// translators: %1$s: number of preloaded urls, %2$s: total number of urls
 			$preloaded_message = sprintf(_n('%1$s out of %2$s URL preloaded', '%1$s out of %2$s URLs preloaded', $status['all_tasks'], 'wp-optimize'), $status['complete_tasks'], $status['all_tasks']);
-			if ('sitemap' == $this->options->get_option('wpo_last_' . $this->preload_type . '_preload_type', '')) {
+			if ('sitemap' === $this->options->get_option('wpo_last_' . $this->preload_type . '_preload_type', '')) {
 				$preloaded_message = __('Preloading posts found in sitemap:', 'wp-optimize') .' '. $preloaded_message;
 			}
 			$return = $this->get_preload_progress_message($preload_data, $preloaded_message, $preload_resuming_in);
@@ -403,7 +403,7 @@ abstract class WP_Optimize_Preloader extends Updraft_Task_Manager_1_4 {
 			$response = file_get_contents($sitemap_url);
 
 			// if response is empty then try load from file.
-			if (empty($response) && '' == $sitemap_url) {
+			if (empty($response) && '' === $sitemap_url) {
 				$sitemap_file = $this->get_local_sitemap_file();
 
 				$response = file_get_contents($sitemap_file);
@@ -531,7 +531,7 @@ abstract class WP_Optimize_Preloader extends Updraft_Task_Manager_1_4 {
 	 */
 	public function is_domain_mapping_enabled() {
 		// SUNRISE constant is defined with installation WordPress MU Domain Mapping plugin.
-		$enabled = is_multisite() && defined('SUNRISE') && 'on' == strtolower(SUNRISE);
+		$enabled = is_multisite() && defined('SUNRISE') && 'on' === strtolower(SUNRISE);
 
 		/**
 		 * Filters if Multisite Domain mapping is enabled.

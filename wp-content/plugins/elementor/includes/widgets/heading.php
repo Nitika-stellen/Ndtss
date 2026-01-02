@@ -266,22 +266,27 @@ class Widget_Heading extends Widget_Base implements Sanitizable {
 				'label' => esc_html__( 'Alignment', 'elementor' ),
 				'type' => Controls_Manager::CHOOSE,
 				'options' => [
-					'left' => [
-						'title' => esc_html__( 'Left', 'elementor' ),
+					'start' => [
+						'title' => esc_html__( 'Start', 'elementor' ),
 						'icon' => 'eicon-text-align-left',
 					],
 					'center' => [
 						'title' => esc_html__( 'Center', 'elementor' ),
 						'icon' => 'eicon-text-align-center',
 					],
-					'right' => [
-						'title' => esc_html__( 'Right', 'elementor' ),
+					'end' => [
+						'title' => esc_html__( 'End', 'elementor' ),
 						'icon' => 'eicon-text-align-right',
 					],
 					'justify' => [
 						'title' => esc_html__( 'Justified', 'elementor' ),
 						'icon' => 'eicon-text-align-justify',
 					],
+				],
+				'classes' => 'elementor-control-start-end',
+				'selectors_dictionary' => [
+					'left' => is_rtl() ? 'end' : 'start',
+					'right' => is_rtl() ? 'start' : 'end',
 				],
 				'default' => '',
 				'selectors' => [
@@ -475,7 +480,7 @@ class Widget_Heading extends Widget_Base implements Sanitizable {
 
 		if ( Hints::is_plugin_installed( $plugin_slug ) && ! Hints::is_plugin_active( $plugin_slug ) ) {
 			$button_text = __( 'Activate Plugin', 'elementor' );
-		} else if ( Hints::is_plugin_active( $plugin_slug ) && empty( get_option( 'ea11y_access_token' ) ) ) {
+		} elseif ( Hints::is_plugin_active( $plugin_slug ) && empty( get_option( 'ea11y_access_token' ) ) ) {
 			$button_text = __( 'Connect to Ally', 'elementor' );
 			$action_url = admin_url( 'admin.php?page=accessibility-settings' );
 		}

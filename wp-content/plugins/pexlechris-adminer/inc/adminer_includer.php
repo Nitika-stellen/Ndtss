@@ -11,14 +11,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * It is strongly recommended, because Pexlechris_Adminer class contains WordPress/Adminer integration (auto login with WordPress credentials)
  *
- * If a developer wants to add just JS and/or CSS in head, he/she can just use the action pexlechris_adminer_head.
+ * If a developer wants to add just JS and/or CSS in head, he/she can just use the action pexlechris_adminer_head in a must-use plugin.
  * See plugin's FAQs, for more.
  *
  * @since 2.1.0
  *
  * @link https://www.adminer.org/en/plugins/#use Documentation URL.
- * @link https://www.adminer.org/en/plugins/ Adminer' plugins Documentation URL.
- * @link https://www.adminer.org/en/extension/ Adminer' extensions Documentation URL.
+ * @link https://www.adminer.org/en/plugins/ Adminer's plugins Documentation URL.
+ * @link https://www.adminer.org/en/extension/ Adminer's extensions Documentation URL.
  */
 if ( !function_exists('adminer_object') ) {
 
@@ -43,6 +43,57 @@ function get_nonce(){
 	_deprecated_function( 'get_nonce()', 'WP Adminer 4.0.0', '\Adminer\get_nonce()' );
 	return \Adminer\get_nonce();
 }
+
+if( function_exists('get_magic_quotes_gpc') && get_magic_quotes_gpc() && !function_exists('each') ){
+	/**
+	 * Polyfill for the deprecated each() function (PHP <= 7.2).
+	 * Fully emulates pointer-based iteration behavior.
+	 *
+	 * This polyfill is loaded only in environments where get_magic_quotes_gpc()
+	 * still exists and returns true, to preserve compatibility with old codebases
+	 * that rely on each() when magic quotes are enabled.
+	 *
+	 * @param array $array
+	 * @return array|false
+	 */
+	function each(array &$array)
+	{
+		static $pointers = [];
+
+		// Unique ID for this array instance
+		$id = spl_object_id((object) $array);
+
+		// Initialize pointer if not set
+		if (!isset($pointers[$id])) {
+			$pointers[$id] = 0;
+		}
+
+		// Get array keys
+		$keys = array_keys($array);
+
+		// Out of bounds → end of array
+		if (!isset($keys[$pointers[$id]])) {
+			return false;
+		}
+
+		// Read current key & value
+		$key   = $keys[$pointers[$id]];
+		$value = $array[$key];
+
+		// Move pointer forward
+		$pointers[$id]++;
+
+		// Return same structure as the original each()
+		// 100% compatible structure
+		return [
+			1       => $value,
+			'value' => $value,
+			0       => $key,
+			'key'   => $key
+		];
+	}
+}
+
 
 
 ob_end_clean();

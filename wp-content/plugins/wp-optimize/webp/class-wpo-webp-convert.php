@@ -32,7 +32,7 @@ class WPO_WebP_Convert {
 	 *
 	 * @return string $destination - path of destination file
 	 */
-	protected function get_destination_path($source) {
+	public function get_destination_path($source) {
 		$path_parts = pathinfo($source);
 		return $path_parts['dirname'] . '/'. basename($source) . '.webp';
 	}

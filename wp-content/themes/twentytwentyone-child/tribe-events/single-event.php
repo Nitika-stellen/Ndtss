@@ -114,7 +114,7 @@ $cost  = tribe_get_formatted_cost( $event_id );
     ?>
 
     <!-- Event Schedule -->
-    <?php echo tribe_events_event_schedule_details( $event_id, '<h2>', '</h2>' ); ?>
+    <?php echo tribe_events_event_schedule_details( $event_id, '<div>', '</div>' ); ?>
 
 
     <!-- Event Cost -->

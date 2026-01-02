@@ -2,7 +2,7 @@
 
 add_action('gform_entry_detail_sidebar_middle', 'add_examiner_assignment_to_entry', 10, 2);
 function add_examiner_assignment_to_entry($form, $entry) {
-    $allowed_form_ids = [15, 30, 39];
+    $allowed_form_ids = [15, 30, 31, 39];
     $form_id = (int)$form['id'];
 
     if (!in_array($form_id, $allowed_form_ids, true)) {
@@ -32,7 +32,7 @@ function add_examiner_assignment_to_entry($form, $entry) {
         return;
     }
 
-    $invigilator_data = gform_get_meta($entry_id, '_invigilator_update_record', true);
+    $invigilator_data = gform_get_meta($entry_id, '_invigilator_update_record');
     $invigilator_data = is_array($invigilator_data) ? $invigilator_data : [];
 
     // Field mappings
@@ -43,6 +43,11 @@ function add_examiner_assignment_to_entry($form, $entry) {
             'preferred_exam_field_label' => 'Preferred Examination Date for %s:',
         ],
         'form_30' => [
+            'methods' => '1',
+            'exam_order_no' => '12',
+            'preferred_exam_field_id' => '6',
+        ],
+         'form_31' => [
             'methods' => '1',
             'exam_order_no' => '12',
             'preferred_exam_field_id' => '6',
@@ -109,7 +114,7 @@ function add_examiner_assignment_to_entry($form, $entry) {
                 </div>
             </div>
             <div class="inside Examiners_label p-4">
-                <form id="assign-users-form">
+                <form id="assign-users-form" novalidate>
                     <?php wp_nonce_field('assign_users_nonce', 'assign_users_nonce_field'); ?>
                     <h3 class="text-lg font-semibold mb-3">Select Examiners:</h3>
                     <?php foreach ((array)$examiner_users as $user_id):
@@ -162,13 +167,13 @@ function add_examiner_assignment_to_entry($form, $entry) {
                                         <label class="block text-sm font-medium text-gray-700 mb-1">
                                             Slot 1 Date <span class="text-red-500">*</span>
                                         </label>
-                                        <input type="date" name="method_slots[<?= esc_attr($method) ?>][slot_1_date]" min="<?= esc_attr($tomorrow) ?>" value="<?= esc_attr(!empty($method_dates[$method]['slot_1']['date']) ? $method_dates[$method]['slot_1']['date'] : $preferred_exam_date) ?>" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2" required />
+                                      <input type="date" name="method_slots[<?= esc_attr($method) ?>][slot_1_date]"  value="<?= esc_attr(!empty($method_dates[$method]['slot_1']['date']) ? $method_dates[$method]['slot_1']['date'] : $preferred_exam_date) ?>" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2" />
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">
                                             Slot 1 Time <span class="text-red-500">*</span>
                                         </label>
-                                        <input type="time" name="method_slots[<?= esc_attr($method) ?>][slot_1_time]" value="<?= esc_attr($method_dates[$method]['slot_1']['time'] ?? '') ?>" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2" required />
+                                        <input type="time" name="method_slots[<?= esc_attr($method) ?>][slot_1_time]" value="<?= esc_attr($method_dates[$method]['slot_1']['time'] ?? '') ?>" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2" />
                                     </div>
                                 </div>
                                 <div class="slot-2-wrapper mt-3" style="display: <?= $slot2_display ?>;">
@@ -177,7 +182,7 @@ function add_examiner_assignment_to_entry($form, $entry) {
                                             <label class="block text-sm font-medium text-gray-700 mb-1">
                                                 Slot 2 Date
                                             </label>
-                                            <input type="date" name="method_slots[<?= esc_attr($method) ?>][slot_2_date]" min="<?= esc_attr($tomorrow) ?>" value="<?= esc_attr($slot2_date) ?>" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2" />
+                                            <input type="date" name="method_slots[<?= esc_attr($method) ?>][slot_2_date]"  value="<?= esc_attr($slot2_date) ?>" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm px-3 py-2" />
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -235,6 +240,70 @@ function add_examiner_assignment_to_entry($form, $entry) {
                         }
 
                         if ($has_verified_slot) {
+                            // echo '<p class="text-green-600 mb-2"><strong>Invigilator has added the entry record.</strong></p>';
+                            // echo '<p class="text-green-600 mb-2"><strong>Invigilator has added the entry record.</strong></p>';
+                            
+                            // Check for acceptance status
+                            $status_summary = gform_get_meta($entry_id, '_invigilator_status_summary');
+                            if (!empty($status_summary)) {
+                                echo '<div class="mb-3">';
+                                foreach ($status_summary as $uid => $status) {
+                                    if ($status === 'accepted') {
+                                        $user_info = get_userdata($uid);
+                                        $user_name = $user_info ? $user_info->display_name : 'Unknown User';
+                                        echo '<div style="background-color:#eff6ff; border:1px solid #dbeafe; padding:8px; border-radius:4px; margin-bottom:4px; color:#1e3a8a; font-size:13px;">';
+                                        echo '<strong>Accepted by:</strong> ' . esc_html($user_name);
+                                        echo '</div>';
+                                    }
+                                }
+                                echo '</div>';
+                            }
+
+                            echo '<div style="background-color:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; padding:12px; margin-bottom:12px;">';
+                            echo '<h4 style="margin:0 0 10px 0; font-size:14px; color:#374151; border-bottom:1px solid #e5e7eb; padding-bottom:6px; font-weight:600;">Invigilator Record:</h4>';
+                            
+                            foreach ($invigilator_data as $slot_key => $slot_info) {
+                                if (strpos($slot_key, $method . '|') !== 0) continue;
+                                
+                                // Parse slot name
+                                $parts = explode('|', $slot_key);
+                                $slot_name = isset($parts[1]) ? ucfirst(str_replace('_', ' ', $parts[1])) : 'Slot';
+                                
+                                // Get User Details
+                                $filled_by_id = $slot_info['filled_by'] ?? '';
+                                $filled_by_name = 'Unknown';
+                                if ($filled_by_id) {
+                                    $filled_by_user = get_userdata($filled_by_id);
+                                    if ($filled_by_user) {
+                                        $filled_by_name = $filled_by_user->display_name;
+                                    }
+                                }
+                                
+                                // Get Time & Details
+                                $checkin_raw = $slot_info['checkin_time'] ?? '';
+                                $checkout_raw = $slot_info['checkout_time'] ?? '';
+                                
+                                $checkin_display = $checkin_raw ? date('d M Y, h:i A', strtotime($checkin_raw)) : '-';
+                                $checkout_display = $checkout_raw ? date('d M Y, h:i A', strtotime($checkout_raw)) : '-';
+                                $comments = $slot_info['comments'] ?? '';
+                                
+                                echo '<div style="margin-bottom:12px; border-bottom:1px solid #e5e7eb; padding-bottom:10px;">';
+                                // Flex container for Slot Name and Status
+                                echo '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">';
+                                echo '<strong style="font-size:14px; color:#1f2937;">' . esc_html($slot_name) . '</strong>';
+                                echo '<span style="background-color:#dcfce7; color:#15803d; font-size:11px; font-weight:600; padding:2px 8px; border-radius:9999px; border:1px solid #bbf7d0;">Completed</span>';
+                                echo '</div>';
+                                
+                                echo '<div style="font-size:12px; color:#4b5563;">';
+                                echo '<div style="margin-bottom:4px;"><strong>Invigilator:</strong> <span style="color:#111827;">' . esc_html($filled_by_name) . '</span></div>';
+                                echo '<div style="margin-bottom:4px;"><strong>Time:</strong> <span style="color:#111827;">' . esc_html($checkin_display) . ' - ' . esc_html($checkout_display) . '</span></div>';
+                                if (!empty($comments)) {
+                                    echo '<div><strong>Note:</strong> <em style="color:#374151;">' . esc_html($comments) . '</em></div>';
+                                }
+                                echo '</div>';
+                                echo '</div>';
+                            }
+                            echo '</div>';
                             if (isset($entries_by_method[$method])) {
                                 $method_key = sanitize_title($method);
                                 $marks_entry_id = gform_get_meta($entry_id, '_examiner_marks_entry_id_' . $method_key);
@@ -301,10 +370,30 @@ function add_examiner_assignment_to_entry($form, $entry) {
                                         $notification_meta = gform_get_meta($marks_entry_id, '_notification_meta_' . sanitize_title($method));
                                         $certificate_meta = gform_get_meta($marks_entry_id, '_certification_meta_' . sanitize_title($method));
                                         $is_notification_generated = !empty($notification_meta['path']);
-                                        $notification_url = esc_url($notification_meta['url'] ?? '');
+                                        if ($is_notification_generated && !empty($notification_meta['path'])) {
+                                            $notification_filename = basename($notification_meta['path']);
+                                            $secure_url = get_stylesheet_directory_uri() . '/includes/secure-exam-certificate-download.php';
+                                            $notification_url = add_query_arg([
+                                                'file' => $notification_filename,
+                                                'entry_id' => $entry_id,
+                                                'v' => time()
+                                            ], $secure_url);
+                                        } else {
+                                            $notification_url = '';
+                                        }
                                         $notification_date = !empty($notification_meta['generated_at']) ? date('d M Y', strtotime($notification_meta['generated_at'])) : 'Unknown date';
                                         $is_certificate_generated = !empty($certificate_meta['path']);
-                                        $certificate_url = esc_url($certificate_meta['url'] ?? '');
+                                        if ($is_certificate_generated && !empty($certificate_meta['path'])) {
+                                            $certificate_filename = basename($certificate_meta['path']);
+                                            $secure_url = get_stylesheet_directory_uri() . '/includes/secure-exam-certificate-download.php';
+                                            $certificate_url = add_query_arg([
+                                                'file' => $certificate_filename,
+                                                'entry_id' => $entry_id,
+                                                'v' => time()
+                                            ], $secure_url);
+                                        } else {
+                                            $certificate_url = '';
+                                        }
                                         $certificate_date = !empty($certificate_meta['generated_at']) ? date('d M Y', strtotime($certificate_meta['generated_at'])) : 'Unknown date';
 
                                         $not_issued_by_id = $notification_meta['issued_by'] ?? null;
@@ -419,8 +508,22 @@ else{
 }
 
 
-
 if (current_user_can('custom_aqb') || is_custom_super_admin()) {
+    ?>
+    <form method="post" class="mt-3" id="generate-notification-form-<?= esc_attr($marks_entry_id) ?>">
+            <?php wp_nonce_field('generate_notification_nonce', 'generate_notification_nonce_field'); ?>
+            <input type="hidden" name="generate_certificate" value="1">
+            <input type="hidden" name="exam_entry_id" value="<?= esc_attr($entry_id) ?>">
+            <input type="hidden" name="marks_entry_id" value="<?= esc_attr($marks_entry_id) ?>">
+            <input type="hidden" name="method" value="<?= esc_attr($method) ?>">
+            <label class="block mb-2 text-sm font-medium text-gray-700">
+                <input type="checkbox" data-target="submitBtn_<?= $marks_entry_id; ?>" class="confirm-checkbox mr-2">
+                Confirm that marks have been verified
+            </label>
+            <button id="submitBtn_<?= $marks_entry_id; ?>" class="button button-primary generate-notification-btn mt-2" disabled>Generate Result Notification</button>
+        </form>
+<?php
+
     if (!$is_notification_generated): ?>
         <form method="post" class="mt-3" id="generate-notification-form-<?= esc_attr($marks_entry_id) ?>">
             <?php wp_nonce_field('generate_notification_nonce', 'generate_notification_nonce_field'); ?>
@@ -532,8 +635,22 @@ if ( $is_manager_admin ) {
     <?php endif;
 }
 
-
 if (is_custom_super_admin()) {
+    ?>
+  <form method="post" class="mt-3">
+            <?php wp_nonce_field('generate_final_certificate_nonce', 'generate_final_certificate_nonce_field'); ?>
+            <input type="hidden" name="generate_final_certificate" value="1">
+            <input type="hidden" name="exam_entry_id" value="<?= esc_attr($entry_id) ?>">
+            <input type="hidden" name="marks_entry_id" value="<?= esc_attr($marks_entry_id) ?>">
+            <input type="hidden" name="method" value="<?= esc_attr($method) ?>">
+            <label class="block mb-2 text-sm font-medium text-gray-700">
+                <input type="checkbox" data-target="generateBtn_<?= $marks_entry_id; ?>" class="confirm-certificate mr-2 ">
+                Confirm that marks have been verified
+            </label>
+            <button id="generateBtn_<?= $marks_entry_id; ?>" class="button button-primary generate_final_certificate mt-2" disabled>Generate Final Certificate</button>
+        </form>
+<?php
+
     
     if ($is_notification_generated && strtoupper($overall_result) === 'PASS' && !$is_manager_approved): ?>
         <div class="mt-3 p-3 bg-yellow-100 border-l-4 border-yellow-600">
@@ -589,7 +706,7 @@ if (is_custom_super_admin()) {
         echo '<p class="text-red-600"><em>Marks not added by examiner yet for this method.</em></p>';
                             }
                         } else {
-                            echo '<p class="text-red-600"><em>Candidate has not attended the exam yet.</em></p>';
+                            echo '<p class="text-red-900 bg-red-50 p-2 rounded border border-red-200"><em>Invigilator has not added the entry record yet.</em></p>';
                         }
                         ?>
                     <?php endforeach; ?>
@@ -749,13 +866,19 @@ if (is_custom_super_admin()) {
                 },
                 success: function(response) {
                     console.log('AJAX Response:', response);
-                  
+                    if (response.success) {
                         Swal.fire({
                             title: 'Success!',
                             text: 'Result notification generated successfully.',
                             icon: 'success'
                         }).then(() => location.reload());
-                   
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.data || 'Unknown error occurred.'
+                        });
+                    }
                 },
                 error: function(xhr, status, error) {
                     console.error('AJAX Error:', status, error);
@@ -809,13 +932,19 @@ if (is_custom_super_admin()) {
                 },
                 success: function(response) {
                     console.log('AJAX Response:', response);
-                   
+                    if (response.success) {
                         Swal.fire({
                             title: 'Success!',
                             text: 'Final Certificate generated successfully.',
                             icon: 'success'
                         }).then(() => location.reload());
-                   
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.data || 'Unknown error occurred.'
+                        });
+                    }
                 },
                 error: function(xhr, status, error) {
                     console.error('AJAX Error:', status, error);
@@ -884,15 +1013,23 @@ if (is_custom_super_admin()) {
                 method: method,
                 _wpnonce: nonce
             },
-            success: function (response) {
-                
-                    Swal.fire({
-                        title: 'Success!',
-                        text: 'Decision of Final Certificate Approved Successfully.',
-                        icon: 'success'
-                    }).then(() => location.reload());
-               
-            },
+            success: function(response) {
+                    console.log('AJAX Response:', response);
+                    if (response.success) {
+                        Swal.fire({
+                            title: 'Success!',
+                            text: 'Result notification generated successfully.',
+                            icon: 'success'
+                        }).then(() => location.reload());
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: response.data || 'Unknown error occurred.'
+                        });
+                    }
+                },
+
             error: function (xhr, status, error) {
                 console.error('AJAX Error:', status, error);
                 Swal.fire({
@@ -910,7 +1047,7 @@ if (is_custom_super_admin()) {
                     $wrapper.slideToggle(200);
                     $btn.text($wrapper.is(':visible') ? 'Remove Slot 2' : 'Add Slot 2');
                 });
-     jQuery('.save-assignment').on('click', function(e) {
+      jQuery('.save-assignment').on('click', function(e) {
                     e.preventDefault();
                     jQuery('#assign-response').html('<div class="text-blue-600">Processing...</div>');
                     let examiner_ids = [];
@@ -955,15 +1092,15 @@ if (is_custom_super_admin()) {
                             return false;
                         }
                         let slot1DateTime = new Date(`${slot1['date']}T${slot1['time']}`);
-                        if (slot1DateTime <= now) {
-                            isValid = false;
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Invalid Date/Time',
-                                text: `Slot 1 for ${method} must be in the future.`
-                            });
-                            return false;
-                        }
+                        // if (slot1DateTime <= now) {
+                        //     isValid = false;
+                        //     Swal.fire({
+                        //         icon: 'error',
+                        //         title: 'Invalid Date/Time',
+                        //         text: `Slot 1 for ${method} must be in the future.`
+                        //     });
+                        //     return false;
+                        // }
                     });
 
                     if (!isValid) {
@@ -1234,7 +1371,7 @@ function display_form_entries_page($form_id, $is_retest = false) {
     echo '</div>';
     echo '<div class="form_controls flex-1 min-w-[150px]">';
     echo '<select id="statusFilter" class="border p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">';
-    echo '<option value="">All Statuses</option>';
+    echo '<option value="">All Approval Statuses</option>';
     $statuses = [
         'pending' => 'Pending',
         'approved' => 'Approved',
@@ -1250,12 +1387,20 @@ function display_form_entries_page($form_id, $is_retest = false) {
         echo '<div class="form_controls flex-1 min-w-[150px]">';
         echo '<select id="centerFilter" class="border p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">';
         echo '<option value="">All Centers</option>';
+        // $centers = get_posts([
+        //     'post_type' => 'exam_center',
+        //     'posts_per_page' => -1,
+        //     'cache_results' => true,
+        //     'update_post_meta_cache' => false,
+        //     'update_post_term_cache' => false,
+        // ]);
         $centers = get_posts([
             'post_type' => 'exam_center',
             'posts_per_page' => -1,
             'cache_results' => true,
             'update_post_meta_cache' => false,
             'update_post_term_cache' => false,
+            'post_status' => 'any',
         ]);
         foreach ($centers as $center) {
             $selected = $center->post_title === $center_filter ? 'selected' : '';
@@ -1275,6 +1420,23 @@ function display_form_entries_page($form_id, $is_retest = false) {
         echo '</select>';
         echo '</div>';
     }
+    // Certificate status filter
+    echo '<div class="form_controls flex-1 min-w-[150px]">';
+    echo '<select id="certStatusFilter" class="border p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">';
+    echo '<option value="">All Certificate Statuses</option>';
+    echo '<option value="generated">Generated</option>';
+    echo '<option value="pending">Pending</option>';
+    echo '</select>';
+    echo '</div>';
+    echo '<div class="form_controls flex items-center gap-2 min-w-[120px]">';
+    echo '<label for="rowsPerPageSelect" style="font-size:12px;color:#4b5563;">Rows per page:</label>';
+    echo '<select id="rowsPerPageSelect" class="border p-2 rounded-2xl w-full min-w-[75px] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" style="background:#fff;height:38px;">';
+    echo '<option value="10" selected>10</option>';
+    echo '<option value="20">20</option>';
+    echo '<option value="30">30</option>';
+    echo '<option value="50">50</option>';
+    echo '</select>';
+    echo '</div>';
     echo '<div class="form_controls">';
     echo '<button id="exportCsv" class="button-primary">Export CSV</button>';
     echo '</div>';
@@ -1293,7 +1455,8 @@ function display_form_entries_page($form_id, $is_retest = false) {
     echo '<th class="px-3 py-2" data-sort="payment_mode">Payment Mode <span class="sort-arrow">▲</span></th>';
     echo '<th class="px-3 py-2" data-sort="payment_status">Payment Status <span class="sort-arrow">▲</span></th>';
     echo '<th class="px-3 py-2" data-sort="date_created">Submitted Date <span class="sort-arrow">▲</span></th>';
-    echo '<th class="px-3 py-2" data-sort="status">Status <span class="sort-arrow">▲</span></th>';
+    echo '<th class="px-3 py-2" data-sort="status">Approval Status <span class="sort-arrow">▲</span></th>';
+    echo '<th class="px-3 py-2" data-sort="cert_status">Cert Status <span class="sort-arrow">▲</span></th>';
     echo '<th class="px-3 py-2">Actions</th>';
     echo '</tr>';
     echo '</thead>';
@@ -1343,7 +1506,7 @@ function display_form_entries_page($form_id, $is_retest = false) {
         // Increment counter for entries that pass all filters
         $displayed_count++;
 
-       $status_badge = '<span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-700">Pending</span>';
+        $status_badge = '<span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-700">Pending</span>';
         if ($status === 'approved') {
             $status_badge = '<span class="px-2 py-1 text-xs font-medium rounded-full bg-green-200 text-green-700">Approved by ' . esc_html($status_by_info->display_name) . '</span>';
         } elseif ($status === 'rejected') {
@@ -1351,7 +1514,7 @@ function display_form_entries_page($form_id, $is_retest = false) {
         }
 
 
-        echo '<tr class="cert-row hover:bg-blue-50 transition-colors duration-200 cursor-pointer">';
+        echo '<tr class="cert-row hover:bg-blue-50 transition-colors duration-200 cursor-pointer" data-cert-status="">';
         echo '<td class="px-3 py-2 text-gray-700 text-sm font-medium text-center break-words">' . esc_html($index + 1 + ($current_page - 1) * $rows_per_page) . '</td>';
         echo '<td class="px-3 py-2 text-gray-700 text-sm break-words">' . esc_html(rgar($entry, $config['exam_order_no'])) . '</td>';
         echo '<td class="px-3 py-2 text-gray-600 text-sm break-words">' . esc_html($user_email) . '</td>';
@@ -1362,6 +1525,52 @@ function display_form_entries_page($form_id, $is_retest = false) {
         echo '<td class="px-3 py-2 text-gray-700 text-sm break-words">' . esc_html(rgar($entry, 'payment_status')) . '</td>';
         echo '<td class="px-3 py-2 text-gray-700 text-sm break-words">' . esc_html(date('d M Y', strtotime($entry['date_created']))) . '</td>';
         echo '<td class="px-3 py-2 text-gray-700 text-sm break-words">' . $status_badge . '</td>';
+
+        // Certificate status simplified: only "Certificate pending" or "Certificate generated on {date}"
+        $cert_total = count($selected_labels);
+        $cert_done  = 0;
+        $cert_dates = [];
+        $cert_state = 'pending';
+
+        foreach ($selected_labels as $method_label) {
+            $method_key = sanitize_title($method_label);
+            $marks_entry_id = gform_get_meta($entry_id, '_examiner_marks_entry_id_' . $method_key);
+            if (empty($marks_entry_id)) {
+                continue;
+            }
+            $certificate_meta  = gform_get_meta($marks_entry_id, '_certification_meta_' . $method_key);
+            if (!empty($certificate_meta['path'])) {
+                $cert_done++;
+                if (!empty($certificate_meta['generated_at'])) {
+                    $cert_dates[] = $certificate_meta['generated_at'];
+                }
+            }
+        }
+
+        if ($cert_total === 0) {
+            $cert_badge = '<span style="display:inline-block;padding:6px 16px;font-size:14px;font-weight:700;border-radius:999px;background:#ffeaea;color:#b91c1c;border:1.5px solid #ffb2b2;box-shadow:0 3px 8px -3px #ee6c6c1a;vertical-align:middle;">Certificate pending</span>';
+            $cert_state = 'pending';
+        } else {
+            $latest_cert_date = '';
+            if (!empty($cert_dates)) {
+                rsort($cert_dates);
+                $latest_cert_date = date('d M Y', strtotime($cert_dates[0]));
+            }
+
+            if ($cert_done === $cert_total) {
+                $label = $latest_cert_date ? 'Certificate generated on ' . esc_html($latest_cert_date) : 'Certificate generated';
+                $cert_badge = '<span style="display:inline-block;padding:2px 8px;font-size:12px;font-weight:600;border-radius:9999px;background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;">' . $label . '</span>';
+                $cert_state = 'generated';
+            } else {
+                $cert_badge = '<span style="display:inline-block;padding:6px 16px;font-size:14px;font-weight:700;border-radius:999px;background:#ffeaea;color:#b91c1c;border:1.5px solid #ffb2b2;box-shadow:0 3px 8px -3px #ee6c6c1a;vertical-align:middle;">Certificate pending</span>';
+                $cert_state = 'pending';
+            }
+        }
+
+        // inject cert state into row attribute (place a marker element to set after echo)
+        echo '<span class="cert-state-marker" data-cert-state="' . esc_attr($cert_state) . '" style="display:none;"></span>';
+
+        echo '<td class="px-3 py-2 text-gray-700 text-sm break-words">' . $cert_badge . '</td>';
         echo '<td class="px-3 py-2 text-center">';
         echo '<a href="' . esc_url("admin.php?page=gf_entries&view=entry&id={$form_id}&lid={$entry_id}") . '" class="doc_link">';
         echo '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" fill="currentColor" viewBox="0 0 24 24">';
@@ -1382,18 +1591,27 @@ function display_form_entries_page($form_id, $is_retest = false) {
     ?>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Ensure cert-status data attribute is set on each row from the hidden marker
+            document.querySelectorAll('#certifiedTable tbody tr').forEach(row => {
+                const marker = row.querySelector('.cert-state-marker');
+                if (marker) {
+                    row.setAttribute('data-cert-status', marker.getAttribute('data-cert-state'));
+                    marker.remove();
+                }
+            });
             const headers = document.querySelectorAll('#certifiedTable thead th[data-sort]');
             const searchInput = document.getElementById('searchInput');
             const methodFilter = document.getElementById('methodFilter');
             const statusFilter = document.getElementById('statusFilter');
             const centerFilter = document.getElementById('centerFilter');
+            const rowsPerPageSelect = document.getElementById('rowsPerPageSelect');
             const tableBody = document.querySelector('#tableBody');
             const paginationDiv = document.getElementById('pagination');
             const totalCountDiv = document.getElementById('totalCount');
             let currentSortColumn = null;
             let currentSortDirection = 'asc';
             let currentPage = 1;
-            const rowsPerPage = 10;
+            let rowsPerPage = 10;
             const totalUnfilteredRows = <?php echo count($entries); ?>;
 
             function parseDate(dateStr) {
@@ -1411,7 +1629,8 @@ function display_form_entries_page($form_id, $is_retest = false) {
                     'payment_mode': 6,
                     'payment_status': 7,
                     'date_created': 8,
-                    'status': 9
+                    'status': 9,
+                    'cert_status': 10
                 };
                 const cellIndex = columnMap[column];
                 if (cellIndex === undefined) return '';
@@ -1421,6 +1640,10 @@ function display_form_entries_page($form_id, $is_retest = false) {
                     return parseDate(value);
                 } else if (column === 'payment_amount') {
                     return parseFloat(value) || value;
+                } else if (column === 'cert_status') {
+                    const state = row.getAttribute('data-cert-status') || '';
+                    // generated > pending
+                    return state === 'generated' ? 1 : 0;
                 }
                 return value.toLowerCase();
             }
@@ -1495,6 +1718,20 @@ function display_form_entries_page($form_id, $is_retest = false) {
                 applyFilters();
             });
 
+            const certStatusFilter = document.getElementById('certStatusFilter');
+            certStatusFilter.addEventListener('change', function () {
+                applyFilters();
+            });
+
+            if (rowsPerPageSelect) {
+                rowsPerPageSelect.addEventListener('change', function () {
+                    const val = parseInt(this.value, 10);
+                    rowsPerPage = isNaN(val) ? 10 : val;
+                    currentPage = 1;
+                    applyFilters();
+                });
+            }
+
             if (centerFilter) {
                 centerFilter.addEventListener('change', function () {
                     applyFilters();
@@ -1505,6 +1742,7 @@ function display_form_entries_page($form_id, $is_retest = false) {
                 const searchTerm = searchInput.value.toLowerCase();
                 const selectedMethod = methodFilter.value;
                 const selectedStatus = statusFilter.value;
+                const selectedCertStatus = certStatusFilter.value;
                 const selectedCenter = centerFilter ? centerFilter.value : '';
                 const rows = tableBody.getElementsByTagName('tr');
                 let visibleRows = [];
@@ -1513,11 +1751,14 @@ function display_form_entries_page($form_id, $is_retest = false) {
                 Array.from(rows).forEach(row => {
                     const cells = row.getElementsByTagName('td');
                     const methodCell = cells[3].innerText; // Designator column
-                    const statusCell = cells[9].innerText.toLowerCase(); // Status column
+                    const statusCell = cells[9].innerText.toLowerCase(); // Approval Status column
+            const certStatusCell = cells[10].innerText.toLowerCase(); // Cert Status column
+            const rowCertStatus = row.getAttribute('data-cert-status') || '';
                     const centerCell = cells[4].innerText; // Prefer Center column
                     let searchMatch = true;
                     let methodMatch = true;
                     let statusMatch = true;
+                    let certStatusMatch = true;
                     let centerMatch = true;
 
                     // Search filter
@@ -1544,13 +1785,24 @@ function display_form_entries_page($form_id, $is_retest = false) {
                         isFiltered = true;
                     }
 
+                    // Certificate status filter
+                    if (selectedCertStatus && selectedCertStatus !== '') {
+                        // Prefer data attribute; if missing, derive from cell text
+                        let statusToCheck = rowCertStatus ? rowCertStatus.toLowerCase() : '';
+                        if (!statusToCheck) {
+                            statusToCheck = certStatusCell.includes('generated') ? 'generated' : 'pending';
+                        }
+                        certStatusMatch = statusToCheck === selectedCertStatus;
+                        isFiltered = true;
+                    }
+
                     // Center filter
                     if (selectedCenter && selectedCenter !== '' && centerFilter) {
                         centerMatch = centerCell === selectedCenter;
                         isFiltered = true;
                     }
 
-                    if (searchMatch && methodMatch && statusMatch && centerMatch) {
+                    if (searchMatch && methodMatch && statusMatch && certStatusMatch && centerMatch) {
                         row.style.display = '';
                         visibleRows.push(row);
                     } else {
@@ -1683,8 +1935,11 @@ function display_retest_forms_page() {
 // }
 
 function is_custom_super_admin() {
-    $current_user = wp_get_current_user();
+    $user = wp_get_current_user();
+    if (in_array('administrator', (array)$user->roles)) {
+        return true;
+    }
     $admin_email = get_option('admin_email');
-    return strtolower($current_user->user_email) === strtolower($admin_email);
+    return strtolower($user->user_email) === strtolower($admin_email);
 }
 ?>

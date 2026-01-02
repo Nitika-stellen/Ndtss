@@ -70,7 +70,7 @@
 		<div class="aiowps-settings">
 			<?php
 			foreach ($templates as $key => $template) {
-				$aio_wp_security->include_template('wp-admin/firewall/partials/' . esc_attr($key) . '.php', false, $settings);
+				$aio_wp_security->include_template('wp-admin/firewall/partials/' . esc_attr($key) . '.php', false, $php_firewall_data);
 			}
 			?>
 		</div>

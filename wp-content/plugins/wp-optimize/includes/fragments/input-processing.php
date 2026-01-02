@@ -75,7 +75,7 @@ function verify_nonce($name, $action = -1) {
 	}
 
 	$backtrace_summary = \WP_Optimize_Utils::get_backtrace_summary();
-	error_log(sprintf('WP-Optimize: verify_nonce() failed for "%s", action "%s" [%s]', $name, $action, $backtrace_summary)); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Using for debugging purpose
+	error_log(sprintf('WP-Optimize: verify_nonce() failed for action "%s" [%s]', $action, $backtrace_summary)); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Using for debugging purpose
 
 	return false;
 }

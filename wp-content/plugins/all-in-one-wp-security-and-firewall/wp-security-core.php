@@ -8,7 +8,7 @@ if (!class_exists('AIO_WP_Security')) {
 
 	class AIO_WP_Security {
 
-		public $version = '5.4.3';
+		public $version = '5.4.4';
 
 		public $db_version = '2.1.4';
 
@@ -251,6 +251,7 @@ if (!class_exists('AIO_WP_Security')) {
 			include_once(AIO_WP_SECURITY_PATH.'/admin/general/wp-security-list-table.php');
 			include_once(AIO_WP_SECURITY_PATH.'/admin/general/wp-security-ajax-data-table.php');
 			include_once(AIO_WP_SECURITY_PATH.'/admin/wp-security-firewall-setup-notice.php');
+			include_once(AIO_WP_SECURITY_PATH.'/classes/updraftcentral.php');
 		}
 
 		public function loader_operations() {

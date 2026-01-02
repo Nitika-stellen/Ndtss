@@ -4,7 +4,6 @@
 		<div class="inside">
 			<div id="firewall-deny-bad-queries-badge">
 				<?php
-				$aiowps_firewall_config = AIOS_Firewall_Resource::request(AIOS_Firewall_Resource::CONFIG);
 				//Display security info badge
 				$aiowps_feature_mgr->output_feature_details_badge("firewall-deny-bad-queries");
 				?>
@@ -14,7 +13,7 @@
 				<th scope="row"><?php esc_html_e('Deny bad query strings', 'all-in-one-wp-security-and-firewall'); ?>:</th>
 				<td>
 					<div class="aiowps_switch_container">
-						<?php AIOWPSecurity_Utility_UI::setting_checkbox(esc_html__('This will help protect you against malicious queries via XSS.', 'all-in-one-wp-security-and-firewall'), 'aiowps_deny_bad_query_strings', $aiowps_firewall_config->get_value('aiowps_deny_bad_query_strings')); ?>
+						<?php AIOWPSecurity_Utility_UI::setting_checkbox(esc_html__('This will help protect you against malicious queries via XSS.', 'all-in-one-wp-security-and-firewall'), 'aiowps_deny_bad_query_strings', $aiowps_deny_bad_query_strings); ?>
 						<span class="aiowps_more_info_anchor"><span class="aiowps_more_info_toggle_char">+</span><span class="aiowps_more_info_toggle_text"><?php esc_html_e('More info', 'all-in-one-wp-security-and-firewall'); ?></span></span>
 						<div class="aiowps_more_info_body">
 							<p class="description">

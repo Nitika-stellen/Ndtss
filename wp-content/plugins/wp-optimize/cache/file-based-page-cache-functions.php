@@ -8,6 +8,11 @@ if (!defined('ABSPATH')) die('No direct access allowed');
 if (!defined('WPO_CACHE_EXT_DIR')) define('WPO_CACHE_EXT_DIR', dirname(__FILE__).'/extensions');
 
 /**
+ * Directory that stores the cache, including gzipped files and mobile specific cache
+ */
+if (!defined('WPO_CACHE_FILES_DIR')) define('WPO_CACHE_FILES_DIR', untrailingslashit(WP_CONTENT_DIR).'/cache/wpo-cache');
+
+/**
  * Holds utility functions used by file based cache
  */
 
@@ -120,6 +125,21 @@ if (!function_exists('wpo_cache')) :
 			// translators: %s is the HTTP response code for unauthorised access
 			$no_cache_because[] = sprintf(__('This page returned an HTTP unauthorised response code (%s)', 'wp-optimize'), http_response_code());
 		}
+
+		// Get cache file name
+		$file_ext = '.html';
+			
+		if (wpo_feeds_caching_enabled()) {
+			if (is_feed()) {
+				$file_ext = '.rss-xml';
+			}
+		}
+		
+		$cache_filename = wpo_cache_filename($file_ext);
+
+		if (defined('WPO_CACHE_DONT_PROCESS_THIS_PAGE') && WPO_CACHE_DONT_PROCESS_THIS_PAGE) {
+			$no_cache_because[] = __('The WPO_CACHE_DONT_PROCESS_THIS_PAGE constant is set.', 'wp-optimize');
+		}
 		
 		if (empty($no_cache_because)) {
 			
@@ -210,15 +230,7 @@ if (!function_exists('wpo_cache')) :
 			/**
 			 * Save $buffer into cache file.
 			 */
-			$file_ext = '.html';
-			
-			if (wpo_feeds_caching_enabled()) {
-				if (is_feed()) {
-					$file_ext = '.rss-xml';
-				}
-			}
-			
-			$cache_filename = wpo_cache_filename($file_ext);
+
 			$cache_file = $path . '/' .$cache_filename;
 			
 			if (defined('WPO_CACHE_FILENAME_DEBUG') && WPO_CACHE_FILENAME_DEBUG) {
@@ -260,8 +272,15 @@ if (!function_exists('wpo_cache')) :
 			header('Cache-Control: no-cache'); // Check back every time to see if re-download is necessary.
 			header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $modified_time) . ' GMT');
 			header('WPO-Cache-Status: saving to cache');
+
+			// Enable gzipped output only if it is supported and the output buffer level is ≤2
+			// (i.e., no extra handlers beyond default and WPO_Page_Optimizer::optimize() are active)
+			$wpo_cache_can_output_gzip_content = wpo_cache_can_output_gzip_content() && ob_get_level() <= 2;
+
+			// Allow to override gzip output via the 'wpo_cache_can_output_gzip_content' filter
+			$wpo_cache_can_output_gzip_content = apply_filters('wpo_cache_can_output_gzip_content', $wpo_cache_can_output_gzip_content);
 			
-			if (wpo_cache_can_output_gzip_content()) {
+			if ($wpo_cache_can_output_gzip_content) {
 				
 				if (!wpo_cache_is_in_response_headers_list('Content-Encoding', 'gzip')) {
 					header('Content-Encoding: gzip');
@@ -421,30 +440,6 @@ if (!function_exists('wpo_cache_filename')) :
 endif;
 
 
-if (!function_exists('wpo_rest_cache_filename')) :
-/**
- * Builds the rest cache filename, uses passed params.
- *
- * @param array $params
- * @return string
- */
-function wpo_rest_cache_filename($params) {
-	$filename = 'index';
-	$cache_key = '';
-
-	if (!empty($params)) {
-		foreach ($params as $key => $value) {
-			if (is_array($value)) $value = serialize($value);
-			$_cache_key = $key.'_'.$value;
-			$_cache_key = preg_replace('/[^a-z0-9_\-]/i', '-', $_cache_key);
-			$cache_key .= '-' . $_cache_key;
-		}
-	}
-
-	return wpo_build_cache_filename($filename, $cache_key) . '.json';
-}
-endif;
-
 if (!function_exists('wpo_build_cache_filename')) :
 /**
  * Builds a cache filename using the original filename, cache key,
@@ -466,6 +461,31 @@ function wpo_build_cache_filename($filename, $cache_key) {
 	}
 
 	return $filename;
+}
+endif;
+
+
+if (!function_exists('wpo_rest_cache_filename')) :
+/**
+ * Builds the rest cache filename, uses passed params.
+ *
+ * @param array $params
+ * @return string
+ */
+function wpo_rest_cache_filename($params) {
+	$filename = 'index';
+	$cache_key = '';
+
+	if (!empty($params)) {
+		foreach ($params as $key => $value) {
+			if (is_array($value)) $value = serialize($value);
+			$_cache_key = $key.'_'.$value;
+			$_cache_key = preg_replace('/[^a-z0-9_\-]/i', '-', $_cache_key);
+			$cache_key .= '-' . $_cache_key;
+		}
+	}
+
+	return wpo_build_cache_filename($filename, $cache_key) . '.json';
 }
 endif;
 
@@ -699,6 +719,8 @@ if (!function_exists('wpo_serve_cache')) :
 		if (defined('DOING_CRON') && DOING_CRON) return;
 		
 		$file_name = wpo_cache_filename();
+
+		if (defined('WPO_CACHE_DONT_PROCESS_THIS_PAGE') && WPO_CACHE_DONT_PROCESS_THIS_PAGE) return;
 		
 		$file_name_rss_xml = wpo_cache_filename('.rss-xml');
 		$send_as_feed = false;
@@ -901,17 +923,9 @@ function wpo_can_serve_from_cache() {
 
 	// Don't cache if logged in.
 	if (!empty($_COOKIE)) {
-		$wp_cookies = array('wordpressuser_', 'wordpresspass_', 'wordpress_sec_', 'wordpress_logged_in_');
 	
-		if (!wpo_cache_loggedin_users()) {
-			foreach ($_COOKIE as $key => $value) {
-				foreach ($wp_cookies as $cookie) {
-					if (false !== strpos($key, $cookie)) {
-						$no_cache_because[] = 'WordPress login cookies were detected';
-						break(2);
-					}
-				}
-			}
+		if (!wpo_cache_loggedin_users() && wpo_is_wp_user_cookies_exist()) {
+			$no_cache_because[] = 'WordPress login cookies were detected';
 		}
 	
 		if (!empty($_COOKIE['wpo_commented_post'])) {
@@ -963,6 +977,29 @@ function wpo_can_serve_from_cache() {
 	
 	return true;
 }
+endif;
+
+/**
+ * Checks if WordPress user cookies are set.
+ *
+ * @return bool
+ */
+if (!function_exists('wpo_is_wp_user_cookies_exist')) :
+	function wpo_is_wp_user_cookies_exist(): bool {
+		if (empty($_COOKIE)) return false;
+
+		$wp_user_cookies = array('wordpress_sec_', 'wordpress_logged_in_');
+		
+		foreach (array_keys($_COOKIE) as $cookie_name) {
+			foreach ($wp_user_cookies as $user_cookie_name) {
+				if (0 === strpos($cookie_name, $user_cookie_name)) {
+					return true;
+				}
+			}
+		}
+	
+		return false;
+	}
 endif;
 
 /**

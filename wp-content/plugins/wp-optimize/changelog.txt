@@ -1,5 +1,34 @@
 == Changelog ==
 
+= 4.3.1 - 14/Nov/2025 =
+
+* FIX: Prevent PHP fatal error occurring when cache is enabled and the "Aelia Currency Switcher for WooCommerce" plugin is active
+* FIX: Cache – Fixed compatibility issue
+* FIX: Database - Table Usage - Fixed the issue with incorrect table name detection in certain cases
+* FIX: Fixed UI Issue - Content cut off in "Review Actions" modal under WP-Optimize > Database 
+* FIX: Fixed _load_textdomain_just_in_time trigger too early
+* FIX: Premium - Unused images - Fixed an issue with clearing the cache of unused images
+* FIX: Smush - Compressing an image larger than the reSmush.it service limit freezes the popup in the Media Library
+* FIX: Smush - Fixed issue with multiple images compression action
+* FIX: Undefined property: stdClass::$plugin_status bug fixed
+* REFACTOR: Database - Table Usage - enhanced variable names
+* REFACTOR: Using strict comparison throughout the codebase
+* TWEAK: Improve detection of cloudflare handling browser cache
+* TWEAK: Added validation for AJAX commands in the Premium version
+* TWEAK: Convert already compressed images to webp format when possible
+* TWEAK: Fix the compatibility issue with ALTCHA when using the ASE Pro Plugin
+* TWEAK: Improve browser caching by adding max-age option
+* TWEAK: Premium - Cache - Do not process the cache when the user cannot be identified
+* TWEAK: Premium - Database - Tables usage report shows data only for active plugins
+* TWEAK: Premium - Unused Images - Enhanced detection for Revolution Slider
+* TWEAK: Premium - Unused Images - Improved detection of unused images in Oxygen Builder
+* TWEAK: Premium - Unused Images - Recognize Oxygen 6 images
+* TWEAK: Premium - Prevent PHP warnings from Table Usage feature
+* TWEAK: Remove unused jQuery 1.12.4 dependency
+* TWEAK: Run database table optimization last
+* TWEAK: Updated links
+* TWEAK: Various tweaks and improvements to code
+
 = 4.3.0 - 22/Sep/2025 =
 
 * FEATURE: Premium - Cache - Cache REST API requests
@@ -71,13 +100,13 @@
 
 = 4.2.0 - 01/May/2025 =
 
+* SECURITY: On multisite installs (only), a logged-in site administrator could use an unsanitised parameter to inject unwanted content into SQL queries. Thanks to Marc Montpas for the responsible disclosure.
 * FEATURE: Premium - Replace YouTube Iframes with preview images to improve page speed
 * FIX: Fix conflict with the WPML plugin
 * FIX: Smush - Fixed PHP warning on the Media Library page
 * FIX: Smush - Fixed issue where the Smush popup would freeze
 * FIX: WebP images not served after WP-Optimize reactivation
 * REFACTOR: Smush option removed from media upload modal
-* SECURITY: On multisite installs (only), a logged-in site administrator could use an unsanitised parameter to inject unwanted content into SQL queries. Thanks to Marc Montpas for the responsible disclosure.
 * TWEAK:  Update advert banner logos, texts and links
 * TWEAK: Add missing separator between compression items in media library
 * TWEAK: Avoid PHP warning thrown by Page Speed Ninja plugin

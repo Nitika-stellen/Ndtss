@@ -1,6 +1,6 @@
 <?php
 if (!defined('ABSPATH')) {
-	exit;//Exit if accessed directly
+	exit; // Exit if accessed directly.
 }
 
 require_once(AIO_WP_SECURITY_PATH.'/classes/wp-security-base-tasks.php');
@@ -9,6 +9,10 @@ class AIOWPSecurity_Deactivation_Tasks extends AIOWPSecurity_Base_Tasks {
 
 	/**
 	 * Run deactivation task for a single site.
+	 *
+	 * This method overrides {@see AIOWPSecurity_Base_Tasks::run_for_a_site()}.
+	 * It ensures .htaccess rules, firewall, and user login activity
+	 * are properly cleaned up during deactivation.
 	 *
 	 * @return void
 	 */
@@ -20,7 +24,7 @@ class AIOWPSecurity_Deactivation_Tasks extends AIOWPSecurity_Base_Tasks {
 		if (is_main_site()) {
 			// Remove all firewall and other .htaccess rules and remove all settings from .htaccess file that were added by this plugin.
 			AIOWPSecurity_Utility_Htaccess::delete_from_htaccess();
-			
+
 			// Remove user meta info so next activation if force logout on it do not logs user out
 			AIOWPSecurity_User_Login::remove_login_activity();
 

@@ -491,7 +491,7 @@ svg > g > g.google-visualization-tooltip {
 	height: 0;
 }
 
-.aiowps_switch .slider {
+.aiowps_switch .aiowps_slider {
 	position: absolute;
 	cursor: pointer;
 	top: 0;
@@ -503,7 +503,7 @@ svg > g > g.google-visualization-tooltip {
 	/* Rounded sliders */
 }
 
-.aiowps_switch .slider::before {
+.aiowps_switch .aiowps_slider::before {
 	position: absolute;
 	content: "";
 	height: 8px;
@@ -515,7 +515,7 @@ svg > g > g.google-visualization-tooltip {
 	transition: all 0.2s;
 }
 
-.aiowps_switch .slider::after {
+.aiowps_switch .aiowps_slider::after {
 	content: "";
 	display: block;
 	position: absolute;
@@ -528,27 +528,27 @@ svg > g > g.google-visualization-tooltip {
 	box-sizing: content-box;
 }
 
-.aiowps_switch .slider.round {
+.aiowps_switch .aiowps_slider.round {
 	border-radius: 23px;
 	border: 2px solid #555D66;
 }
 
-.aiowps_switch .slider.round::before {
+.aiowps_switch .aiowps_slider.round::before {
 	border-radius: 50%;
 }
 
-.aiowps_switch input:checked + .slider {
+.aiowps_switch input:checked + .aiowps_slider {
 	background: #5C3682;
 	border-color: #6F30C9;
 }
 
-.aiowps_switch input:checked + .slider::before {
+.aiowps_switch input:checked + .aiowps_slider::before {
 	background: #FFF;
 	border-color: #FFF;
 	transform: translatex(20px);
 }
 
-.aiowps_switch input:checked + .slider::after {
+.aiowps_switch input:checked + .aiowps_slider::after {
 	content: "";
 	display: block;
 	position: absolute;
@@ -560,14 +560,14 @@ svg > g > g.google-visualization-tooltip {
 	border: none;
 }
 
-.aiowps_switch input:disabled + .slider,
-.aiowps_switch input:disabled:checked + .slider {
+.aiowps_switch input:disabled + .aiowps_slider,
+.aiowps_switch input:disabled:checked + .aiowps_slider {
 	background: rgba(85, 93, 102, 0.5);
 	border-color: #555D66;
 	opacity: 0.3;
 }
 
-.aiowps_switch input:focus + .slider {
+.aiowps_switch input:focus + .aiowps_slider {
 	box-shadow: 0 0 0 2px #F2F4F5, 0 0 0 3px #555D66;
 }
 
@@ -1042,7 +1042,7 @@ button.button-link.aios-toggle-advanced-options.advanced-options-disabled, butto
 
 .aiowps-rule-list {
 	list-style: none;
-	max-height: 300px;
+	max-height: 450px;
 	overflow-y: auto;
 	padding: 5px;
 	border-top: 0.5px solid #D3D3D3;
@@ -1178,7 +1178,7 @@ button.button-link.aios-toggle-advanced-options.advanced-options-disabled, butto
 	}
 
 	.aiowps-rule-list {
-		max-height: 150px;
+		max-height: 390px;
 	}
 
 }

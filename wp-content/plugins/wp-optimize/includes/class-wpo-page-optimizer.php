@@ -73,12 +73,22 @@ class WPO_Page_Optimizer {
 	 */
 	private function maybe_apply_capojs_rules($buffer) {
 
+
 		if (WP_Optimize::is_premium() && WP_Optimize_CapoJS_Rules::should_apply_capojs_rules($buffer)) {
 			$capojs = new WP_Optimize_CapoJS_Rules();
 			$buffer = $capojs->optimize($buffer);
 		}
 
 		return $buffer;
+	}
+
+	/**
+	 * Check if we should initialise page oprimizer.
+	 *
+	 * @return boolean
+	 */
+	private function should_initialise() {
+		return !is_admin() && !$this->is_ajax() && !$this->is_wp_cli() && !$this->is_cron_job() && !WPO_Page_Builder_Compatibility::instance()->is_edit_mode();
 	}
 
 	/**
@@ -91,12 +101,41 @@ class WPO_Page_Optimizer {
 	}
 
 	/**
+	 * Maybe initialise page optimizer.
+	 *
+	 * @return void
+	 */
+	public function maybe_initialise() {
+		if ($this->should_initialise()) {
+			$this->initialise();
+		}
+	}
+
+	/**
 	 * Checks if the current execution context is WP-CLI.
 	 *
 	 * @return bool
 	 */
-	public function is_wp_cli() {
-		return defined( 'WP_CLI' ) && WP_CLI;
+	private function is_wp_cli() {
+		return defined('WP_CLI') && WP_CLI;
+	}
+
+	/**
+	 * Checks if the current execution context is ajax request.
+	 *
+	 * @return boolean
+	 */
+	private function is_ajax() {
+		return defined('DOING_AJAX') && DOING_AJAX;
+	}
+
+	/**
+	 * Checks if the current execution context is cron job request.
+	 *
+	 * @return boolean
+	 */
+	private function is_cron_job() {
+		return defined('DOING_CRON') && DOING_CRON;
 	}
 
 	/**

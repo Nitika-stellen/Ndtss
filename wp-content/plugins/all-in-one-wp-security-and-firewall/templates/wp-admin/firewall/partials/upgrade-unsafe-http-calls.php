@@ -22,14 +22,14 @@
 					<th scope="row"><?php esc_html_e('Enable', 'all-in-one-wp-security-and-firewall'); ?>:</th>
 					<td>
 						<div class="aiowps_switch_container">
-							<?php AIOWPSecurity_Utility_UI::setting_checkbox('', 'aiowps_upgrade_unsafe_http_calls', '1' == $aio_wp_security->configs->get_value('aiowps_upgrade_unsafe_http_calls')); ?>
+							<?php AIOWPSecurity_Utility_UI::setting_checkbox('', 'aiowps_upgrade_unsafe_http_calls', '1' == $aiowps_upgrade_unsafe_http_calls); ?>
 						</div>
 					</td>
 				</tr>
 				<tr valign="top">
 					<th scope="row"><label for="aiowps_upgrade_unsafe_http_calls_url_exceptions"><?php esc_html_e('URL exceptions', 'all-in-one-wp-security-and-firewall'); ?>:</label></th>
 					<td>
-						<textarea id="aiowps_upgrade_unsafe_http_calls_url_exceptions" name="aiowps_upgrade_unsafe_http_calls_url_exceptions" rows="5" cols="50"><?php echo esc_textarea($aio_wp_security->configs->get_value('aiowps_upgrade_unsafe_http_calls_url_exceptions')); ?></textarea>
+						<textarea id="aiowps_upgrade_unsafe_http_calls_url_exceptions" name="aiowps_upgrade_unsafe_http_calls_url_exceptions" rows="5" cols="50"><?php echo esc_textarea($aiowps_upgrade_unsafe_http_calls_url_exceptions); ?></textarea>
 						<br>
 						<span class="description"><?php esc_html_e('Enter URL exceptions.', 'all-in-one-wp-security-and-firewall'); ?></span>
 						<span class="aiowps_more_info_anchor"><span class="aiowps_more_info_toggle_char">+</span><span class="aiowps_more_info_toggle_text"><?php esc_html_e('More Info', 'all-in-one-wp-security-and-firewall'); ?></span></span>

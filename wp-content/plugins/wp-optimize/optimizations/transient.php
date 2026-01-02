@@ -28,7 +28,7 @@ class WP_Optimization_transient extends WP_Optimization {
 	public function preview($params) {
 
 		// get type of data for return single site or multisite.
-		$type = isset($params['type']) && 'multisite' == $params['type'] ? 'multisite' : 'single';
+		$type = isset($params['type']) && 'multisite' === $params['type'] ? 'multisite' : 'single';
 
 		// set remove_all_transients for correctly handling "all" checkbox for preview transients.
 		if (isset($params['remove_all_transients'])) {
@@ -38,7 +38,7 @@ class WP_Optimization_transient extends WP_Optimization {
 		// get data requested for preview.
 		// `$this->wpdb->prepare` is global `$wpdb->prepare`
 		// phpcs:disable
-		if ('single' == $type) {
+		if ('single' === $type) {
 			$sql = $this->wpdb->prepare("
 				SELECT
 					a.option_id, 
@@ -140,7 +140,7 @@ class WP_Optimization_transient extends WP_Optimization {
 		// phpcs:enable
 
 		// define columns array depends on source type of request.
-		if ('single' == $type) {
+		if ('single' === $type) {
 			$columns = array(
 				'option_id' => __('ID', 'wp-optimize'),
 				'option_name' => __('Name', 'wp-optimize'),
@@ -155,7 +155,7 @@ class WP_Optimization_transient extends WP_Optimization {
 		}
 
 		return array(
-			'id_key' => ('single' == $type) ? 'option_id' : 'meta_id',
+			'id_key' => ('single' === $type) ? 'option_id' : 'meta_id',
 			'columns' => $columns,
 			'offset' => $params['offset'],
 			'limit' => $params['limit'],
@@ -254,7 +254,7 @@ class WP_Optimization_transient extends WP_Optimization {
 			}
 
 			$sitemeta_table_transients_deleted = $this->query($clean2);
-			if ('' != $clean2_timeouts) $this->query($clean2_timeouts);
+			if ('' !== $clean2_timeouts) $this->query($clean2_timeouts);
 
 			// translators: %s is the number of transient options deleted across network
 			$message2 = sprintf(_n('%s network-wide transient option deleted', '%s network-wide transient options deleted', $sitemeta_table_transients_deleted, 'wp-optimize'), number_format_i18n($sitemeta_table_transients_deleted));
@@ -341,7 +341,7 @@ class WP_Optimization_transient extends WP_Optimization {
 		$options_table_transients_deleted = $this->query($clean);
 		$this->processed_count += $options_table_transients_deleted;
 
-		if ('' != $clean_timeouts) $this->query($clean_timeouts);
+		if ('' !== $clean_timeouts) $this->query($clean_timeouts);
 	}
 
 	/**

@@ -7,7 +7,7 @@ class Superaddons_Grepeater_Field_Addon extends GFAddOn{
 	protected $_version = "1.0";
 	protected $_min_gravityforms_version = '1.9';
 	protected $_slug = 'repeater-for-gravity-forms';
-	protected $_path = 'gravityforms-repeater/index.php';
+	protected $_path = 'repeater-for-gravity-forms/repeater-for-gravity-forms.php';
 	protected $_full_path = __FILE__;
 	protected $_title = 'Gravity Forms Repeater Fields Add-On';
 	protected $_short_title = 'Gravity Repeater';

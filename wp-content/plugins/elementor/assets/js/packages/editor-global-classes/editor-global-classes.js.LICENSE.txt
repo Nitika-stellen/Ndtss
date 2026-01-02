@@ -1,6 +1,10 @@
 /*! ../../../../hooks/use-filtered-css-class-usage */
 
+/*! ../../../../utils/tracking */
+
 /*! ../../../hooks/use-css-class-usage-by-id */
+
+/*! ../../../utils/tracking */
 
 /*! ../../context */
 
@@ -24,6 +28,8 @@
 
 /*! ../../store */
 
+/*! ../../utils/tracking */
+
 /*! ../api */
 
 /*! ../components/css-class-usage/types */
@@ -31,6 +37,8 @@
 /*! ../components/search-and-filter/context */
 
 /*! ../css-class-usage/components */
+
+/*! ../errors */
 
 /*! ../global-classes-styles-provider */
 
@@ -48,6 +56,8 @@
 
 /*! ../store */
 
+/*! ../utils/tracking */
+
 /*! ./api */
 
 /*! ./capabilities */
@@ -58,11 +68,15 @@
 
 /*! ./class-manager-panel */
 
+/*! ./classes-resource */
+
 /*! ./clear-icon-button */
 
 /*! ./components/class-manager/class-manager-button */
 
 /*! ./components/class-manager/class-manager-panel */
+
+/*! ./components/class-manager/duplicate-label-dialog */
 
 /*! ./components/convert-local-class-to-global-class */
 
@@ -86,19 +100,27 @@
 
 /*! ./global-classes-styles-provider */
 
+/*! ./hooks/use-prefetch-css-class-usage */
+
 /*! ./init */
+
+/*! ./mcp-apply-unapply-global-classes */
+
+/*! ./mcp-get-global-class-usages */
+
+/*! ./mcp-integration */
 
 /*! ./not-found */
 
 /*! ./panel-interactions */
-
-/*! ./save-changes-dialog */
 
 /*! ./save-global-classes */
 
 /*! ./sortable */
 
 /*! ./store */
+
+/*! ./sync-with-document */
 
 /*! ./sync-with-document-save */
 
@@ -110,6 +132,8 @@
 
 /*! ./utils/snapshot-history */
 
+/*! ./utils/tracking */
+
 /*! @elementor/editor */
 
 /*! @elementor/editor-current-user */
@@ -118,9 +142,9 @@
 
 /*! @elementor/editor-editing-panel */
 
-/*! @elementor/editor-panels */
+/*! @elementor/editor-mcp */
 
-/*! @elementor/editor-props */
+/*! @elementor/editor-panels */
 
 /*! @elementor/editor-styles */
 
@@ -134,7 +158,11 @@
 
 /*! @elementor/icons */
 
+/*! @elementor/mixpanel */
+
 /*! @elementor/query */
+
+/*! @elementor/schema */
 
 /*! @elementor/store */
 
@@ -178,17 +206,25 @@
   !*** external ["elementorV2","editor"] ***!
   \*****************************************/
 
+/*!*****************************************!*\
+  !*** external ["elementorV2","schema"] ***!
+  \*****************************************/
+
 /*!*******************************************!*\
   !*** external ["elementorV2","editorUi"] ***!
   \*******************************************/
 
+/*!*******************************************!*\
+  !*** external ["elementorV2","mixpanel"] ***!
+  \*******************************************/
+
+/*!********************************************!*\
+  !*** external ["elementorV2","editorMcp"] ***!
+  \********************************************/
+
 /*!*********************************************!*\
   !*** external ["elementorV2","httpClient"] ***!
   \*********************************************/
-
-/*!**********************************************!*\
-  !*** external ["elementorV2","editorProps"] ***!
-  \**********************************************/
 
 /*!***********************************************!*\
   !*** external ["elementorV2","editorPanels"] ***!
@@ -242,16 +278,28 @@
   !*** ./packages/packages/core/editor-global-classes/src/capabilities.ts ***!
   \**************************************************************************/
 
+/*!****************************************************************************!*\
+  !*** ./packages/packages/core/editor-global-classes/src/utils/tracking.ts ***!
+  \****************************************************************************/
+
 /*!*******************************************************************************!*\
   !*** ./packages/packages/core/editor-global-classes/src/hooks/use-filters.ts ***!
   \*******************************************************************************/
 
 /*!*********************************************************************************!*\
-  !*** ./packages/packages/core/editor-global-classes/src/save-global-classes.ts ***!
+  !*** ./packages/packages/core/editor-global-classes/src/sync-with-document.tsx ***!
   \*********************************************************************************/
+
+/*!**********************************************************************************!*\
+  !*** ./packages/packages/core/editor-global-classes/src/save-global-classes.tsx ***!
+  \**********************************************************************************/
 
 /*!***********************************************************************************!*\
   !*** ./packages/packages/core/editor-global-classes/src/hooks/use-dirty-state.ts ***!
+  \***********************************************************************************/
+
+/*!***********************************************************************************!*\
+  !*** ./packages/packages/core/editor-global-classes/src/mcp-integration/index.ts ***!
   \***********************************************************************************/
 
 /*!************************************************************************************!*\
@@ -302,6 +350,10 @@
   !*** ./packages/packages/core/editor-global-classes/src/components/css-class-usage/utils.ts ***!
   \**********************************************************************************************/
 
+/*!**********************************************************************************************!*\
+  !*** ./packages/packages/core/editor-global-classes/src/mcp-integration/classes-resource.ts ***!
+  \**********************************************************************************************/
+
 /*!************************************************************************************************!*\
   !*** ./packages/packages/core/editor-global-classes/src/components/class-manager/sortable.tsx ***!
   \************************************************************************************************/
@@ -338,16 +390,16 @@
   !*** ./packages/packages/core/editor-global-classes/src/components/css-class-usage/components/index.ts ***!
   \*********************************************************************************************************/
 
+/*!*********************************************************************************************************!*\
+  !*** ./packages/packages/core/editor-global-classes/src/mcp-integration/mcp-get-global-class-usages.ts ***!
+  \*********************************************************************************************************/
+
 /*!***********************************************************************************************************!*\
   !*** ./packages/packages/core/editor-global-classes/src/components/class-manager/class-manager-panel.tsx ***!
   \***********************************************************************************************************/
 
 /*!***********************************************************************************************************!*\
   !*** ./packages/packages/core/editor-global-classes/src/components/class-manager/global-classes-list.tsx ***!
-  \***********************************************************************************************************/
-
-/*!***********************************************************************************************************!*\
-  !*** ./packages/packages/core/editor-global-classes/src/components/class-manager/save-changes-dialog.tsx ***!
   \***********************************************************************************************************/
 
 /*!************************************************************************************************************!*\
@@ -357,6 +409,14 @@
 /*!*************************************************************************************************************!*\
   !*** ./packages/packages/core/editor-global-classes/src/components/convert-local-class-to-global-class.tsx ***!
   \*************************************************************************************************************/
+
+/*!**************************************************************************************************************!*\
+  !*** ./packages/packages/core/editor-global-classes/src/components/class-manager/duplicate-label-dialog.tsx ***!
+  \**************************************************************************************************************/
+
+/*!**************************************************************************************************************!*\
+  !*** ./packages/packages/core/editor-global-classes/src/mcp-integration/mcp-apply-unapply-global-classes.ts ***!
+  \**************************************************************************************************************/
 
 /*!*****************************************************************************************************************!*\
   !*** ./packages/packages/core/editor-global-classes/src/components/class-manager/flipped-color-swatch-icon.tsx ***!

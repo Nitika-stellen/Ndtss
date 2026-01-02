@@ -37,8 +37,8 @@ function renew_enqueue_admin_styles($hook) {
         wp_enqueue_script(
             'renew-admin-js',
             get_stylesheet_directory_uri() . '/renew/js/renew-admin.js',
-            array('sweetalert2'),
-            '1.0.0',
+            array('jquery', 'sweetalert2'),
+            '1.0.1', // Bumped version to force cache refresh
             true
         );
         
@@ -608,7 +608,7 @@ function renew_admin_view_submission($submission_id) {
                                     $user_id, $level, $sector
                                 ));
                                 if ($original_cert): ?>
-                                    <?php $method_for_suffix = strtoupper(get_post_meta($submission_id, '_method', true)); $sfx = ($method_for_suffix === 'RECERT') ? '-02' : '-01'; ?>
+                                    <?php $method_for_suffix = strtoupper(get_post_meta($submission_id, '_method', true)); $sfx = ($method_for_suffix === 'RECERT') ? '-03' : '-02'; ?>
                                     <br><small><strong>Suggested:</strong> <?php echo esc_html($original_cert . $sfx); ?> (Based on original certificate: <?php echo esc_html($original_cert); ?>)</small>
                                 <?php endif; ?>
                             <?php else: ?>
@@ -1048,16 +1048,23 @@ function renew_approve_submission($submission_id) {
             update_user_meta($user_id, $submission_key . '_approval_date', current_time('mysql'));
             
             // Also update the certificate status using the same system as Form 31
-            $cert_status_key = 'cert_status_' . $cert_number;
-            update_user_meta($user_id, $cert_status_key, 'approved');
-            update_user_meta($user_id, $cert_status_key . '_date', current_time('mysql'));
-            update_user_meta($user_id, $cert_status_key . '_approved_by', get_current_user_id());
-            update_user_meta($user_id, $cert_status_key . '_submission_method', 'cpd_form');
+            // Get renewal_method from submission to store in user meta
+            $submission_method = strtoupper(get_post_meta($submission_id, '_method', true));
+            $renewal_method = ($submission_method === 'RECERT') ? 'RECERT' : 'CPD';
+            
+            // Use update_certificate_status to ensure consistency
+            $status_data = [
+                'approved_by' => get_current_user_id(),
+                'submission_method' => 'cpd_form',
+                'renewal_method' => $renewal_method, // Store renewal_method for status display
+                'submission_id' => $submission_id
+            ];
+            update_certificate_status($user_id, $cert_number, 'approved', $status_data);
             
             renew_log_info('CPD approval: Certificate status updated', array(
                 'user_id' => $user_id,
                 'cert_number' => $cert_number,
-                'status_key' => $cert_status_key
+                'renewal_method' => $renewal_method
             ));
         }
     }
@@ -1114,18 +1121,24 @@ function renew_reject_submission($submission_id, $reason) {
     
     // Also update the certificate status in the user profile system for consistency
     if ($user_id && $cert_number) {
-        // Update certificate status using the same system as Form 31
-        $cert_status_key = 'cert_status_' . $cert_number;
-        update_user_meta($user_id, $cert_status_key, 'rejected');
-        update_user_meta($user_id, $cert_status_key . '_date', current_time('mysql'));
-        update_user_meta($user_id, $cert_status_key . '_rejected_by', get_current_user_id());
-        update_user_meta($user_id, $cert_status_key . '_rejection_reason', $reason);
-        update_user_meta($user_id, $cert_status_key . '_submission_method', 'cpd_form');
+        // Get renewal_method from submission to store in user meta
+        $submission_method = strtoupper(get_post_meta($submission_id, '_method', true));
+        $renewal_method = ($submission_method === 'RECERT') ? 'RECERT' : 'CPD';
+        
+        // Use update_certificate_status to ensure consistency
+        $status_data = [
+            'rejected_by' => get_current_user_id(),
+            'rejection_reason' => $reason,
+            'submission_method' => 'cpd_form',
+            'renewal_method' => $renewal_method, // Store renewal_method for status display
+            'submission_id' => $submission_id
+        ];
+        update_certificate_status($user_id, $cert_number, 'rejected', $status_data);
         
         renew_log_info('CPD rejection: Certificate status updated', array(
             'user_id' => $user_id,
             'cert_number' => $cert_number,
-            'status_key' => $cert_status_key
+            'renewal_method' => $renewal_method
         ));
     }
     
@@ -1360,32 +1373,104 @@ function renew_generate_certificate($submission_id) {
     }
 
     $cert_number = get_post_meta($submission_id, '_cert_number', true);
+    $submission_method_generate = get_post_meta($submission_id, '_method', true);
 
     // Calculate renewal issue date automatically
     $submission_method = strtoupper($submission_method_generate);
     $today = date('Y-m-d');
 
     if ($submission_method === 'RECERT') {
-        // For recertification: find renewal certificate expiry
+        // For recertification: Issue date should be based on RENEWAL certificate expiry date
+        // Get the renewal certificate (with -02 suffix) to use its expiry date
+        $base_cert_number = preg_replace('/-[0-9]+$/', '', $cert_number);
         $renewal_cert = $wpdb->get_row($wpdb->prepare(
-            "SELECT expiry_date FROM {$wpdb->prefix}sgndt_final_certifications
-             WHERE user_id = %d AND certificate_number LIKE %s AND status = 'issued'
+            "SELECT expiry_date, issue_date FROM {$wpdb->prefix}sgndt_final_certifications
+             WHERE user_id = %d AND certificate_number = %s AND status = 'issued'
              ORDER BY issue_date DESC LIMIT 1",
-            $user_id, $cert_number . '-01'
+            $user_id, $base_cert_number . '-02'
         ));
-        $reference_expiry = $renewal_cert ? $renewal_cert->expiry_date : $original_cert->expiry_date;
+        
+        if ($renewal_cert && !empty($renewal_cert->expiry_date)) {
+            // Use renewal certificate's expiry date as the recertification issue date
+            $renewal_expiry = $renewal_cert->expiry_date;
+            
+            // Use renewal expiry date if not past, otherwise current date
+            $renewal_date = (strtotime($renewal_expiry) < strtotime($today)) ? $today : $renewal_expiry;
+            
+            // Recertification is valid for 10 years from issue date
+            $expiry_date = date('Y-m-d', strtotime($renewal_date . ' +10 years'));
+            
+            renew_log_info('Recertification date calculation (based on renewal expiry)', array(
+                'renewal_cert_expiry' => $renewal_cert->expiry_date,
+                'renewal_cert_issue' => $renewal_cert->issue_date,
+                'renewal_date' => $renewal_date,
+                'expiry_date' => $expiry_date,
+                'validity_years' => 10
+            ));
+        } else {
+            // Fallback: If renewal certificate doesn't exist, use initial certificate's expiry date
+            $initial_cert = $wpdb->get_row($wpdb->prepare(
+                "SELECT issue_date, expiry_date FROM {$wpdb->prefix}sgndt_final_certifications
+                 WHERE user_id = %d 
+                 AND (
+                     certificate_number = %s 
+                     OR certificate_number = %s
+                     OR (certificate_number NOT LIKE '%%-02' AND certificate_number NOT LIKE '%%-03' AND certificate_number LIKE %s)
+                 )
+                 AND method = %s
+                 AND level = %s
+                 AND sector = %s
+                 ORDER BY issue_date ASC
+                 LIMIT 1",
+                $user_id,
+                $base_cert_number,
+                $base_cert_number . '-01',
+                $base_cert_number . '%',
+                $original_cert->method,
+                $original_cert->level,
+                $original_cert->sector
+            ));
+            
+            if ($initial_cert && !empty($initial_cert->expiry_date)) {
+                // Use initial certificate's expiry date as the recertification issue date
+                $initial_expiry = $initial_cert->expiry_date;
+                $renewal_date = (strtotime($initial_expiry) < strtotime($today)) ? $today : $initial_expiry;
+                $expiry_date = date('Y-m-d', strtotime($renewal_date . ' +10 years'));
+                
+                renew_log_warn('Recertification: Renewal certificate not found, using initial certificate expiry date', array(
+                    'initial_issue_date' => $initial_cert->issue_date,
+                    'initial_expiry_date' => $initial_cert->expiry_date,
+                    'renewal_date' => $renewal_date,
+                    'expiry_date' => $expiry_date
+                ));
+            } else {
+                // Last fallback: use original certificate expiry
+                $reference_expiry = $original_cert->expiry_date;
+                $renewal_date = (strtotime($reference_expiry) < strtotime($today)) ? $today : $reference_expiry;
+                $expiry_date = date('Y-m-d', strtotime($renewal_date . ' +10 years'));
+                renew_log_warn('Recertification: Could not find initial or renewal certificate, using fallback', array(
+                    'cert_number' => $cert_number,
+                    'renewal_date' => $renewal_date,
+                    'expiry_date' => $expiry_date
+                ));
+            }
+        }
     } else {
         // For renewal: use original certificate expiry
         $reference_expiry = $original_cert->expiry_date;
+        // Use expiry date if not past, otherwise current date
+        $renewal_date = (strtotime($reference_expiry) < strtotime($today)) ? $today : $reference_expiry;
+        // Renewal is valid for 5 years
+        $expiry_date = date('Y-m-d', strtotime($renewal_date . ' +5 years'));
     }
 
-    // Use expiry date if not past, otherwise current date
-    $renewal_date = (strtotime($reference_expiry) < strtotime($today)) ? $today : $reference_expiry;
-    $expiry_date = date('Y-m-d', strtotime($renewal_date . ' +5 years'));
-
     // Generate certificate number depending on method
-    $suffix = ($submission_method === 'RECERT') ? '-02' : '-01';
-    $renewed_certificate_number = $cert_number . $suffix;
+    // -02 for renewal, -03 for recertification
+    $suffix = ($submission_method === 'RECERT') ? '-03' : '-02';
+    
+    // Extract base number (remove any existing suffix like -01, -02, -03)
+    $base_number = preg_replace('/-[0-9]+$/', '', $cert_number);
+    $renewed_certificate_number = $base_number . $suffix;
 
     // Mark submission as being processed to prevent concurrent generations
     update_post_meta($submission_id, '_certificate_being_generated', '1');
@@ -1531,13 +1616,56 @@ function renew_generate_certificate($submission_id) {
     update_user_meta($user_id, $submission_key, 'issued');
     update_user_meta($user_id, $submission_key . '_issued_date', current_time('mysql'));
 
+    // Clear status from original certificate to remove action buttons
+    $original_cert_id = $original_cert->final_certification_id;
+    $original_cert_number = $original_cert->certificate_number;
+    
+    // Clear renewal_status in database table (so "approved" status doesn't show after certificate is generated)
+    $wpdb->update(
+        $wpdb->prefix . 'sgndt_final_certifications',
+        array(
+            'renewal_status' => NULL,
+            'renewal_method' => NULL,
+            'renewal_submitted_date' => NULL,
+            'renewal_approved_date' => NULL,
+            'renewal_submission_id' => NULL
+        ),
+        array('final_certification_id' => $original_cert_id),
+        array('%s', '%s', '%s', '%s', '%d'),
+        array('%d')
+    );
+    
+    renew_log_info('Cleared renewal_status from original certificate in database', array(
+        'original_cert_id' => $original_cert_id,
+        'original_cert_number' => $original_cert_number
+    ));
+    
+    // Clear certificate status meta keys for the original certificate
+    $cert_status_key_id = 'cert_status_id_' . $original_cert_id;
+    $cert_status_key_number = 'cert_status_' . $original_cert_number;
+    
+    // Delete all related meta keys
+    delete_user_meta($user_id, $cert_status_key_id);
+    delete_user_meta($user_id, $cert_status_key_id . '_date');
+    delete_user_meta($user_id, $cert_status_key_id . '_submission_method');
+    delete_user_meta($user_id, $cert_status_key_id . '_approved_by');
+    delete_user_meta($user_id, $cert_status_key_id . '_renewed_cert_number');
+    delete_user_meta($user_id, $cert_status_key_id . '_renewed_cert_id');
+    
+    delete_user_meta($user_id, $cert_status_key_number);
+    delete_user_meta($user_id, $cert_status_key_number . '_date');
+    delete_user_meta($user_id, $cert_status_key_number . '_submission_method');
+    delete_user_meta($user_id, $cert_status_key_number . '_approved_by');
+    delete_user_meta($user_id, $cert_status_key_number . '_cert_number');
+    
     renew_log_info('Certificate renewed successfully', array(
         'submission_id' => $submission_id,
         'user_id' => $user_id,
         'original_certificate' => $original_cert ? $original_cert->certificate_number : 'null',
         'renewed_certificate' => $renewed_certificate_number,
         'generated_by' => get_current_user_id(),
-        'user_profile_updated' => true
+        'user_profile_updated' => true,
+        'original_cert_status_cleared' => true
     ));
 
     // Redirect back to admin page with success message (no auto-download)
@@ -1607,10 +1735,78 @@ function renew_generate_certificate_pdf($original_cert, $renewed_certificate_num
     $expiry_date = $expiry_date_display;
     
     // Get user signature (if available)
-    $sign = get_user_meta($original_cert->user_id, 'user_signature', true);
+    $sign = '';
+    $user_signature = get_user_meta($original_cert->user_id, 'user_signature', true);
+    
+    if (!empty($user_signature)) {
+        $upload_dir = wp_upload_dir();
+        
+        // Check if signature is a file path or URL
+        if (strpos($user_signature, $upload_dir['basedir']) !== false) {
+            // It's a file path - convert to URL
+            $signature_path = $user_signature;
+            $signature_url = str_replace($upload_dir['basedir'], $upload_dir['baseurl'], $signature_path);
+        } elseif (strpos($user_signature, 'http') === 0 || strpos($user_signature, '//') === 0) {
+            // It's already a URL
+            $signature_url = $user_signature;
+            $signature_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $signature_url);
+        } else {
+            // Assume it's a relative path or filename
+            $signature_path = $upload_dir['basedir'] . '/gravity_forms/signatures/' . $user_signature;
+            $signature_url = $upload_dir['baseurl'] . '/gravity_forms/signatures/' . $user_signature;
+        }
+        
+        // Check if file exists and process it
+        if (file_exists($signature_path)) {
+            // Crop signature if function exists
+            if (function_exists('crop_signature_image')) {
+                $signature_cropped_path = $upload_dir['basedir'] . '/certificates/cropped_signature_' . $original_cert->user_id . '_' . time() . '.png';
+                $cropped_url = crop_signature_image($signature_path, $signature_cropped_path);
+                if ($cropped_url && !empty($cropped_url)) {
+                    $sign = $cropped_url;
+                } else {
+                    $sign = $signature_url;
+                }
+            } else {
+                $sign = $signature_url;
+            }
+        } elseif (file_exists($user_signature)) {
+            // Try direct path
+            if (function_exists('crop_signature_image')) {
+                $signature_cropped_path = $upload_dir['basedir'] . '/certificates/cropped_signature_' . $original_cert->user_id . '_' . time() . '.png';
+                $cropped_url = crop_signature_image($user_signature, $signature_cropped_path);
+                if ($cropped_url && !empty($cropped_url)) {
+                    $sign = $cropped_url;
+                } else {
+                    // Convert to URL if it's a local path
+                    if (strpos($user_signature, $upload_dir['basedir']) !== false) {
+                        $sign = str_replace($upload_dir['basedir'], $upload_dir['baseurl'], $user_signature);
+                    } else {
+                        $sign = $user_signature;
+                    }
+                }
+            } else {
+                // Convert to URL if it's a local path
+                if (strpos($user_signature, $upload_dir['basedir']) !== false) {
+                    $sign = str_replace($upload_dir['basedir'], $upload_dir['baseurl'], $user_signature);
+                } else {
+                    $sign = $user_signature;
+                }
+            }
+        } else {
+            // File doesn't exist, try using as URL directly
+            $sign = $user_signature;
+        }
+    }
+    
+    // If still empty, use default signature or empty div
     if (empty($sign)) {
-        // Use default signature or empty
-        $sign = get_stylesheet_directory_uri() . '/assets/logos/default-signature.png';
+        $default_signature = get_stylesheet_directory_uri() . '/assets/logos/default-signature.png';
+        // Check if default exists
+        $default_path = str_replace(get_stylesheet_directory_uri(), get_stylesheet_directory(), $default_signature);
+        if (file_exists($default_path)) {
+            $sign = $default_signature;
+        }
     }
     
     // Log certificate data for debugging
@@ -1648,8 +1844,8 @@ function renew_generate_certificate_pdf($original_cert, $renewed_certificate_num
                 <p style="border-top: 1px solid #444; margin-top: 0px; padding-top: 15px; text-align: center;width: fit-content; margin-inline: auto;">has met the established and published Requirements of NDTSS in accordance with ISO 9712:2021 <br>and certified in the following Non-destructive Testing Methods</p>
             </div>
             <div style="margin-top:-0px; text-align:center;">
-                <p style="display: inline;"><i>Signature of Certified Individual</i></p>
-                <img src="' . $sign . '" style="height:50px; margin-top:5px; border-bottom: 1px solid #000; display: inline;"/>
+                <p style="display: inline;"><i>Signature of Certified Individual</i></p>' . 
+                (!empty($sign) ? '<img src="' . esc_url($sign) . '" style="height:50px; margin-top:5px; border-bottom: 1px solid #000; display: inline;"/>' : '<div style="height:50px; margin-top:5px; border-bottom: 1px solid #000; display: inline-block; width: 200px;"></div>') . '
             </div>
             <table style="width:100%; border-collapse:collapse; text-align: center; margin-top:30px; border-color: #bdbdbd;" border="1" cellpadding="4">
                 <thead style="background: #f7f7f7;"><tr><th>Method</th><th>Cert No</th><th>Sector</th><th>Level</th><th>Scope</th><th>Issue Date</th><th>Expiry Date</th></tr></thead>

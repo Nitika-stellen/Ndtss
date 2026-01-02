@@ -307,7 +307,9 @@ class GF_Field_PayPal extends GF_Field_CreditCard {
 	 * @return array[]|array|string
 	 */
 	public function get_field_sidebar_messages() {
+		$addon = gf_ppcp();
 		$warning = $this->admin_field_validation_check( true );
+		$sidebar_warning = ! $addon->get_subscriptions_handler()->supports_form_selected_payment_methods( $addon->get_current_form() );
 
 		if ( $warning !== true ) {
 			return array(
@@ -316,7 +318,19 @@ class GF_Field_PayPal extends GF_Field_CreditCard {
 				'icon_helper_text' => esc_html__( 'This field requires additional configuration', 'gravityformsppcp' ),
 			);
 		}
-
+        
+		if (  $sidebar_warning ) {
+			return array(
+				'type'             => 'notice',
+				'content'          => sprintf(
+					'<div class="gform-typography--weight-regular">%s</div>',
+					esc_html__( 'The Credit Card field is not supported for subscriptions and will not display on your form. Users can still pay with a credit card by using the card option in the PayPal Checkout Modal.', 'gravityformsppcp' )
+				
+				),
+				'icon_helper_text' => esc_html__( 'This field is not supported for subscriptions', 'gravityformsppcp' ),
+			);
+		}
+		
 		return '';
 	}
 

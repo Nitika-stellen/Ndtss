@@ -13,6 +13,20 @@ __(
 				'CSS classes created in the editor panel will appear here. Once they are available, you can arrange their hierarchy, rename them, or delete them as needed.',
 				'elementor'
 			);
+__( "We've published your page and updated class names.", 'elementor' );
+__(
+							'Some new classes used the same names as existing ones. To prevent conflicts, we added the prefix',
+							'elementor'
+						);
+__( 'Before', 'elementor' );
+__( 'After', 'elementor' );
+__( 'Your designs and classes are safe.', 'elementor' );
+__(
+									'Only the prefixes were added. Find them in Class Manager by searching',
+									'elementor'
+								);
+__( 'Go to Class Manager', 'elementor' );
+__( 'Done', 'elementor' );
 // translators: %1: total usage count, %2: number of pages
 __(
 					'Will permanently remove it from your project and may affect the design across all elements using it. Used %1 times across %2 pages. This action cannot be undone.',
@@ -64,7 +78,6 @@ __( 'Popup', 'elementor' );
 __( 'Header', 'elementor' );
 __( 'Footer', 'elementor' );
 __( 'Locator', 'elementor' );
-__( 'Search', 'elementor' );
 __( 'Unused', 'elementor' );
 __( 'Empty', 'elementor' );
 __( 'On this page', 'elementor' );
@@ -72,3 +85,4 @@ __( 'Filters', 'elementor' );
 __( 'Clear all', 'elementor' );
 __( 'Filters', 'elementor' );
 __( 'Clear Filters', 'elementor' );
+__( 'Search', 'elementor' );

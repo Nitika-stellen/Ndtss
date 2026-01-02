@@ -4,8 +4,8 @@ Donate link: https://david.dw-perspective.org.uk/donate
 Tags: security, malware scanning, two factor authentication, firewall, login security
 Requires PHP: 5.6
 Requires at least: 5.0
-Tested up to: 6.8
-Stable tag: 5.4.3
+Tested up to: 6.9
+Stable tag: 5.4.4
 License: GPLv3 or later
 
 Protect your website investment with All-In-One Security (AIOS) – a comprehensive and easy to use security plugin designed especially for WordPress. Featuring login security tools, a cutting-edge firewall and much more.
@@ -244,6 +244,15 @@ Go to the settings menu after you activate the plugin and follow the instruction
 1. Features list.
 
 == Changelog ==
+
+= 5.4.4 - 5/Nov/2025 =
+
+* FEATURE: Added new and improved existing modules for UpdraftCentral.
+* FIX: The theme's custom 404 page does not parse and instead displays the shortcodes for wp-login.php, due to the login page having been renamed.
+* FIX: 404 detection was not working when using a custom 404 template page.
+* FIX: PHP Strict Standards warning for AIOWPSecurity_Base_Tasks::run_for_a_site()
+* FIX: Changed slider control class name from `slider` to `aiowps_slider` and updated CSS to prevent conflict with other plugins.
+* FIX: Resolved deprecated error in fputcsv() by providing the required $escape parameter when exporting CSV files.
 
 = 5.4.3 - 8/Sep/2025 =
 
@@ -1637,4 +1646,4 @@ those who want to enable the basic firewall but do not have "AllowOverride" opti
 - First commit to the WP repository.
 
 == Upgrade Notice ==
-* 5.4.3: Added the ability to enforce strong passwords along with a few bug fixes and UI changes.
+* 5.4.4: A few bug fixes and a refactor of module action commands to be used by UpdraftCentral.

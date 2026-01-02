@@ -186,7 +186,7 @@ class AIOWPSecurity_Admin_Init {
 		header("Expires: 0");
 		$output = fopen('php://output', 'w'); //open output stream
 
-		fputcsv($output, $export_keys); //let's put column names first
+		fputcsv($output, $export_keys, ',', '"', '\\'); // let's put column names first
 
 		foreach ($items as $item) {
 			$csv_line = array();
@@ -196,7 +196,7 @@ class AIOWPSecurity_Admin_Init {
 					$csv_line[] = ('created' == $key) ? AIOWPSecurity_Utility::convert_timestamp($item[$key]) : $item[$key];
 				}
 			}
-			fputcsv($output, $csv_line);
+			fputcsv($output, $csv_line, ',', '"', '\\');
 		}
 	}
 

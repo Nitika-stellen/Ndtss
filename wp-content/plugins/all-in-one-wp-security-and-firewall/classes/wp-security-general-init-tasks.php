@@ -309,7 +309,7 @@ class AIOWPSecurity_General_Init_Tasks {
 
 		// For 404 event logging
 		if ($aio_wp_security->configs->get_value('aiowps_enable_404_logging') == '1') {
-			add_action('wp_head', array($this, 'check_404_event'));
+			add_action('template_redirect', array($this, 'check_404_event'));
 		}
 
 		// For antibot post page set cookies.

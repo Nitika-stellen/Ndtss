@@ -99,9 +99,11 @@ function render_email_template_settings_page() {
     
     // Certificate Signatures Configuration
     echo '<h2>Certificate Signatures Configuration</h2>';
-    echo '<form method="post" action="">';
+    echo '<form method="post" action="" enctype="multipart/form-data">';
     wp_nonce_field('save_certificate_signatures', '_wpnonce_cert');
     echo '<table class="form-table">';
+    
+    // Chairman Section
     echo '<tr>';
     echo '<th scope="row">Chairman Name</th>';
     echo '<td>';
@@ -117,6 +119,22 @@ function render_email_template_settings_page() {
     echo '</td>';
     echo '</tr>';
     echo '<tr>';
+    echo '<th scope="row">Chairman Signature</th>';
+    echo '<td>';
+    $chairman_sig = get_option('certificate_chairman_signature', '');
+    if ($chairman_sig) {
+        echo '<div style="margin-bottom: 10px;"><img src="' . esc_url($chairman_sig) . '" style="max-width: 200px; max-height: 100px; border: 1px solid #ddd; padding: 5px;" /></div>';
+    }
+    echo '<input type="file" name="certificate_chairman_signature" accept="image/png,image/jpeg,image/jpg" />';
+    echo '<p class="description">Upload chairman signature image (PNG or JPG, recommended size: 200x100px)</p>';
+    if ($chairman_sig) {
+        echo '<label><input type="checkbox" name="remove_chairman_signature" value="1" /> Remove current signature</label>';
+    }
+    echo '</td>';
+    echo '</tr>';
+    
+    // President Section
+    echo '<tr>';
     echo '<th scope="row">President Name</th>';
     echo '<td>';
     echo '<input type="text" name="certificate_president_name" value="' . esc_attr(get_option('certificate_president_name', 'BABU SAJEESH KUMAR')) . '" class="regular-text" />';
@@ -131,6 +149,22 @@ function render_email_template_settings_page() {
     echo '</td>';
     echo '</tr>';
     echo '<tr>';
+    echo '<th scope="row">President Signature</th>';
+    echo '<td>';
+    $president_sig = get_option('certificate_president_signature', '');
+    if ($president_sig) {
+        echo '<div style="margin-bottom: 10px;"><img src="' . esc_url($president_sig) . '" style="max-width: 200px; max-height: 100px; border: 1px solid #ddd; padding: 5px;" /></div>';
+    }
+    echo '<input type="file" name="certificate_president_signature" accept="image/png,image/jpeg,image/jpg" />';
+    echo '<p class="description">Upload president signature image (PNG or JPG, recommended size: 200x100px)</p>';
+    if ($president_sig) {
+        echo '<label><input type="checkbox" name="remove_president_signature" value="1" /> Remove current signature</label>';
+    }
+    echo '</td>';
+    echo '</tr>';
+    
+    // Secretary Section
+    echo '<tr>';
     echo '<th scope="row">Secretary Name</th>';
     echo '<td>';
     echo '<input type="text" name="certificate_secretary_name" value="' . esc_attr(get_option('certificate_secretary_name', 'P.PUGALENDHI')) . '" class="regular-text" />';
@@ -144,6 +178,21 @@ function render_email_template_settings_page() {
     echo '<p class="description">Title of the Secretary</p>';
     echo '</td>';
     echo '</tr>';
+    echo '<tr>';
+    echo '<th scope="row">Secretary Signature</th>';
+    echo '<td>';
+    $secretary_sig = get_option('certificate_secretary_signature', '');
+    if ($secretary_sig) {
+        echo '<div style="margin-bottom: 10px;"><img src="' . esc_url($secretary_sig) . '" style="max-width: 200px; max-height: 100px; border: 1px solid #ddd; padding: 5px;" /></div>';
+    }
+    echo '<input type="file" name="certificate_secretary_signature" accept="image/png,image/jpeg,image/jpg" />';
+    echo '<p class="description">Upload secretary signature image (PNG or JPG, recommended size: 200x100px)</p>';
+    if ($secretary_sig) {
+        echo '<label><input type="checkbox" name="remove_secretary_signature" value="1" /> Remove current signature</label>';
+    }
+    echo '</td>';
+    echo '</tr>';
+    
     echo '</table>';
     echo '<p class="submit">';
     echo '<input type="submit" name="save_certificate_signatures" class="button-primary" value="Save Certificate Signatures" />';
@@ -177,10 +226,110 @@ add_action('admin_init', function () {
             }
         }
         
-        // Add admin notice
-        add_action('admin_notices', function() {
-            echo '<div class="notice notice-success is-dismissible"><p>Certificate signatures updated successfully!</p></div>';
-        });
+        // Handle signature image uploads
+        $signature_uploads = [
+            'certificate_chairman_signature' => 'chairman-signature',
+            'certificate_president_signature' => 'president-signature',
+            'certificate_secretary_signature' => 'secretary-signature'
+        ];
+        
+        $upload_errors = [];
+        $upload_success = [];
+        
+        foreach ($signature_uploads as $option_name => $file_prefix) {
+            // Handle removal
+            $remove_field = 'remove_' . str_replace('certificate_', '', $option_name);
+            if (isset($_POST[$remove_field]) && $_POST[$remove_field] == '1') {
+                $old_url = get_option($option_name, '');
+                if ($old_url) {
+                    // Delete old file
+                    $old_path = str_replace(
+                        get_stylesheet_directory_uri() . '/assets/logos/',
+                        get_stylesheet_directory() . '/assets/logos/',
+                        $old_url
+                    );
+                    if (file_exists($old_path)) {
+                        @unlink($old_path);
+                    }
+                }
+                delete_option($option_name);
+                $upload_success[] = ucfirst(str_replace('-', ' ', $file_prefix)) . ' removed successfully';
+                continue;
+            }
+            
+            // Handle new upload
+            if (isset($_FILES[$option_name]) && $_FILES[$option_name]['error'] === UPLOAD_ERR_OK) {
+                $file = $_FILES[$option_name];
+                
+                // Validate file type
+                $allowed_types = ['image/png', 'image/jpeg', 'image/jpg'];
+                $file_type = wp_check_filetype($file['name']);
+                
+                if (!in_array($file['type'], $allowed_types)) {
+                    $upload_errors[] = ucfirst(str_replace('-', ' ', $file_prefix)) . ': Invalid file type. Only PNG and JPG allowed.';
+                    continue;
+                }
+                
+                // Validate file size (max 2MB)
+                if ($file['size'] > 2 * 1024 * 1024) {
+                    $upload_errors[] = ucfirst(str_replace('-', ' ', $file_prefix)) . ': File too large. Maximum 2MB allowed.';
+                    continue;
+                }
+                
+                // Create target directory if it doesn't exist
+                $target_dir = get_stylesheet_directory() . '/assets/logos/';
+                if (!file_exists($target_dir)) {
+                    wp_mkdir_p($target_dir);
+                }
+                
+                // Generate unique filename
+                $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+                $filename = $file_prefix . '.' . $extension;
+                $target_path = $target_dir . $filename;
+                
+                // Delete old file if exists
+                $old_url = get_option($option_name, '');
+                if ($old_url) {
+                    $old_path = str_replace(
+                        get_stylesheet_directory_uri() . '/assets/logos/',
+                        get_stylesheet_directory() . '/assets/logos/',
+                        $old_url
+                    );
+                    if (file_exists($old_path) && $old_path !== $target_path) {
+                        @unlink($old_path);
+                    }
+                }
+                
+                // Move uploaded file
+                if (move_uploaded_file($file['tmp_name'], $target_path)) {
+                    // Save URL to options
+                    $file_url = get_stylesheet_directory_uri() . '/assets/logos/' . $filename;
+                    update_option($option_name, $file_url);
+                    $upload_success[] = ucfirst(str_replace('-', ' ', $file_prefix)) . ' uploaded successfully';
+                } else {
+                    $upload_errors[] = ucfirst(str_replace('-', ' ', $file_prefix)) . ': Failed to save file.';
+                }
+            }
+        }
+        
+        // Add admin notices
+        if (!empty($upload_success)) {
+            add_action('admin_notices', function() use ($upload_success) {
+                echo '<div class="notice notice-success is-dismissible"><p>' . implode('<br>', $upload_success) . '</p></div>';
+            });
+        }
+        
+        if (!empty($upload_errors)) {
+            add_action('admin_notices', function() use ($upload_errors) {
+                echo '<div class="notice notice-error is-dismissible"><p>' . implode('<br>', $upload_errors) . '</p></div>';
+            });
+        }
+        
+        if (empty($upload_errors) && empty($upload_success)) {
+            add_action('admin_notices', function() {
+                echo '<div class="notice notice-success is-dismissible"><p>Certificate signatures updated successfully!</p></div>';
+            });
+        }
     }
 });
 

@@ -285,40 +285,41 @@
 	<header>
 		<h2><?php esc_html_e("Our other plugins", 'wp-optimize');?></h2>
 		<p>
-			<?php $wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftplus/', 'UpdraftPlus'); ?> |
-			<?php $wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftcentral/', 'UpdraftCentral'); ?> |
-			<?php $wp_optimize->wp_optimize_url('https://teamupdraft.com/all-in-one-security/', 'All-In-One-Security (AIOS)'); ?> |
+			<?php $wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftplus/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=updraftplus&utm_creative_format=text', 'UpdraftPlus'); ?> |
+			<?php $wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftcentral/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=updraftcentral&utm_creative_format=text', 'UpdraftCentral'); ?> |
+			<?php $wp_optimize->wp_optimize_url('https://teamupdraft.com/all-in-one-security/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=aios&utm_creative_format=text', 'All-In-One-Security (AIOS)'); ?> |
 			<?php $wp_optimize->wp_optimize_url('https://www.internallinkjuicer.com/?utm_medium=software&utm_source=wpo&utm_content=wpo-mayalso-like-tab&utm_term=try-now-ilj&utm_campaign=ad', 'Internal Link Juicer'); ?> |
 			<?php $wp_optimize->wp_optimize_url('https://wpovernight.com/?utm_medium=software&utm_source=wpo&utm_content=wpo-mayalso-like-tab&utm_term=try-now-wp-overnight&utm_campaign=ad', 'WP Overnight'); ?> |
-			<?php $wp_optimize->wp_optimize_url('https://wpgetapi.com/?utm_medium=software&utm_source=wpo&utm_content=wpo-mayalso-like-tab&utm_term=try-now-wpgetapi&utm_campaign=ad', 'WPGetAPI '); ?> |
-			<?php $wp_optimize->wp_optimize_url('https://easyupdatesmanager.com/?utm_medium=software&utm_source=wpo&utm_content=wpo-mayalso-like-tab&utm_term=try-now-eum&utm_campaign=ad', 'Easy Updates Manager '); ?>
+			<?php $wp_optimize->wp_optimize_url('https://wpgetapi.com/?utm_medium=software&utm_source=wpo&utm_content=wpo-mayalso-like-tab&utm_term=try-now-wpgetapi&utm_campaign=ad', 'WPGetAPI'); ?> |
+			<?php $wp_optimize->wp_optimize_url('https://easyupdatesmanager.com/?utm_medium=software&utm_source=wpo&utm_content=wpo-mayalso-like-tab&utm_term=try-now-eum&utm_campaign=ad', 'Easy Updates Manager'); ?> |
+			<?php $wp_optimize->wp_optimize_url('https://burst-statistics.com/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=burst&utm_creative_format=text', 'Burst'); ?>
 		</p>
 	</header>
 	<div class="wpo-plugin-family__plugins">
 		<div class="wpo-plugin-family__plugin">
 			<?php
-			$wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftplus/', null, '<img class="addons" alt="'. esc_attr__("UpdraftPlus", 'wp-optimize').'" src="'. esc_url(WPO_PLUGIN_URL.'images/features/updraftplus_logo.svg') .'">');
-			$wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftplus/', null, '<h3>'. esc_html__('UpdraftPlus – the ultimate protection for your site, hard work and business', 'wp-optimize').'</h3>', 'class="other-plugin-title"');
+			$wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftplus/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=updraftplus-logo&utm_creative_format=ad', null, '<img class="addons" alt="'. esc_attr__("UpdraftPlus", 'wp-optimize').'" src="'. esc_url(WPO_PLUGIN_URL.'images/features/updraftplus_logo.png') .'">');
+			$wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftplus/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=updraftplus-logo&utm_creative_format=ad', null, '<h3>'. esc_html__('UpdraftPlus – the ultimate protection for your site, hard work and business', 'wp-optimize').'</h3>', 'class="other-plugin-title"');
 			?>
 			<p>
 				<?php echo esc_html__("Simplifies backups and restoration.", 'wp-optimize') . ' ' . esc_html__("It is the world's highest ranking and most popular scheduled backup plugin, with over three million currently-active installs.", 'wp-optimize'); ?>
 			</p>
-			<?php $wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftplus/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=cta-premium-upgrade-tab&utm_creative_format=text', null, esc_html__('Learn more about UpdraftPlus', 'wp-optimize')); ?>
+			<?php $wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftplus/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=try-for-free&utm_creative_format=ad', null, esc_html__('Try for free', 'wp-optimize')); ?>
 		</div>
 		<div class="wpo-plugin-family__plugin">
 			<?php
-			$wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftcentral/', null, '<img class="addons" alt="'. esc_attr__('UpdraftCentral Dashboard', 'wp-optimize').'" src="'. esc_url(WPO_PLUGIN_URL.'images/features/updraftcentral_logo.svg') .'">');
-			$wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftcentral/', null, '<h3>'. esc_html__('UpdraftCentral – save hours managing multiple WP sites from one place', 'wp-optimize').'</h3>', 'class="other-plugin-title"');
+			$wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftcentral/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=updraftcentral-logo&utm_creative_format=ad', null, '<img class="addons" alt="'. esc_attr__('UpdraftCentral Dashboard', 'wp-optimize').'" src="'. esc_url(WPO_PLUGIN_URL.'images/features/updraftcentral_logo.png') .'">');
+			$wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftcentral/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=updraftcentral-logo&utm_creative_format=ad', null, '<h3>'. esc_html__('UpdraftCentral – save hours managing multiple WP sites from one place', 'wp-optimize').'</h3>', 'class="other-plugin-title"');
 			?>
 			<p>
 				<?php esc_html_e("Highly efficient way to manage, optimize, update and backup multiple websites from one place.", 'wp-optimize');?>
 			</p>
-			<?php $wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftcentral/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=cta-premium-upgrade-tab&utm_creative_format=text', null, esc_html__('Learn more about UpdraftCentral', 'wp-optimize')); ?>
+			<?php $wp_optimize->wp_optimize_url('https://teamupdraft.com/updraftcentral/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=try-for-free&utm_creative_format=ad', null, esc_html__('Try for free', 'wp-optimize')); ?>
 		</div>
 		<div class="wpo-plugin-family__plugin">
 			<?php
-			$wp_optimize->wp_optimize_url('https://teamupdraft.com/all-in-one-security/', null, '<img class="addons" alt="'. esc_attr__('All-In-One-Security (AIOS)', 'wp-optimize').'" src="'. esc_url(WPO_PLUGIN_URL.'images/our-other-plugins/aios-logo-wide-sm.svg') .'">');
-			$wp_optimize->wp_optimize_url('https://teamupdraft.com/all-in-one-security/', null, '<h3>'. esc_html__('All-In-One-Security (AIOS) – the top-rated WordPress security and firewall plugin', 'wp-optimize').'</h3>', 'class="other-plugin-title"');
+			$wp_optimize->wp_optimize_url('https://teamupdraft.com/all-in-one-security/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=aios-logo&utm_creative_format=ad', null, '<img class="addons" alt="'. esc_attr__('All-In-One-Security (AIOS)', 'wp-optimize').'" src="'. esc_url(WPO_PLUGIN_URL.'images/our-other-plugins/aios-logo-wide-sm.png') .'">');
+			$wp_optimize->wp_optimize_url('https://teamupdraft.com/all-in-one-security/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=aios-logo&utm_creative_format=ad', null, '<h3>'. esc_html__('All-In-One-Security (AIOS) – the top-rated WordPress security and firewall plugin', 'wp-optimize').'</h3>', 'class="other-plugin-title"');
 			?>
 			<p>
 				<?php echo esc_html__("A comprehensive, all-in-one security plugin with a five-star user rating.", 'wp-optimize') . ' ' . esc_html__("It keeps bots at bay and protects your website from brute-force attacks.", 'wp-optimize') . ' ' . esc_html__("Set, forget and AIOS will do the hard work for you.", 'wp-optimize'); ?>
@@ -370,6 +371,16 @@
 				<?php echo esc_html__("A light yet powerful plugin that allows you to manage all kinds of updates.", 'wp-optimize') . ' ' . esc_html__("With a huge number of settings for endless customization.", 'wp-optimize') . ' ' . esc_html__("Easy Updates Manager is an obvious choice for anyone wanting to take control of their website updates.", 'wp-optimize'); ?>
 			</p>
 			<?php $wp_optimize->wp_optimize_url('https://easyupdatesmanager.com/?utm_medium=software&utm_source=wpo&utm_content=wpo-mayalso-like-tab&utm_term=try-now-eum&utm_campaign=ad', null, esc_html__('Try for free', 'wp-optimize')); ?>
+		</div>
+		<div class="wpo-plugin-family__plugin">
+			<?php
+			$wp_optimize->wp_optimize_url('https://burst-statistics.com/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=burst-logo&utm_creative_format=ad', null, '<img class="addons" alt="'. esc_attr__('Burst Statistics', 'wp-optimize').'" src="'. esc_url(WPO_PLUGIN_URL.'images/our-other-plugins/burst-logo-sm.png') .'">');
+			$wp_optimize->wp_optimize_url('https://burst-statistics.com/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=burst-logo&utm_creative_format=ad', null, '<h3>'. esc_html__('Burst Statistics – privacy-friendly analytics for WordPress', 'wp-optimize').'</h3>', 'class="other-plugin-title"');
+			?>
+			<p>
+				<?php echo esc_html__("Track website traffic with ease using Burst Statistics.", 'wp-optimize') . ' ' . esc_html__("This lightweight plugin gives you clear, actionable insights without compromising visitor privacy.", 'wp-optimize') . ' ' . esc_html__("Perfect for site owners who want GDPR-compliant stats without the bloat.", 'wp-optimize'); ?>
+			</p>
+			<?php $wp_optimize->wp_optimize_url('https://burst-statistics.com/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=try-for-free&utm_creative_format=ad', null, esc_html__('Try for free', 'wp-optimize')); ?>
 		</div>
 	</div><!-- END wpo-plugin-family__plugins -->
 </div>

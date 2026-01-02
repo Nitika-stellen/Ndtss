@@ -28,7 +28,7 @@ class WP_Optimization_repairtables extends WP_Optimization {
 	 */
 	public function optimize() {
 		// check if single table name posted or optimize all tables.
-		if (isset($this->data['optimization_table']) && '' != $this->data['optimization_table']) {
+		if (isset($this->data['optimization_table']) && '' !== $this->data['optimization_table']) {
 			$table = $this->optimizer->get_table($this->data['optimization_table']);
 
 			$result = (false === $table) ? false : $this->repair_table($table);
@@ -99,7 +99,7 @@ class WP_Optimization_repairtables extends WP_Optimization {
 
 		if (!empty($results)) {
 			foreach ($results as $row) {
-				if ('status' == strtolower($row->Msg_type) && 'ok' == strtolower($row->Msg_text)) {
+				if ('status' === strtolower($row->Msg_type) && 'ok' === strtolower($row->Msg_text)) {
 					$success = true;
 				}
 
@@ -145,7 +145,7 @@ class WP_Optimization_repairtables extends WP_Optimization {
 
 		$corrupted_tables = $this->get_corrupted_tables_count();
 
-		if (0 == $corrupted_tables) {
+		if (0 === $corrupted_tables) {
 			$this->register_output(__('No corrupted tables found', 'wp-optimize'));
 		} else {
 			// translators: %s is number of corrupted tables

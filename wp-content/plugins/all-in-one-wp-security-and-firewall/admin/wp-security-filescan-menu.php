@@ -53,21 +53,13 @@ class AIOWPSecurity_Filescan_Menu extends AIOWPSecurity_Admin_Menu {
 	 * @global $aiowps_feature_mgr
 	 */
 	protected function render_file_change_detect() {
-		global $aio_wp_security, $aiowps_feature_mgr;
+		global $aio_wp_security;
 
-		$fcd_data = AIOWPSecurity_Scan::get_fcd_data();
-		$previous_scan = isset($fcd_data['last_scan_result']);
+		$aios_commands = new AIOWPSecurity_Commands();
 
-		$next_fcd_scan_time = AIOWPSecurity_Scan::get_next_scheduled_scan();
+		$scanner_data = $aios_commands->get_scanner_data();
 
-		if (false == $next_fcd_scan_time) {
-			$next_scheduled_scan = '<span>' . esc_html__('Nothing is currently scheduled', 'all-in-one-wp-security-and-firewall') . '</span>';
-		} else {
-			$scan_time = AIOWPSecurity_Utility::convert_timestamp($next_fcd_scan_time, 'D, F j, Y H:i');
-			$next_scheduled_scan = '<span class="aiowps_next_scheduled_date_time">' . esc_html($scan_time) . '</span>';
-		}
-		
-		$aio_wp_security->include_template('wp-admin/scanner/file-change-detect.php', false, array('aiowps_feature_mgr' => $aiowps_feature_mgr, 'previous_scan' => $previous_scan, 'next_scheduled_scan' => $next_scheduled_scan));
+		$aio_wp_security->include_template('wp-admin/scanner/file-change-detect.php', false, $scanner_data);
 	}
 	
 	/**

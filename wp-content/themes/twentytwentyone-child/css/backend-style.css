@@ -12,6 +12,7 @@ div#registeredUsersTable_wrapper a.button { padding: 4px 5px; line-height: 1.5; 
 .mb-1{margin-bottom: 10px !important;}
 .mb-2{margin-bottom: 20px !important;}
 /* admin-panel */
+.wp-core-ui .button-primary, .wp-core-ui .button.button.button-secondary{ display: inline-flex ; align-items: center; gap: 5px; }
 #adminmenu, #adminmenu .wp-submenu, #adminmenuback, #adminmenuwrap{ width: 220px;    background: #00385e; }
 .folded #adminmenu a.menu-top { padding: 0px 4px !important; background: transparent !important; }
 #adminmenu .wp-submenu{left: 220px;}
@@ -127,6 +128,7 @@ div#add-marks-form .marks-entry-wrapper h3 { margin-top: 0; }
 .rejected_status { padding: 3px 6px; background: #ffd4d1; border-radius: 60px; display: flex ; align-items: center; justify-content: center; color: #a91409; }
 .table_footer { display: flex ; justify-content: space-between; align-items: center; margin-block: 15px; }
 .table_custom thead th .sort-arrow { color: #111; font-size: 12px; cursor: pointer; }
+.gform-settings__content ul.subsubsub li a.current span { color: #fff !important; }
 
  #pagination button {
         padding: 5px 12px;

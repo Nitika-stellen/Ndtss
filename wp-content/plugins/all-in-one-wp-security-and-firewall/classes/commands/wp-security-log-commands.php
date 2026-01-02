@@ -123,4 +123,223 @@ trait AIOWPSecurity_Log_Commands_Trait {
 			'data' => $data
 		);
 	}
+
+	/**
+	 * Initializing the WP List API, since UDC commands do not load all parts of WP.
+	 *
+	 * @return void
+	 */
+	private function init_wp_list() {
+		if (!function_exists('submit_button')) {
+			require_once(ABSPATH . 'wp-admin/includes/template.php');
+		}
+
+		if (!function_exists('render_screen_reader_content')) {
+			require_once(ABSPATH . 'wp-admin/includes/class-wp-screen.php');
+		}
+
+		if (!function_exists('get_column_headers')) {
+			require_once(ABSPATH . 'wp-admin/includes/screen.php');
+		}
+	}
+
+	/**
+	 * Returns the data for downloading the audit log.
+	 *
+	 * @return array|WP_Error
+	 */
+	public function process_audit_log_export() {
+		if (!AIOWPSecurity_Utility_Permissions::has_manage_cap()) {
+			return new WP_Error(esc_html__('Sorry, you do not have enough privilege to execute the requested action.', 'all-in-one-wp-security-and-firewall'));
+		}
+
+		$this->init_wp_list();
+
+		return $this->export_audit_logs();
+	}
+
+	/**
+	 * Returns the HTML for the audit log.
+	 *
+	 * @return array
+	 */
+	public function get_audit_log_contents() {
+		global $aio_wp_security;
+
+		$this->init_wp_list();
+
+		// Needed for rendering the audit log table
+		include_once AIO_WP_SECURITY_PATH . '/admin/wp-security-list-audit.php';
+		$data = array();
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- PCP warning. Processing form data without nonce verification. No nonce.
+		if (isset($_GET['event-filter'])) $data['event-filter'] = sanitize_text_field(wp_unslash($_GET['event-filter'])); // Failed logins and logins only to show as audit log
+		$audit_log_list = new AIOWPSecurity_List_Audit_Log($data);
+
+		$tab = isset($_GET["tab"]) ? sanitize_text_field(wp_unslash($_GET["tab"])) : '';
+		$page = isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended -- PCP warning. Processing form data without nonce verification. No nonce.
+
+		$content = $aio_wp_security->include_template('wp-admin/dashboard/audit-logs.php', true, array('audit_log_list' => $audit_log_list, 'page' => $page, 'tab' => $tab));
+
+		return array(
+			'status' => 'success',
+			'content' => $content,
+		);
+	}
+
+	/**
+	 * Deletes entry from audit log.
+	 *
+	 * @param array $data Table config data.
+	 *
+	 * @return array|WP_Error
+	 */
+	public function do_delete_audit_log($data) {
+		if (!AIOWPSecurity_Utility_Permissions::has_manage_cap()) {
+			return new WP_Error(esc_html__('Sorry, you do not have enough privilege to execute the requested action.', 'all-in-one-wp-security-and-firewall'));
+		}
+
+		$this->init_wp_list();
+
+		if (!class_exists('AIOWPSecurity_Admin_Menu')) {
+			include_once AIO_WP_SECURITY_PATH . '/admin/wp-security-admin-menu.php';
+		}
+
+		return $this->delete_audit_log($data);
+	}
+
+	/**
+	 * Renders audit log after actions (delete/orderby, block/unblock, etc.)
+	 *
+	 * @param array $data Table config data.
+	 *
+	 * @return array
+	 */
+	public function do_render_audit_log_tab($data) {
+		$this->init_wp_list();
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- PCP warning. Nonce checked in previous function.
+		if (empty($data)) return array();
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput -- PCP warning. Nonce checked in previous function and sanitization done at later.
+		$data = wp_unslash($data);
+
+		if (!class_exists('AIOWPSecurity_Admin_Menu')) {
+			include_once AIO_WP_SECURITY_PATH . '/admin/wp-security-admin-menu.php';
+		}
+
+		// Needed for rendering the audit log table
+		include_once(AIO_WP_SECURITY_PATH.'/admin/wp-security-list-audit.php');
+		$audit_log_list = new AIOWPSecurity_List_Audit_Log($data);
+
+		return $audit_log_list->ajax_response(true);
+	}
+
+	/**
+	 * Parses raw audit log data for human-readable output.
+	 *
+	 * @param AIOWPSecurity_List_Audit_Log $audit_log_list Audit log object.
+	 * @param array                        $data           Raw audit log data.
+	 *
+	 * @return array
+	 */
+	private function parse_audit_log_data($audit_log_list, $data) {
+		$items = array();
+
+		foreach ($data as $db_item) {
+			if (empty($db_item)) {
+				continue;
+			}
+
+			$item = array();
+
+			foreach ($db_item as $key => $value) {
+				switch ($key) {
+					case 'created':
+						$item[$key] = AIOWPSecurity_Utility::convert_timestamp($value);
+						break;
+					case 'event_type':
+						$item[$key] = $audit_log_list->column_event_type($db_item);
+						break;
+					case 'details':
+						$item[$key] = $audit_log_list->column_details($db_item);
+						break;
+					case 'stacktrace':
+						$item[$key] = $audit_log_list->column_stacktrace($db_item);
+						break;
+					default:
+						$item[$key] = $value;
+						break;
+				}
+			}
+
+			$items[] = $item;
+		}
+
+		return $items;
+	}
+
+	/**
+	 * Returns the data for the audit log table.
+	 *
+	 * @param array $data Configuration data.
+	 *
+	 * @return array
+	 */
+	public function get_audit_log_data($data) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput -- PCP warning. Nonce checked in previous function and sanitization done at later.
+		$data = isset($data) ? wp_unslash($data) : array();
+
+		$data = isset($data['data']) ? $data['data'] : $data;
+
+		$this->init_wp_list();
+		$final_column = array();
+
+		// Needed for rendering the audit log table
+		include_once(AIO_WP_SECURITY_PATH.'/admin/wp-security-list-audit.php');
+		$audit_log_list = new AIOWPSecurity_List_Audit_Log($data);
+
+		$audit_log_list->prepare_items();
+
+		list($columns, $hidden) = $audit_log_list->get_column_info();
+
+		foreach ($columns as $column_key => $column_display_name) {
+			if ('cb' !== $column_key) {
+				if (!in_array($column_key, $hidden, true)) {
+					$final_column[$column_key] = array('label' => $column_display_name);
+				}
+			}
+		}
+
+		$audit_log_items = isset($audit_log_list->items) ? $audit_log_list->items : array();
+
+		foreach ($audit_log_items as $key => $item) {
+			$ip = isset($item['ip']) ? $item['ip'] : '';
+
+			if ('' !== $ip) {
+				$audit_log_items[$key]['is_ip_locked'] = AIOWPSecurity_Utility::check_locked_ip($ip, 'audit-log');
+				$audit_log_items[$key]['is_ip_blacklisted'] = AIOWPSecurity_Utility::check_blacklist_ip($ip);
+			}
+		}
+
+		$items = $this->parse_audit_log_data($audit_log_list, $audit_log_items);
+
+		$bulk_actions = $audit_log_list->get_bulk_actions();
+
+		$paged = !empty($data['paged']) ? (int) $data['paged'] : 1;
+
+		AIOWPSecurity_Audit_Events::setup_event_types();
+
+		return array(
+			'audit_log_data' => array(
+				'bulk_actions' => $bulk_actions,
+				'event_types' => AIOWPSecurity_Audit_Events::$event_types,
+				'log_levels' => AIOWPSecurity_Audit_Events::$log_levels,
+				'columns' => $final_column,
+				'items' => $items,
+				'is_multisite' => is_multisite(),
+				'pagination' => array('page' => $paged, 'pages' => $audit_log_list->get_pagination_arg('total_pages'), 'results' => $audit_log_list->get_pagination_arg('total_items')),
+			),
+		);
+	}
 }

@@ -333,4 +333,13 @@ class AIOS_Helper {
 	 public static function clear_messages() {
 		self::$messages = array();
 	 }
+
+	/**
+	 * This function checks if the current request is an UpdraftCentral request by looking for a specific constant.
+	 *
+	 * @return boolean - True if the request is from UpdraftCentral, false otherwise.
+	 */
+	public static function is_updraft_central_request() {
+		return defined('UPDRAFTCENTRAL_COMMAND') && UPDRAFTCENTRAL_COMMAND;
+	}
 }

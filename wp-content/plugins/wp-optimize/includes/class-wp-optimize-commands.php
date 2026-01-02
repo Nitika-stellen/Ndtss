@@ -603,6 +603,7 @@ class WP_Optimize_Commands {
 	 * Returns array of translations used by the WPO plugin. Primarily used for UpdraftCentral
 	 * consumption.
 	 *
+	 * @param array $params Optional parameters for the translation request
 	 * @return array The WPO translations
 	 */
 	public function get_js_translation($params = array()) {

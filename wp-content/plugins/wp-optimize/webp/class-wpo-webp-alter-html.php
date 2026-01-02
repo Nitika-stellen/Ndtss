@@ -128,7 +128,7 @@ class WPO_WebP_Alter_HTML {
 			// it can also be ie "image.jpg 2x"
 			$srcset_entry = trim($srcset_entry);
 			$entry_parts = preg_split('/\s+/', $srcset_entry, 2);
-			if (count($entry_parts) == 2) {
+			if (2 === count($entry_parts)) {
 				list($src, $descriptors) = $entry_parts;
 			} else {
 				$src = $srcset_entry;

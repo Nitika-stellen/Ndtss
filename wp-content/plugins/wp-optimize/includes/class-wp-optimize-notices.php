@@ -43,7 +43,7 @@ class WP_Optimize_Notices extends Updraft_Notices_1_2 {
 		$sale_description .= sprintf(__('Premium is %1$s compatible with WordPress multisite, WooCommerce and other add-ons %2$s, including multilingual and multi-currency WordPress plugins.', 'wp-optimize'), '<b>', '</b>');
 		$sale_description .= '<br>';
 
-		$bf_checkout_html = '<b><a href="https://teamupdraft.com/wp-optimize/blackfriday/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=unknown&utm_creative_format=unknown" target="_blank">'.__('Save 20% with code blackfridaysale2025', 'wp-optimize').'</a></b>';
+		$bf_checkout_html = '<b><a href="https://teamupdraft.com/plugin-black-friday/?utm_source=udp-plugin&utm_medium=referral&utm_campaign=bf25-udp-plugin-banner&utm_content=bf-sale&utm_creative_format=advert" target="_blank">'.__('Save 20% with code blackfridaysale2025', 'wp-optimize').'</a></b>';
 
 		$child_notice_content = array(
 			'updraftplus' => array(
@@ -141,7 +141,7 @@ class WP_Optimize_Notices extends Updraft_Notices_1_2 {
 				// translators: %s is a link to pricing/check out page
 				'text' => $sale_description . '<br>' . sprintf(__('%s at checkout.', 'wp-optimize'), $bf_checkout_html) . ' <b>' . __('Hurry, offer ends 2 December.', 'wp-optimize') . '</b>',
 				'image' => 'notices/wpo_sale_icon.png',
-				'button_link' => 'https://teamupdraft.com/wp-optimize/blackfriday/',
+				'button_link' => 'https://teamupdraft.com/plugin-black-friday/?utm_source=udp-plugin&utm_medium=referral&utm_campaign=bf25-udp-plugin-banner&utm_content=bf-sale&utm_creative_format=advert',
 				'button_meta' => 'no-button',
 				'dismiss_time' => 'dismiss_season',
 				// 'discount_code' => 'blackfridaysale2022',
@@ -206,7 +206,7 @@ class WP_Optimize_Notices extends Updraft_Notices_1_2 {
 	 * @param  boolean      $also_require_active a bool to indicate if the plugin should be active or not
 	 * @return boolean                           a bool to indicate if the notice should be displayed or not
 	 */
-	public function is_backup_plugin_installed($product = null, $also_require_active = false) {
+	public function is_backup_plugin_installed(?string $product = null, bool $also_require_active = false): bool {
 		$backup_plugins = array('updraftplus' => 'UpdraftPlus', 'backwpup' => 'BackWPup', 'backupwordpress' => 'BackupWordPress', 'vaultpress' => 'VaultPress', 'wp-db-backup' => 'WP-DB-Backup', 'backupbuddy' => 'BackupBuddy');
 
 		foreach ($backup_plugins as $slug => $title) {
@@ -309,11 +309,11 @@ class WP_Optimize_Notices extends Updraft_Notices_1_2 {
 	 */
 	protected function render_specified_notice($advert_information, $return_instead_of_echo = false, $position = 'top') {
 	
-		if ('bottom' == $position) {
+		if ('bottom' === $position) {
 			$template_file = 'bottom-notice.php';
-		} elseif ('report' == $position) {
+		} elseif ('report' === $position) {
 			$template_file = 'report.php';
-		} elseif ('report-plain' == $position) {
+		} elseif ('report-plain' === $position) {
 			$template_file = 'report-plain.php';
 		} else {
 			$template_file = 'horizontal-notice.php';

@@ -13,7 +13,7 @@
 				<th scope="row"><?php esc_html_e('Enable basic firewall protection', 'all-in-one-wp-security-and-firewall'); ?>:</th>
 				<td>
 					<div class="aiowps_switch_container">
-						<?php AIOWPSecurity_Utility_UI::setting_checkbox(esc_html__('Enable this to apply basic firewall protection to your site.', 'all-in-one-wp-security-and-firewall'), 'aiowps_enable_basic_firewall', '1' == $aio_wp_security->configs->get_value('aiowps_enable_basic_firewall')); ?>
+						<?php AIOWPSecurity_Utility_UI::setting_checkbox(esc_html__('Enable this to apply basic firewall protection to your site.', 'all-in-one-wp-security-and-firewall'), 'aiowps_enable_basic_firewall', '1' == $aiowps_enable_basic_firewall); ?>
 						<span class="aiowps_more_info_anchor"><span class="aiowps_more_info_toggle_char">+</span><span class="aiowps_more_info_toggle_text"><?php esc_html_e('More info', 'all-in-one-wp-security-and-firewall'); ?></span></span>
 						<div class="aiowps_more_info_body">
 								<?php
@@ -32,7 +32,7 @@
 			</tr>
 			<tr valign="top">
 				<th scope="row"><label for="aiowps_max_file_upload_size"><?php esc_html_e('Max file upload size (MB)', 'all-in-one-wp-security-and-firewall'); ?>:</label></th>
-				<td><input id="aiowps_max_file_upload_size" type="number" min="0" step="1" name="aiowps_max_file_upload_size" value="<?php echo esc_html($aio_wp_security->configs->get_value('aiowps_max_file_upload_size')); ?>" />
+				<td><input id="aiowps_max_file_upload_size" type="number" min="0" step="1" name="aiowps_max_file_upload_size" value="<?php echo esc_html($aiowps_max_file_upload_size); ?>" />
 				<?php /* translators: %s: Upload limit. */ ?>
 				<span class="description"><?php echo sprintf(esc_html__('The value for the maximum file upload size used in the .htaccess file. (Defaults to %sMB if left blank)', 'all-in-one-wp-security-and-firewall'), esc_html(AIOS_FIREWALL_MAX_FILE_UPLOAD_LIMIT_MB)); ?></span>
 				</td>

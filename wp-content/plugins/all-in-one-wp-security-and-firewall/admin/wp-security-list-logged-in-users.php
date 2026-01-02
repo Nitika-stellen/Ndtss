@@ -79,13 +79,12 @@ class AIOWPSecurity_List_Logged_In_Users extends AIOWPSecurity_List_Table {
 	 * @return array
 	 */
 	public function get_sortable_columns() {
-		$sortable_columns = array(
+		return array(
 			'user_id' => array('user_id',false),
 			'username' => array('username',false),
 			'ip_address' => array('ip_address',false),
 			'site_id' => array('site_id',false),
 		);
-		return $sortable_columns;
 	}
 	
 	/**
@@ -106,6 +105,7 @@ class AIOWPSecurity_List_Logged_In_Users extends AIOWPSecurity_List_Table {
 	 * @return void
 	 */
 	private function process_bulk_action() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput -- PCP warning. Nonce used.
 		if (empty($_REQUEST['_wpnonce']) || !isset($_REQUEST['_wp_http_referer'])) return;
 		$result = AIOWPSecurity_Utility_Permissions::check_nonce_and_user_cap($_REQUEST['_wpnonce'], 'bulk-items');
 		if (is_wp_error($result)) return;
@@ -114,9 +114,11 @@ class AIOWPSecurity_List_Logged_In_Users extends AIOWPSecurity_List_Table {
 			$this->force_user_logout(array(), true);
 		} elseif ('force_logout_selected' === $this->current_action()) {
 			if (isset($_REQUEST['item'])) {
-				if (is_array($_REQUEST['item'])) $this->force_user_logout($_REQUEST['item']);
+
+				if (is_array($_REQUEST['item'])) $this->force_user_logout(wp_unslash($_REQUEST['item']));
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended -- PCP warning. Nonce used.
 	}
 
 	/**
@@ -134,6 +136,7 @@ class AIOWPSecurity_List_Logged_In_Users extends AIOWPSecurity_List_Table {
 
 		if ($logout_all) {
 			// get all user_id(except for the admin) in the table and make it an array for users
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
 			$users = $wpdb->get_col("SELECT user_id FROM $logged_in_users_table");
 		}
 
@@ -202,8 +205,10 @@ class AIOWPSecurity_List_Logged_In_Users extends AIOWPSecurity_List_Table {
 		$offset = ($current_page - 1) * $per_page;
 
 		// Parameters that are going to be used to order the result
-		$orderby = isset($_GET["orderby"]) ? strip_tags($_GET["orderby"]) : '';
-		$order = isset($_GET["order"]) ? strip_tags($_GET["order"]) : '';
+		// phpcs:disable -- Rule won't be silenced any other way. No nonce.
+		$orderby = isset($_GET["orderby"]) ? sanitize_text_field(wp_unslash($_GET["orderby"])) : '';
+		$order = isset($_GET["order"]) ? sanitize_text_field(wp_unslash($_GET["order"])) : '';
+		// phpcs:enable -- Rule won't be silenced any other way. No nonce.
 
 		// By default show the most recent logged in user entries.
 		$orderby = empty($orderby) ? 'created' : esc_sql($orderby);
@@ -220,12 +225,15 @@ class AIOWPSecurity_List_Logged_In_Users extends AIOWPSecurity_List_Table {
 		$this->process_bulk_action(); // Process bulk actions
 
 		$where_sql = $this->get_where_sql();
-		$total_items = $wpdb->get_var("SELECT COUNT(*) FROM `{$logged_in_users_table}` {$where_sql}");
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
+		$total_items = $wpdb->get_var("SELECT COUNT(*) FROM `{$logged_in_users_table}` $where_sql");
 
 		if ($ignore_pagination) {
-			$data = $wpdb->get_results("SELECT * FROM `{$logged_in_users_table}` {$where_sql} ORDER BY {$orderby} {$order}", 'ARRAY_A');
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
+			$data = $wpdb->get_results("SELECT * FROM `{$logged_in_users_table}` $where_sql ORDER BY $orderby $order", 'ARRAY_A');
 		} else {
-			$data = $wpdb->get_results("SELECT * FROM `{$logged_in_users_table}` {$where_sql} ORDER BY {$orderby} {$order} LIMIT {$per_page} OFFSET {$offset}", 'ARRAY_A');
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
+			$data = $wpdb->get_results("SELECT * FROM `{$logged_in_users_table}` $where_sql ORDER BY $orderby $order LIMIT $per_page OFFSET $offset", 'ARRAY_A');
 		}
 
 		$this->items = $data;

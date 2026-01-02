@@ -47,7 +47,8 @@ class Atomic_Button extends Atomic_Widget_Base {
 				->default( [] ),
 
 			'text' => String_Prop_Type::make()
-				->default( __( 'Click here', 'elementor' ) ),
+				->default( __( 'Click here', 'elementor' ) )
+				->description( 'The text displayed on the button.' ),
 
 			'link' => Link_Prop_Type::make(),
 
@@ -76,6 +77,7 @@ class Atomic_Button extends Atomic_Widget_Base {
 	protected function get_settings_controls(): array {
 		return [
 			Link_Control::bind_to( 'link' )
+				->set_placeholder( __( 'Type or paste your URL', 'elementor' ) )
 				->set_label( __( 'Link', 'elementor' ) ),
 			Text_Control::bind_to( '_cssid' )
 				->set_label( __( 'ID', 'elementor' ) )

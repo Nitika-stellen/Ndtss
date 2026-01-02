@@ -63,13 +63,39 @@ function ul_enqueue_membership_scripts() {
     wp_enqueue_script('sweetalert2', 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js', [], '11', true);
 
     // Enqueue custom script
-    wp_enqueue_script('membership-custom-js',  get_stylesheet_directory_uri() . '/membership/js/membership-custom.js', ['jquery', 'datatables-js', 'sweetalert2'], '1.0', true);
+    wp_enqueue_script('membership-custom-js',  get_stylesheet_directory_uri() . '/membership/js/membership-customs.js', ['jquery', 'datatables-js', 'sweetalert2'], '1.0', true);
 
     // Localize script for AJAX
     wp_localize_script('membership-custom-js', 'membershipCertificates', [
         'ajaxurl' => admin_url('admin-ajax.php'),
-        'nonce'   => wp_create_nonce('generate_certificate_nonce')
+        'nonce'   => wp_create_nonce('generate_certificate_nonce'),
+        'send_email_nonce' => wp_create_nonce('send_certificate_email_nonce'),
+        'cert_review_nonce' => wp_create_nonce('cert_review_nonce')
     ]);
+    
+    // Add inline CSS for badges
+    wp_add_inline_style('datatables-css', '
+        .import-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .import-badge.admin-approval {
+            background-color: #28a745;
+            color: white;
+        }
+        .import-badge.csv-import {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .swal2-container {
+            z-index: 100010 !important;
+        }
+    ');
 }
 
 function ul_corporate_membership_form_users_page() {
@@ -102,9 +128,11 @@ function ul_corporate_membership_form_users_page() {
                     <th>User Email</th>
                     <th>User Phone</th>
                     <th>Membership Duration</th>
+                    <th>Source</th>
+                    <th>Member Since</th>
                     <th>Status</th>
                     <th>Payment Status</th>
-                    <th>Submitted Date</th>
+                    <th>Certificate From</th>
                     <th>Expiry Date</th>
                     <th class="action_th">Actions</th>
                 </tr>
@@ -112,11 +140,23 @@ function ul_corporate_membership_form_users_page() {
             <tbody>
                 <?php  
                 if (is_wp_error($entries)) {
-                    echo '<tr><td colspan="8">Error: ' . $entries->get_error_message() . '</td></tr>';
+                    echo '<tr><td colspan="9">Error: ' . esc_html($entries->get_error_message()) . '</td></tr>';
+                } elseif (empty($entries) || !is_array($entries)) {
+                    echo '<tr><td colspan="9">No corporate membership entries found.</td></tr>';
                 } else {
+                    $entry_count = 0;
                     foreach ($entries as $entry) {
+                        if (empty($entry['id'])) {
+                            continue;
+                        }
+                        
                         $entry_id = $entry['id'];
                         $user_id = rgar($entry, 'created_by');
+
+                        // Skip if no user ID
+                        if (empty($user_id)) {
+                            continue;
+                        }
 
                         // Skip duplicate users
                         if (in_array($user_id, $displayed_users)) {
@@ -125,14 +165,51 @@ function ul_corporate_membership_form_users_page() {
                         $displayed_users[] = $user_id;
 
                         $user_info = get_userdata($user_id);
-                        $date_created = $entry['date_created'];
+                        
+                        // Skip if user doesn't exist
+                        if (!$user_info) {
+                            continue;
+                        }
+                        
+                        $date_created = isset($entry['date_created']) ? $entry['date_created'] : '';
                         $payment_status = rgar($entry, 'payment_status');
-                        $membership_type = $entry[31];
-                        $membership_type_parts = explode('|', $membership_type);
-                        $membership_label = $membership_type_parts[0];
+                       //  $membership_type = isset($entry[31]) ? $entry[31] : '';
+                       //  $membership_type_parts = !empty($membership_type) ? explode('|', $membership_type) : array('N/A');
+                       // $membership_label = $membership_type_parts[0];
+                       //  $membership_label = $membership_type;
+
+                        $membership_label = 'N/A';
+$form = GFAPI::get_form($form_id);
+
+if ($form) {
+    foreach ($form['fields'] as $field) {
+        // Look for product fields that have a value
+        if ($field->type === 'product' && !empty($entry[$field->id])) {
+            $product_value = $entry[$field->id];
+            if (!empty($product_value)) {
+                $parts = explode('|', $product_value);
+                $membership_label = trim($parts[0]);
+                break; // Stop at the first found product with a value
+            }
+        }
+    }
+}
 
                         $status = get_user_meta($user_id, 'membership_approval_status', true);
+                        
+                        // Default to current user meta
                         $expiry_date = get_user_meta($user_id, 'membership_expiry_date', true) ?: 'N/A';
+                        
+                        // Check history log to see if this specific entry has a historical expiry date
+                        $history_log = get_user_meta($user_id, 'membership_history_log', true);
+                        if (is_array($history_log)) {
+                            foreach ($history_log as $history_item) {
+                                if (isset($history_item['entry_id']) && $history_item['entry_id'] == $entry_id) {
+                                    $expiry_date = $history_item['expiry_date'];
+                                    break;
+                                }
+                            }
+                        }
 
                         $status_colors = array(
                             'approved'  => 'green',
@@ -140,12 +217,78 @@ function ul_corporate_membership_form_users_page() {
                             'pending'   => 'gray',
                             'cancelled' => 'orange',
                         );
+                        
+                        $entry_count++;
                         ?>
                         <tr>
-                            <td><?php echo ($user_info) ? esc_html($user_info->display_name) : 'Unknown User'; ?></td>
-                            <td><?php echo ($user_info) ? esc_html($user_info->user_email) : 'Unknown Email'; ?></td>
-                            <td><?php echo esc_html($entry[7]); ?></td>
-                            <td><?php echo esc_html($membership_label); ?></td>
+                            <td><?php echo esc_html($user_info->display_name); ?></td>
+                            <td><?php echo esc_html($user_info->user_email); ?></td>
+                            <td><?php echo esc_html(isset($entry[7]) ? $entry[7] : 'N/A'); ?></td>
+                            <td><?php 
+                                // Calculate duration dynamically from this row's dates
+                                $calculated_period = 'N/A';
+                                
+                                if (!empty($date_created) && !empty($expiry_date) && $expiry_date !== 'N/A') {
+                                    $start_date_ts = strtotime($date_created);
+                                    $expiry_date_ts = strtotime($expiry_date);
+                                    
+                                    if ($expiry_date_ts > $start_date_ts) {
+                                        $dur_years = round(($expiry_date_ts - $start_date_ts) / (365.25 * 24 * 60 * 60), 1);
+                                        
+                                        if ($dur_years > 10) {
+                                            $calculated_period = 'Lifetime';
+                                        } elseif ($dur_years >= 5) {
+                                            $calculated_period = '5 Years';
+                                        } elseif ($dur_years >= 3) {
+                                            $calculated_period = '3 Years';
+                                        } elseif ($dur_years >= 2) {
+                                            $calculated_period = '2 Years';
+                                        } elseif ($dur_years >= 1) {
+                                            $calculated_period = '1 Year';
+                                        } else {
+                                            $calculated_period = round($dur_years, 1) . ' Years';
+                                        }
+                                    }
+                                }
+                                
+                                // Fallback to user meta
+                                if ($calculated_period === 'N/A') {
+                                    $calculated_period = get_user_meta($user_id, 'membership_period', true) ?: 'N/A';
+                                }
+                                
+                                echo esc_html($calculated_period); 
+                            ?></td>
+                            <td>
+                                <?php
+                                $import_source = get_user_meta($user_id, 'import_source', true);
+                                $source_badge = '';
+                                
+                                if ($import_source === 'csv_import') {
+                                    $source_badge = '<span class="import-badge csv-import">CSV Import</span>';
+                                } elseif ($import_source === 'admin_approval') {
+                                    $source_badge = '<span class="import-badge admin-approval">Admin Approval</span>';
+                                } else {
+                                    // Auto-detect for old records
+                                    $legacy_import_id = get_user_meta($user_id, 'legacy_import_id', true);
+                                    if (!empty($legacy_import_id)) {
+                                        $source_badge = '<span class="import-badge csv-import">CSV Import</span>';
+                                    } else {
+                                        $source_badge = '<span class="import-badge admin-approval">Admin Approval</span>';
+                                    }
+                                }
+                                echo $source_badge;
+                                ?>
+                            </td>
+                            <td>
+                                <?php 
+                                $member_since = get_user_meta($user_id, 'member_since', true);
+                                // Fallback to Certificate From date if member_since is empty
+                                if (empty($member_since) && !empty($date_created)) {
+                                    $member_since = $date_created;
+                                }
+                                echo !empty($member_since) ? esc_html(date('d/m/Y', strtotime($member_since))) : 'N/A';
+                                ?>
+                            </td>
                             <td>
                                 <?php
                                 echo '<span style="color: ' . esc_attr($status_colors[$status] ?? 'black') . ';">' . ucfirst($status ?: 'Unknown') . '</span>';
@@ -164,16 +307,32 @@ function ul_corporate_membership_form_users_page() {
                                 }
                                 ?>
                             </td>
-                            <td><?php echo esc_html(date('d/m/Y', strtotime($date_created))); ?></td>
-                            <td><?php echo esc_html(date('d/m/Y', strtotime($expiry_date))); ?></td>
+                            <td><?php echo !empty($date_created) ? esc_html(date('d/m/Y', strtotime($date_created))) : 'N/A'; ?></td>
+                            <td><?php echo ($expiry_date !== 'N/A' && !empty($expiry_date)) ? esc_html(date('d/m/Y', strtotime($expiry_date))) : 'N/A'; ?></td>
                             <td>
-                                <div class="btn_action">
-                                     <a href="<?php echo esc_url(admin_url("admin.php?page=gf_entries&view=entry&id=4&lid={$entry_id}")); ?>" class="button-primary">View</a>
-                                    <?php if ($status === 'approved') : ?>
-                                        <button class="button generate-cert w-100" data-user-id="<?php echo esc_attr($user_id); ?>" data-member-id="<?php echo esc_attr($entry_id); ?>"
-                                                data-user-name="<?php echo esc_attr($user_info ? $user_info->display_name : 'Unknown User'); ?>"
-                                                data-membership-type="Corporate">
-                                            Generate Certificate
+                                <div class="btn_action" style="display:flex; flex-direction:column; gap:5px;">
+                                     <a href="<?php echo esc_url(admin_url("admin.php?page=gf_entries&view=entry&id=4&lid={$entry_id}")); ?>" class="button-primary" style="text-align:center;">View</a>
+                                    <?php if ($status === 'approved') : 
+                                        $member_since_raw = get_user_meta($user_id, 'member_since', true);
+                                        // Fallback to Certificate From date if member_since is empty
+                                        if (empty($member_since_raw) && !empty($date_created)) {
+                                            $member_since_raw = $date_created;
+                                        }
+                                        $approval_date_raw = get_user_meta($user_id, 'membership_approval_date', true);
+                                    ?>
+                                        <button class="button review-generate-cert w-100" 
+                                                style="white-space:nowrap; padding: 0 10px;"
+                                                data-user-id="<?php echo esc_attr($user_id); ?>" 
+                                                data-member-id="<?php echo esc_attr($entry_id); ?>"
+                                                data-user-name="<?php echo esc_attr($user_info->display_name); ?>"
+                                                data-membership-type="Corporate" 
+                                                data-form-id="4"
+                                                data-member-classification=""
+                                                data-member-since="<?php echo esc_attr($member_since_raw); ?>"
+                                                data-approval-date="<?php echo esc_attr($approval_date_raw); ?>"
+                                                data-import-source="<?php echo esc_attr($import_source); ?>"
+                                                data-expiry-date="<?php echo esc_attr($expiry_date); ?>">
+                                            Review & Generate
                                         </button>
                                     <?php endif; ?>
                                 </div>
@@ -181,11 +340,22 @@ function ul_corporate_membership_form_users_page() {
                         </tr>
                         <?php
                     }
+                    
+                    // Show message if no valid entries were processed
+                    if ($entry_count === 0) {
+                        echo '<tr><td colspan="9">No valid corporate membership entries found. Please check that entries have associated users.</td></tr>';
+                    }
                 }
                 ?>
             </tbody>
         </table>
     </div>
+    <?php
+        // Render the shared certificate review modal + JS so corporate behaves like individual
+        if (function_exists('ul_render_membership_certificate_modal')) {
+            ul_render_membership_certificate_modal();
+        }
+    ?>
     <?php
 }
 
@@ -219,9 +389,11 @@ function ul_membership_form_users_page() {
                     <th>User Phone</th>
                     <th>Membership Duration</th>
                     <th>Member Category</th>
+                    <th>Source</th>
+                    <th>Member Since</th>
                     <th>Status</th>
                     <th>Payment Status</th>
-                    <th>Submitted Date</th>
+                    <th>Certificate From</th>
                     <th>Expire Date</th>
                     <th class="action_th">Actions</th>
                 </tr>
@@ -229,11 +401,23 @@ function ul_membership_form_users_page() {
             <tbody>
                 <?php
                 if (is_wp_error($entries)) {
-                    echo '<tr><td colspan="9">Error: ' . esc_html($entries->get_error_message()) . '</td></tr>';
+                    echo '<tr><td colspan="10">Error: ' . esc_html($entries->get_error_message()) . '</td></tr>';
+                } elseif (empty($entries) || !is_array($entries)) {
+                    echo '<tr><td colspan="10">No individual membership entries found.</td></tr>';
                 } else {
+                    $entry_count = 0;
                     foreach ($entries as $entry) {
+                        if (empty($entry['id'])) {
+                            continue;
+                        }
+                        
                         $entry_id = $entry['id'];
                         $user_id = rgar($entry, 'created_by');
+
+                        // Skip if no user ID
+                        if (empty($user_id)) {
+                            continue;
+                        }
 
                         // Skip if this user was already shown
                         if (in_array($user_id, $displayed_users)) {
@@ -242,15 +426,67 @@ function ul_membership_form_users_page() {
                         $displayed_users[] = $user_id;
 
                         $user_info = get_userdata($user_id);
-                        $date_created = $entry['date_created'];
+                        
+                        // Skip if user doesn't exist
+                        if (!$user_info) {
+                            continue;
+                        }
+                        
+                        $date_created = isset($entry['date_created']) ? $entry['date_created'] : '';
                         $payment_status = rgar($entry, 'payment_status');
-                        $membership_type = $entry[27];
-                        $membership_type_parts = explode('|', $membership_type);
-                        $member_type = get_user_meta($user_id, 'member_type', true);
+                       // $membership_type = isset($entry[27]) ? $entry[27] : '';
+                        // With this code to find the selected product
+                        // Replace the membership type handling with this:
+                        $membership_type = '';
+                        $membership_label = 'N/A';
 
-                        $membership_label = $membership_type_parts[0];
+                        // Get the form to access field properties
+                        $form = GFAPI::get_form($form_id);
+                        if ($form) {
+                            foreach ($form['fields'] as $field) {
+                                if (strpos($field->cssClass, 'membership-product-field') !== false && !empty($entry[$field->id])) {
+                                    $product = GFAPI::get_field($form_id, $field->id);
+
+                                    if ($product) {
+                                        $product_value = $product->get_value_export($entry);
+                                      
+                                    
+                                        $parts = explode('(', $product_value);
+                                        
+                                        if (count($parts) >= 2) {
+                                            $name = trim($parts[0]);
+                                            $price = floatval(trim($parts[1]));
+                                            
+                                            // Format as "1 Year ($ 100.00)" or "3 Years ($ 300.00)"
+                                            //$membership_label = $name . ' ($ ' . number_format($price, 2) . ')';
+                                             $membership_label = $name;
+                                        } else {
+                                            $membership_label = $product_value;
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                        }              $membership_type_parts = !empty($membership_type) ? explode('|', $membership_type) : array('N/A');
+                        // Get member classification from entry field 24 (for individual forms)
+                        $member_classification = rgar($entry, '24') ?: 'N/A';
+
+                        //$membership_label = $membership_type_parts[0];
                         $status = get_user_meta($user_id, 'membership_approval_status', true);
+                        
+                        // Default to current user meta
                         $expiry_date = get_user_meta($user_id, 'membership_expiry_date', true) ?: 'N/A';
+                        
+                        // Check history log to see if this specific entry has a historical expiry date
+                        $history_log = get_user_meta($user_id, 'membership_history_log', true);
+                        if (is_array($history_log)) {
+                            foreach ($history_log as $history_item) {
+                                if (isset($history_item['entry_id']) && $history_item['entry_id'] == $entry_id) {
+                                    $expiry_date = $history_item['expiry_date'];
+                                    break;
+                                }
+                            }
+                        }
 
                         $status_colors = array(
                             'approved'  => 'green',
@@ -258,13 +494,76 @@ function ul_membership_form_users_page() {
                             'pending'   => 'gray',
                             'cancelled' => 'orange',
                         );
+                        
+                        $entry_count++;
                         ?>
                         <tr>
-                            <td><?php echo ($user_info) ? esc_html($user_info->display_name) : 'Unknown User'; ?></td>
-                            <td><?php echo ($user_info) ? esc_html($user_info->user_email) : 'Unknown Email'; ?></td>
-                            <td><?php echo esc_html($entry[7]); ?></td>
-                            <td><?php echo esc_html($membership_label); ?></td>
-                            <td><?php echo esc_html($member_type); ?></td>
+                            <td><?php echo esc_html($user_info->display_name); ?></td>
+                            <td><?php echo esc_html($user_info->user_email); ?></td>
+                            <td><?php echo esc_html(isset($entry[7]) ? $entry[7] : 'N/A'); ?></td>
+                            <td><?php 
+                                // Calculate duration dynamically from this row's dates
+                                // This ensures 'Certificate From' and 'Expiry' match the displayed duration
+                                $calculated_period = 'N/A';
+                                
+                                if (!empty($date_created) && !empty($expiry_date) && $expiry_date !== 'N/A') {
+                                    $start_date_ts = strtotime($date_created);
+                                    $expiry_date_ts = strtotime($expiry_date);
+                                    
+                                    if ($expiry_date_ts > $start_date_ts) {
+                                        $dur_years = round(($expiry_date_ts - $start_date_ts) / (365.25 * 24 * 60 * 60), 1);
+                                        
+                                        if ($dur_years > 10) {
+                                            $calculated_period = 'Lifetime';
+                                        } elseif ($dur_years >= 5) {
+                                            $calculated_period = '5 Years';
+                                        } elseif ($dur_years >= 3) {
+                                            $calculated_period = '3 Years';
+                                        } elseif ($dur_years >= 2) {
+                                            $calculated_period = '2 Years';
+                                        } elseif ($dur_years >= 1) {
+                                            $calculated_period = '1 Year';
+                                        } else {
+                                            $calculated_period = round($dur_years, 1) . ' Years';
+                                        }
+                                    }
+                                }
+                                
+                                // Fallback to user meta ONLY if calculation failed (e.g. missing dates)
+                                if ($calculated_period === 'N/A') {
+                                    $calculated_period = get_user_meta($user_id, 'membership_period', true) ?: 'N/A';
+                                }
+                                
+                                echo esc_html($calculated_period); 
+                            ?></td>
+                            <td><?php echo esc_html($member_classification); ?></td>
+                            <td>
+                                <?php
+                                $import_source = get_user_meta($user_id, 'import_source', true);
+                                $source_badge = '';
+                                
+                                if ($import_source === 'csv_import') {
+                                    $source_badge = '<span class="import-badge csv-import">CSV Import</span>';
+                                } elseif ($import_source === 'admin_approval') {
+                                    $source_badge = '<span class="import-badge admin-approval">Admin Approval</span>';
+                                } else {
+                                    // Auto-detect for old records
+                                    $legacy_import_id = get_user_meta($user_id, 'legacy_import_id', true);
+                                    if (!empty($legacy_import_id)) {
+                                        $source_badge = '<span class="import-badge csv-import">CSV Import</span>';
+                                    } else {
+                                        $source_badge = '<span class="import-badge admin-approval">Admin Approval</span>';
+                                    }
+                                }
+                                echo $source_badge;
+                                ?>
+                            </td>
+                            <td>
+                                <?php 
+                                $member_since = get_user_meta($user_id, 'member_since', true);
+                                echo !empty($member_since) ? esc_html(date('d/m/Y', strtotime($member_since))) : 'N/A';
+                                ?>
+                            </td>
                             <td>
                                 <?php
                                 echo '<span style="color: ' . esc_attr($status_colors[$status] ?? 'black') . ';">' . ucfirst($status ?: 'Unknown') . '</span>';
@@ -283,28 +582,413 @@ function ul_membership_form_users_page() {
                                 }
                                 ?>
                             </td>
-                            <td><?php echo esc_html(date('d/m/Y', strtotime($date_created))); ?></td>
-                            <td><?php echo esc_html(date('d/m/Y', strtotime($expiry_date))); ?></td>
+                            <td><?php echo !empty($date_created) ? esc_html(date('d/m/Y', strtotime($date_created))) : 'N/A'; ?></td>
+                            <td><?php echo ($expiry_date !== 'N/A' && !empty($expiry_date)) ? esc_html(date('d/m/Y', strtotime($expiry_date))) : 'N/A'; ?></td>
                             <td>
-                                <div class="btn_action">
-                                     <a href="<?php echo esc_url(admin_url("admin.php?page=gf_entries&view=entry&id=5&lid={$entry_id}")); ?>" class="button-primary">View</a>
-                                        <?php if ($status === 'approved') : ?>
-                                            <button class="button generate-cert w-100" data-user-id="<?php echo esc_attr($user_id); ?>" data-member-id="<?php echo esc_attr($entry_id); ?>"
-                                                    data-user-name="<?php echo esc_attr($user_info ? $user_info->display_name : 'Unknown User'); ?>"
-                                                    data-membership-type="Individual">
-                                                Generate Certificate
-                                            </button>
-                                        <?php endif; ?>
+                                <div class="btn_action" style="display:flex; flex-direction:column; gap:5px;">
+                                     <a href="<?php echo esc_url(admin_url("admin.php?page=gf_entries&view=entry&id=5&lid={$entry_id}")); ?>" class="button-primary" style="text-align:center;">View</a>
+                                    <?php if ($status === 'approved') : 
+                                        $member_since_raw = get_user_meta($user_id, 'member_since', true);
+                                        $approval_date_raw = get_user_meta($user_id, 'membership_approval_date', true);
+                                    ?>
+                                        <button class="button review-generate-cert w-100" 
+                                                style="white-space:nowrap; padding: 0 10px;"
+                                                data-user-id="<?php echo esc_attr($user_id); ?>" 
+                                                data-member-id="<?php echo esc_attr($entry_id); ?>"
+                                                data-user-name="<?php echo esc_attr($user_info->display_name); ?>"
+                                                data-membership-type="Individual" 
+                                                data-form-id="5" 
+                                                data-member-classification="<?php echo esc_attr($member_classification); ?>"
+                                                data-member-since="<?php echo esc_attr($member_since_raw); ?>"
+                                                data-approval-date="<?php echo esc_attr($approval_date_raw); ?>"
+                                                data-import-source="<?php echo esc_attr($import_source); ?>"
+                                                data-expiry-date="<?php echo esc_attr($expiry_date); ?>">
+                                            Review & Generate
+                                        </button>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
                         <?php
+                    }
+                    
+                    // Show message if no valid entries were processed
+                    if ($entry_count === 0) {
+                        echo '<tr><td colspan="10">No valid individual membership entries found. Please check that entries have associated users.</td></tr>';
                     }
                 }
                 ?>
             </tbody>
         </table>
     </div>
+    <?php
+        // Render the shared certificate review modal + JS
+        if (function_exists('ul_render_membership_certificate_modal')) {
+            ul_render_membership_certificate_modal();
+        }
+    ?>
+    <?php
+}
+
+/**
+ * Shared certificate review modal + JS for both Individual and Corporate membership lists.
+ */
+function ul_render_membership_certificate_modal() {
+    ?>
+    <!-- Certificate Review Modal -->
+    <div id="cert-review-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:100000;">
+        <div style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7);" class="cert-modal-overlay"></div>
+        <div style="position:relative; background:white; max-width:600px; margin:50px auto; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.3); z-index:100001;">
+            <div style="padding:20px 24px; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="margin:0; font-size:20px;">Review Certificate Details</h2>
+                <button class="cert-modal-close" style="background:none; border:none; font-size:28px; cursor:pointer; color:#666; padding:0; width:30px; height:30px; line-height:1;">&times;</button>
+            </div>
+            
+            <div style="padding:24px; max-height:60vh; overflow-y:auto;">
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; margin-bottom:8px; font-weight:600; color:#333;">
+                        Member Since Date <span style="color:#d63638;">*</span>
+                    </label>
+                    <input type="date" id="edit-member-since" max="<?php echo date('Y-m-d'); ?>" style="width:100%; padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:14px;" required>
+                    <p id="member-since-error" style="color:#d63638; display:none; margin: 4px 0 0 0; font-size: 13px;">Please select a Member Since date.</p>
+                    <p style="margin:4px 0 0 0; font-size:12px; color:#666; font-style:italic;">This date will appear on the certificate as "Since"</p>
+                </div>
+                
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; margin-bottom:8px; font-weight:600; color:#333;">Approval Date (Reference)</label>
+                    <input type="date" id="ref-approval-date" style="width:100%; padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:14px; background-color:#f5f5f5; cursor:not-allowed;" disabled>
+                    <p style="margin:4px 0 0 0; font-size:12px; color:#666; font-style:italic;">Date when membership was approved</p>
+                </div>
+                
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; margin-bottom:8px; font-weight:600; color:#333;">Certificate Date</label>
+                    <input type="date" id="ref-certificate-date" style="width:100%; padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:14px; background-color:#f5f5f5; cursor:not-allowed;" disabled>
+                    <p style="margin:4px 0 0 0; font-size:12px; color:#666; font-style:italic;">Date shown as admission date on certificate</p>
+                </div>
+                
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; margin-bottom:8px; font-weight:600; color:#333;">Import Source</label>
+                    <div id="ref-import-source"></div>
+                </div>
+            </div>
+            
+            <div style="padding:16px 24px; border-top:1px solid #ddd; display:flex; justify-content:flex-end; gap:10px;">
+                <button class="button button-secondary cancel-cert-review">Cancel</button>
+                <button class="button button-secondary save-member-since">
+                    Save
+                </button>
+                <button class="button button-primary confirm-generate-cert">
+                    Update & Generate Certificate
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    jQuery(document).ready(function($) {
+        let currentCertData = {};
+        
+        // Open modal for both Individual and Corporate review-generate buttons
+        $(document).on('click', '.review-generate-cert', function(e) {
+            e.preventDefault();
+            
+            const $btn = $(this);
+            currentCertData = {
+                user_id: $btn.data('user-id'),
+                member_id: $btn.data('member-id'),
+                member_since: $btn.data('member-since'),
+                approval_date: $btn.data('approval-date'),
+                import_source: $btn.data('import-source'),
+                membership_type: $btn.data('membership-type'),
+                form_id: $btn.data('form-id'),
+                member_classification: $btn.data('member-classification'),
+                expiry_date: $btn.data('expiry-date')
+            };
+            
+            // Populate modal
+            $('#edit-member-since').val(currentCertData.member_since);
+            $('#member-since-error').hide();
+            $('#ref-approval-date').val(currentCertData.approval_date);
+            
+            // Calculate certificate date based on import source
+            let certDate = currentCertData.approval_date;
+            if (currentCertData.import_source === 'csv_import') {
+                certDate = currentCertData.member_since;
+            }
+            $('#ref-certificate-date').val(certDate);
+            
+            // Show import source badge
+            let sourceBadge = '';
+            if (currentCertData.import_source === 'csv_import') {
+                sourceBadge = '<span class="import-badge csv-import">CSV Import</span>';
+            } else {
+                sourceBadge = '<span class="import-badge admin-approval">Admin Approval</span>';
+            }
+            $('#ref-import-source').html(sourceBadge);
+            
+            // Show modal
+            $('#cert-review-modal').fadeIn(200);
+        });
+        
+        // Close modal
+        $(document).on('click', '.cert-modal-close, .cancel-cert-review, .cert-modal-overlay', function() {
+            $('#cert-review-modal').fadeOut(200);
+        });
+        
+        // Save member_since date only
+        $(document).on('click', '.save-member-since', function(e) {
+            e.preventDefault();
+            
+            const newMemberSince = $('#edit-member-since').val();
+            
+            if (!newMemberSince) {
+                $('#member-since-error').show();
+                return;
+            }
+            $('#member-since-error').hide();
+            
+            const $btn = $(this);
+            $btn.prop('disabled', true).html('Saving...');
+            
+            // Get AJAX URL and nonce with fallback
+            var ajaxUrl = (typeof membershipCertificates !== 'undefined' && membershipCertificates.ajaxurl) 
+                ? membershipCertificates.ajaxurl 
+                : '<?php echo admin_url('admin-ajax.php'); ?>';
+            var reviewNonce = (typeof membershipCertificates !== 'undefined' && membershipCertificates.cert_review_nonce) 
+                ? membershipCertificates.cert_review_nonce 
+                : '<?php echo wp_create_nonce('cert_review_nonce'); ?>';
+            
+            // Save only member_since date
+            jQuery.ajax({
+                url: ajaxUrl,
+                method: 'POST',
+                data: {
+                    action: 'save_member_since_only',
+                    nonce: reviewNonce,
+                    user_id: currentCertData.user_id,
+                    member_id: currentCertData.member_id,
+                    member_since: newMemberSince
+                },
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Saved Successfully!',
+                            text: response.data || 'Saved successfully.',
+                            confirmButtonText: 'OK',
+                            timer: 2000
+                        }).then(() => {
+                            $('#cert-review-modal').fadeOut(200);
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: response.data || 'Failed to save date. Please try again.'
+                        });
+                        $btn.prop('disabled', false).html('Save');
+                    }
+                },
+                error: function() {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to save date. Please try again.'
+                    });
+                    $btn.prop('disabled', false).html('Save');
+                }
+            });
+        });
+        
+        // Confirm and generate
+        $(document).on('click', '.confirm-generate-cert', function(e) {
+            e.preventDefault();
+            
+            const newMemberSince = $('#edit-member-since').val();
+            
+            if (!newMemberSince) {
+                $('#member-since-error').show();
+                return;
+            }
+            $('#member-since-error').hide();
+            
+            const $btn = $(this);
+            $btn.prop('disabled', true).html('Processing...');
+            
+            // Get AJAX URL and nonce with fallback
+            var ajaxUrl = (typeof membershipCertificates !== 'undefined' && membershipCertificates.ajaxurl) 
+                ? membershipCertificates.ajaxurl 
+                : '<?php echo admin_url('admin-ajax.php'); ?>';
+            var reviewNonce = (typeof membershipCertificates !== 'undefined' && membershipCertificates.cert_review_nonce) 
+                ? membershipCertificates.cert_review_nonce 
+                : '<?php echo wp_create_nonce('cert_review_nonce'); ?>';
+            
+            // Update member_since and generate certificate
+            jQuery.ajax({
+                url: ajaxUrl,
+                method: 'POST',
+                data: {
+                    action: 'update_member_since_and_generate',
+                    nonce: reviewNonce,
+                    user_id: currentCertData.user_id,
+                    member_id: currentCertData.member_id,
+                    member_since: newMemberSince,
+                    membership_type: currentCertData.membership_type,
+                    form_id: currentCertData.form_id,
+                    member_classification: currentCertData.member_classification
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $('#cert-review-modal').fadeOut(200);
+                        
+                        // Store certificate URL for buttons
+                        var certUrl = (response.data && response.data.certificate_url) ? response.data.certificate_url : '';
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Certificate Generated!',
+                            text: 'Certificate has been generated successfully.',
+                            showCancelButton: true,
+                            confirmButtonText: 'Send Mail',
+                            cancelButtonText: 'View Only',
+                            confirmButtonColor: '#28a745',
+                            cancelButtonColor: '#6c757d',
+                            showDenyButton: false
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                // Send Email button clicked
+                                sendCertificateEmail(currentCertData.user_id, currentCertData.member_id, certUrl);
+                            } else if (result.dismiss === Swal.DismissReason.cancel) {
+                                // View Only button clicked
+                                if (certUrl) {
+                                    window.open(certUrl, '_blank');
+                                }
+                                setTimeout(() => {
+                                    location.reload();
+                                }, 500);
+                            }
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: response.data || 'Unknown error occurred'
+                        });
+                    }
+                },
+                error: function() {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to generate certificate. Please try again.'
+                    });
+                },
+                complete: function() {
+                    $btn.prop('disabled', false).html('Update & Generate Certificate');
+                }
+            });
+
+            });
+        });
+        
+        // Function to send certificate via email (shared for both flows)
+        function sendCertificateEmail(userId, memberId, certUrl) {
+            Swal.fire({
+                title: 'Sending Email...',
+                text: 'Please wait while we send the certificate.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Use WordPress admin-ajax.php directly (more reliable)
+            var ajaxUrl = '<?php echo admin_url('admin-ajax.php'); ?>';
+            var emailNonce = '<?php echo wp_create_nonce('send_certificate_email_nonce'); ?>';
+
+            jQuery.ajax({
+                url: ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'send_certificate_email',
+                    user_id: userId,
+                    member_id: memberId,
+                    nonce: emailNonce
+                },
+                success: function (response) {
+                    if (response.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Mail Sent Successfully!',
+                            text: response.data || 'Mail sent successfully. Certificate has been emailed.',
+                            confirmButtonText: 'OK'
+                        }).then(() => {
+                            // Optionally open certificate after sending email
+                            if (certUrl) {
+                                window.open(certUrl, '_blank');
+                            }
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Email Failed',
+                            text: response.data || 'Failed to send email. Please try again.',
+                            confirmButtonText: 'OK'
+                        }).then(() => {
+                            // Still allow viewing certificate even if email fails
+                            if (certUrl) {
+                                Swal.fire({
+                                    icon: 'question',
+                                    title: 'View Certificate?',
+                                    text: 'Would you like to view the certificate?',
+                                    showCancelButton: true,
+                                    confirmButtonText: 'Yes, View',
+                                    cancelButtonText: 'No, Close'
+                                }).then((viewResult) => {
+                                    if (viewResult.isConfirmed && certUrl) {
+                                        window.open(certUrl, '_blank');
+                                    }
+                                    location.reload();
+                                });
+                            } else {
+                                location.reload();
+                            }
+                        });
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Email send error:', error, xhr.responseText);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Something went wrong while sending email. Please try again.',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        // Still allow viewing certificate even if email fails
+                        if (certUrl) {
+                            Swal.fire({
+                                icon: 'question',
+                                title: 'View Certificate?',
+                                text: 'Would you like to view the certificate?',
+                                showCancelButton: true,
+                                confirmButtonText: 'Yes, View',
+                                cancelButtonText: 'No, Close'
+                            }).then((viewResult) => {
+                                if (viewResult.isConfirmed && certUrl) {
+                                    window.open(certUrl, '_blank');
+                                }
+                                location.reload();
+                            });
+                        } else {
+                            location.reload();
+                        }
+                    });
+                }
+            });
+        }
+    </script>
     <?php
 }
 
@@ -325,10 +1009,31 @@ function ul_all_members_management_page() {
     // Get all users with membership roles
     $members = ul_get_all_membership_users();
     
+    // Temporary debug mode - set to true to see debugging information
+    $debug_mode = isset($_GET['debug']) && current_user_can('manage_options');
+    
     ?>
     <div class="wrap">
         <h1>All Members Management</h1>
         <p>Manage membership roles and convert members back to students.</p>
+        
+        <?php if ($debug_mode): ?>
+            <div class="notice notice-info" style="margin: 20px 0; padding: 15px;">
+                <h3>Debug Information</h3>
+                <p><strong>Members found:</strong> <?php echo count($members); ?></p>
+                <p><strong>Membership roles checked:</strong> member, individual_member, corporate_member</p>
+                <?php if (empty($members)): ?>
+                    <p><strong>Testing get_users() directly:</strong></p>
+                    <pre><?php 
+                        $test_users = get_users(array('role__in' => ['member', 'individual_member', 'corporate_member'], 'number' => 5));
+                        echo "Found " . count($test_users) . " users with membership roles\n";
+                        foreach ($test_users as $u) {
+                            echo "- " . $u->display_name . " (" . implode(', ', $u->roles) . ")\n";
+                        }
+                    ?></pre>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
         
         <!-- Bulk Actions Form -->
         <form method="post" id="bulk-membership-form">
@@ -477,7 +1182,7 @@ function ul_all_members_management_page() {
                         });
                         
                         // Send AJAX request
-                        $.ajax({
+                        jQuery.ajax({
                             url: ajaxurl,
                             type: 'POST',
                             data: {
@@ -661,49 +1366,88 @@ function ul_get_all_membership_users() {
     // Get all users with membership roles (excluding administrators and students)
     $membership_roles = ['member', 'individual_member', 'corporate_member'];
     
-    $query = "
-        SELECT u.ID, u.display_name, u.user_email, u.user_registered,
-               um1.meta_value as membership_status,
-               um2.meta_value as member_type,
-               um3.meta_value as expiry_date,
-               um4.meta_value as wp_capabilities
-        FROM {$wpdb->users} u
-        LEFT JOIN {$wpdb->usermeta} um1 ON u.ID = um1.user_id AND um1.meta_key = 'membership_approval_status'
-        LEFT JOIN {$wpdb->usermeta} um2 ON u.ID = um2.user_id AND um2.meta_key = 'member_type'
-        LEFT JOIN {$wpdb->usermeta} um3 ON u.ID = um3.user_id AND um3.meta_key = 'membership_expiry_date'
-        LEFT JOIN {$wpdb->usermeta} um4 ON u.ID = um4.user_id AND um4.meta_key = 'wp_capabilities'
-        WHERE um4.meta_value LIKE '%member%'
-        AND um4.meta_value NOT LIKE '%administrator%'
-        ORDER BY u.user_registered DESC
-    ";
+    // Use WordPress native get_users() for better reliability across environments
+    $args = array(
+        'role__in' => $membership_roles,
+        'orderby' => 'registered',
+        'order' => 'DESC',
+        'number' => -1, // Get all users
+    );
     
-    $results = $wpdb->get_results($query, ARRAY_A);
+    $users = get_users($args);
+    
+    // Fallback: If get_users() doesn't work, try direct query with better error handling
+    if (empty($users)) {
+        // Build LIKE patterns for each membership role
+        $like_patterns = array();
+        $prepare_values = array('wp_capabilities');
+        
+        foreach ($membership_roles as $role) {
+            $like_patterns[] = 'um.meta_value LIKE %s';
+            $prepare_values[] = '%"' . $wpdb->esc_like($role) . '"%';
+        }
+        
+        $query = "
+            SELECT DISTINCT u.ID
+            FROM {$wpdb->users} u
+            INNER JOIN {$wpdb->usermeta} um ON u.ID = um.user_id
+            WHERE um.meta_key = %s
+            AND (" . implode(' OR ', $like_patterns) . ")
+            ORDER BY u.user_registered DESC
+        ";
+        
+        $query = call_user_func_array(array($wpdb, 'prepare'), array_merge(array($query), $prepare_values));
+        
+        $user_ids = $wpdb->get_col($query);
+        
+        if ($wpdb->last_error) {
+            // Log error if logging function exists
+            if (function_exists('membership_log_error')) {
+                membership_log_error('Failed to get membership users', ['error' => $wpdb->last_error, 'query' => $query]);
+            }
+            // Return empty array on error
+            return [];
+        }
+        
+        if (!empty($user_ids) && is_array($user_ids)) {
+            $users = get_users(array('include' => $user_ids, 'orderby' => 'registered', 'order' => 'DESC'));
+        }
+    }
     
     $members = [];
-    foreach ($results as $result) {
-        // Parse capabilities to get the actual role
-        $capabilities = maybe_unserialize($result['wp_capabilities']);
-        $role = 'student'; // default
-        
-        if (is_array($capabilities)) {
+    
+    if (!empty($users) && is_array($users)) {
+        foreach ($users as $user) {
+            // Skip administrators
+            if (in_array('administrator', $user->roles)) {
+                continue;
+            }
+            
+            // Get user meta values
+            $membership_status = get_user_meta($user->ID, 'membership_approval_status', true);
+            $member_type = get_user_meta($user->ID, 'member_type', true);
+            $expiry_date = get_user_meta($user->ID, 'membership_expiry_date', true);
+            
+            // Determine the membership role
+            $role = 'student'; // default
             foreach ($membership_roles as $membership_role) {
-                if (isset($capabilities[$membership_role]) && $capabilities[$membership_role]) {
+                if (in_array($membership_role, $user->roles)) {
                     $role = $membership_role;
                     break;
                 }
             }
+            
+            $members[] = [
+                'ID' => $user->ID,
+                'display_name' => $user->display_name,
+                'user_email' => $user->user_email,
+                'user_registered' => date('d/m/Y', strtotime($user->user_registered)),
+                'membership_status' => $membership_status ?: 'unknown',
+                'member_type' => $member_type ?: 'N/A',
+                'expiry_date' => $expiry_date ? date('d/m/Y', strtotime($expiry_date)) : 'N/A',
+                'role' => $role
+            ];
         }
-        
-        $members[] = [
-            'ID' => $result['ID'],
-            'display_name' => $result['display_name'],
-            'user_email' => $result['user_email'],
-            'user_registered' => date('d/m/Y', strtotime($result['user_registered'])),
-            'membership_status' => $result['membership_status'] ?: 'unknown',
-            'member_type' => $result['member_type'] ?: 'N/A',
-            'expiry_date' => $result['expiry_date'] ? date('d/m/Y', strtotime($result['expiry_date'])) : 'N/A',
-            'role' => $role
-        ];
     }
     
     return $members;

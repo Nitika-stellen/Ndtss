@@ -156,7 +156,7 @@ class WP_Optimize_Performance {
 	 * @return void
 	 */
 	public function site_health_tab_content($tab) {
-		if ('wpo_performance' == $tab) {
+		if ('wpo_performance' === $tab) {
 			WP_Optimize()->include_template('performance/site-health.php', false, array(
 				'alerts' => $this->dashboard_widget()
 			));

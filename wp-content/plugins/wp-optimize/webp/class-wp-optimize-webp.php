@@ -40,6 +40,8 @@ class WP_Optimize_WebP {
 
 		add_action('wpo_reset_webp_conversion_test_result', array($this, 'reset_webp_serving_method'));
 		add_action('wpo_prune_webp_logs', array($this, 'prune_webp_logs'));
+		$task_manager = WPO_Webp_Task_Manager::get_instance();
+		add_action('wpo_webp_convert_compressed_images', array($task_manager, 'webp_convert_compressed_images'));
 	}
 
 	/**
@@ -68,9 +70,10 @@ class WP_Optimize_WebP {
 	 * Logging of interesting messages related to Webp
 	 *
 	 * @param string $message
+	 * @param string $level
 	 */
-	public function log($message) {
-		$this->logger->info($message);
+	public function log(string $message, string $level = 'info') {
+		$this->logger->log($message, $level);
 	}
 
 	/**
@@ -409,6 +412,9 @@ class WP_Optimize_WebP {
 		if (!wp_next_scheduled('wpo_prune_webp_logs')) {
 			wp_schedule_event(time(), 'weekly', 'wpo_prune_webp_logs');
 		}
+		if (!wp_next_scheduled('wpo_webp_convert_compressed_images')) {
+			wp_schedule_event(strtotime('midnight'), 'daily', 'wpo_webp_convert_compressed_images');
+		}
 	}
 
 	/**
@@ -417,6 +423,7 @@ class WP_Optimize_WebP {
 	public function remove_webp_cron_schedules() {
 		wp_clear_scheduled_hook('wpo_reset_webp_conversion_test_result');
 		wp_clear_scheduled_hook('wpo_prune_webp_logs');
+		wp_clear_scheduled_hook('wpo_webp_convert_compressed_images');
 	}
 
 	/**

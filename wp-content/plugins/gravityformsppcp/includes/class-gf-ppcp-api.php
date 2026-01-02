@@ -143,11 +143,20 @@ class GF_PPCP_API {
 		} else {
 			$result_body = array();
 		}
+
+		if( ! is_array( $result_body ) ) {
+			gf_ppcp()->log_debug( __METHOD__ . '(): Unable to decode JSON response: ' . print_r( $result_body, true ) );
+			return new WP_Error( 'json_decode_error', __( 'Unable to decode JSON response.', 'gravityformspaypalcheckout' ), array( 'response' => $result_body ) );
+		}
+
 		$debug_id                       = wp_remote_retrieve_header( $result, 'Paypal-Debug-Id' );
 		$result_body['PayPal-Debug-Id'] = $debug_id;
 
+		$response_code = wp_remote_retrieve_response_code( $result );
+		$is_valid_response = $response_code >= 200 && $response_code < 300;
+
 		// If result response code is not the expected response code, return error.
-		if ( wp_remote_retrieve_response_code( $result ) !== $response_code ) {
+		if ( ! $is_valid_response  ) {
 			// Use the error description in the body if available (it's usually more human readable messages).
 			$error = rgar( $result_body, 'message' ) ? $result_body['message'] : wp_remote_retrieve_response_message( $result );
 			// Add the debug ID to the error message.

@@ -1,11 +1,11 @@
 === Elementor Website Builder - More Than Just a Page Builder ===
 Contributors: elemntor
 Tags: page builder, editor, landing page, drag-and-drop, elementor,
-Requires at least: 6.6
-Tested up to: 6.8
+Requires at least: 6.7
+Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 3.32.4
-Beta tag: 3.32.0-beta3
+Stable tag: 3.34.0
+Beta tag: 3.34.0-beta3
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -349,50 +349,26 @@ You can also add a new language via [translate.wordpress.org](https://go.element
 
 == Changelog ==
 
-= 3.32.4 - 2025-10-05 =
-* Tweak: Added notice for Load Google Fonts Locally feature to clarify behavior and setup
+= 3.34.0 - 2025-12-22 =
 
-= 3.32.3 - 2025-09-29 =
-
-* Fix: Custom post types are imported even when unselected in Website Templates import
-* Fix: Taxonomy queries not connected properly to widgets in Website Templates import
-
-= 3.32.2 - 2025-09-18 =
-
-* Tweak: Improved compatibility for 3rd-party plugins serving templates
-* Fix: Structure Panel indicators not visible in RTL layouts
-* Fix: Issues with loading Google Fonts when enabling or disabling Load Google Fonts Locally option ([#32795](https://github.com/elementor/elementor/issues/32795))
-* Fix: Background videos not displaying correctly on RTL websites
-
-= 3.32.1 - 2025-09-16 =
-
-* Tweak: Disabled Load Google Fonts locally on all sites by default
-* Tweak: Moved the Load Google Fonts locally option to the Performance tab as a feature
-* Fix: Column editing handles appear outside the editing overlay
-* Fix: Full width containers not aligned to the center
-* Fix: Editor stuck on loading when using an Image Box widget with a link ([#32756](https://github.com/elementor/elementor/issues/32756))
-
-= 3.32.0 - 2025-09-15 =
-
-* New: Introducing Transform controls to move, scale, rotate, and skew elements with 2D and 3D support - Editor V4
-* New: Introducing Transitions to control how elements animate between states - Editor V4
-* New: Added filter and sort options in Class Manager - Editor V4
-* New: Introducing advanced import and export customization for Website Templates, with selective import of themes, experiments, custom assets, and content
-* Tweak: Added option to convert local styles into a reusable Global Class - Editor V4
-* Tweak: Variables now update live on the canvas while editing a variable - Editor V4
-* Tweak: Updated custom unit UI and improved functionality - Editor V4
-* Tweak: Enabled typing negative values in style fields - Editor V4
-* Tweak: Added Bottom position option on layout setting in Icon Box widget
-* Tweak: Reduced API-Info size for better performance
-* Tweak: Added option for connected users to install Elementor Pro via the Connect Account tab
-* Tweak: Enabled ZIP download of Website Templates from the library
-* Tweak: Merged Cloud Library feature into version
-* Tweak: Optimized compiled CSS output for background videos
-* Tweak: Merged Element Caching feature and moved to Performance tab
-* Fix: Reaching the Global Class limit prevented page saving - Editor V4 ([#32277](https://github.com/elementor/elementor/issues/32277))
-* Fix: PHP 8.4 deprecation notices when running with `WP_DEBUG` enabled
-* Fix: Indications popover not displaying correctly in repeaters for Background Overlay - Editor V4
-* Fix: Reduced-motion preferences are not applied to entrance and exit animations
-* Fix: Added required PHP and WordPress versions to the plugin header
+* New: Introducing Atomic Tabs - enabling flexible and fully customizable tab layouts with nested Atomic Elements - Editor V4
+* New: Introducing Entrance Interactions to add lightweight motion and bring elements to life as they appear - Editor V4
+* Tweak: Replaced the legacy V3 container wrapper with the optimized V4 wrapper for improved markup - Editor V4
+* Tweak: Improved frontend link control output to ensure consistent rendering - Editor V4 ([#32233](https://github.com/elementor/elementor/issues/32233))
+* Tweak: Added reset option inside popovers - Editor V4
+* Tweak: Updated Border control layout for a clearer and more consistent editing workflow - Editor V4
+* Tweak: Added `span` option inside the Paragraph atom - Editor V4
+* Tweak: Improved transitions to better support logical properties - Editor V4
+* Tweak: Improved dropdown folder behavior and resolved related UI issues in Template Library
+* Tweak: Merged "Import/Export Customization" feature into the version
+* Tweak: Added `builder_content_data` filter for extending Template Library and Global Widget content (props [@dgwatkins](https://github.com/dgwatkins))
+* Tweak: Applied CSS logical properties in Icon Box widget
+* Tweak: Applied CSS logical properties in Icon List widget
+* Tweak: Applied CSS logical properties in text alignment controls and fixed RTL rendering in the Editor
+* Fix: Local Transform values overridden Class-level Transform defaults even when unchanged - Editor V4
+* Fix: Fatal error when opening pages containing atomic elements while the V4 experiment is deactivated - Editor V4
+* Fix: Hover Scale transform set through Class did not save correctly - Editor V4
+* Fix: PHP 8.4 deprecation notices related to deprecated `E_STRICT` constant
+* Fix: Missing CSS regeneration after clearing cached files on pages containing dynamic tags
 
 [See changelog for all versions.](https://go.elementor.com/full-changelog/)

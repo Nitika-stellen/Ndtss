@@ -25,7 +25,7 @@
 				<th scope="row"><?php esc_html_e('Enable 6G firewall protection', 'all-in-one-wp-security-and-firewall'); ?>:</th>
 				<td>
 					<div class="aiowps_switch_container">
-						<?php AIOWPSecurity_Utility_UI::setting_checkbox(esc_html__('Enable this to apply the recommended 6G firewall protection.', 'all-in-one-wp-security-and-firewall'), 'aiowps_enable_6g_firewall', '1' == $aio_wp_security->configs->get_value('aiowps_enable_6g_firewall')); ?>
+						<?php AIOWPSecurity_Utility_UI::setting_checkbox(esc_html__('Enable this to apply the recommended 6G firewall protection.', 'all-in-one-wp-security-and-firewall'), 'aiowps_enable_6g_firewall', '1' == $ng_settings['aiowps_enable_6g_firewall']); ?>
 						<span class="aiowps_more_info_anchor"><span class="aiowps_more_info_toggle_char">+</span><span class="aiowps_more_info_toggle_text"><?php esc_html_e('More info', 'all-in-one-wp-security-and-firewall'); ?></span></span>
 						<div class="aiowps_more_info_body">
 							<?php
@@ -41,7 +41,7 @@
 				</td>
 			</tr>
 		</table>
-		<button type="button" class="button button-link aios-toggle-advanced-options<?php if ($advanced_options_disabled) echo ' advanced-options-disabled';?>">
+		<button type="button" class="button button-link aios-toggle-advanced-options<?php if ($ng_settings['advanced_options_disabled']) echo ' advanced-options-disabled';?>">
 				<span class="text">
 					<span class="dashicons dashicons-arrow-down-alt2"></span>
 					<span class="aios-toggle-advanced-options__text-show"><?php esc_html_e('Show advanced options', 'all-in-one-wp-security-and-firewall'); ?></span>
@@ -50,7 +50,7 @@
 		</button>
 
 		<div class="aios-advanced-options-panel">
-			<?php $aio_wp_security->include_template('wp-admin/firewall/partials/advanced-settings-6g.php', false, compact('methods', 'blocked_query', 'blocked_request', 'blocked_referrers', 'blocked_agents', 'block_request_methods')); ?>
+			<?php $aio_wp_security->include_template('wp-admin/firewall/partials/advanced-settings-6g.php', false, array('methods' => $ng_settings['methods'], 'blocked_query' => $ng_settings['blocked_query'], 'blocked_request' => $ng_settings['blocked_request'], 'blocked_referrers' => $ng_settings['blocked_referrers'], 'blocked_agents' => $ng_settings['blocked_agents'], 'block_request_methods' => $ng_settings['block_request_methods'])); ?>
 		</div>
 	</div>
 </div>

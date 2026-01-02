@@ -444,7 +444,7 @@ class WP_Optimize_Admin {
 			'is_cloudflare_site' => $is_cloudflare_site,
 			'wpo_gzip_compression_enabled_by_wpo' => $wpo_gzip_compression_enabled_by_wpo,
 			'wpo_gzip_compression_settings_added' => $is_gzip_compression_section_exists,
-			'info_link' => 'https://getwpo.com/gzip-compression-explained/',
+			'info_link' => 'https://teamupdraft.com/documentation/wp-optimize/topics/caching/faqs/what-is-gzip-compression/?utm_source=wpo-plugin&utm_medium=referral&utm_campaign=paac&utm_content=lossy-compression-guide&utm_creative_format=text',
 			'faq_link' => 'https://getwpo.com/gzip-faq-link/',
 			'class_name' => (!is_wp_error($wpo_gzip_compression_enabled) && $wpo_gzip_compression_enabled ? 'wpo-enabled' : 'wpo-disabled')
 		));
@@ -460,7 +460,7 @@ class WP_Optimize_Admin {
 		
 		WP_Optimize()->include_template('cache/browser-cache.php', false, array(
 			'wpo_browser_cache_enabled' => $wpo_browser_cache_enabled,
-			'is_cloudflare_site' => $this->is_cloudflare_site(),
+			'is_cloudflare_handling_browser_cache' => $this->is_cloudflare_handling_browser_cache(),
 			'wpo_browser_cache_settings_added' => $wpo_browser_cache->is_browser_cache_section_exists(),
 			'class_name' => (true === $wpo_browser_cache_enabled ? 'wpo-enabled' : 'wpo-disabled'),
 			'wpo_browser_cache_expire_days' => WP_Optimize()->get_options()->get_option('browser_cache_expire_days', '28'),
@@ -475,10 +475,28 @@ class WP_Optimize_Admin {
 	 *
 	 * @return bool
 	 */
-	public function is_cloudflare_site() {
-		return isset($_SERVER['HTTP_CF_RAY']);
+	public function is_cloudflare_site(): bool {
+		$response = wp_remote_get(home_url());
+		if (is_wp_error($response)) return false;
+
+		$cloudflare_status = wp_remote_retrieve_header($response, 'cf-cache-status');
+
+		return !empty($cloudflare_status);
 	}
-	
+
+	/**
+	 * Check if browser cache rules is handled by Cloudflare.
+	 *
+	 * @return bool
+	 */
+	private function is_cloudflare_handling_browser_cache(): bool {
+		$response = wp_remote_get(home_url());
+		if (is_wp_error($response)) return false;
+
+		$headers = wp_remote_retrieve_headers($response);
+		return isset($headers['cf-cache-status']) && (isset($headers['cache-control']) || isset($headers['expires']));
+	}
+
 	/**
 	 * Include Cloudflare settings template.
 	 */

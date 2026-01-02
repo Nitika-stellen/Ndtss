@@ -156,22 +156,17 @@ function renew_get_context() {
 
 /**
  * Generate certificate number with enhanced logic
+ * -02 for renewal, -03 for recertification
  */
 function renew_generate_certificate_number($original_cert_number, $method) {
-    $suffix = (strtoupper($method) === 'RECERT') ? '-2' : '-1';
+    // Determine suffix based on method
+    $suffix = (strtoupper($method) === 'RECERT') ? '-03' : '-02';
     
-    // Check if certificate number already has a suffix
-    if (strpos($original_cert_number, '-') !== false) {
-        // Extract base number and increment suffix
-        $parts = explode('-', $original_cert_number);
-        $base_number = $parts[0];
-        $current_suffix = isset($parts[1]) ? intval($parts[1]) : 0;
-        $new_suffix = $current_suffix + 1;
-        
-        return $base_number . '-' . $new_suffix;
-    }
+    // Extract base number (remove any existing suffix like -01, -02, -03)
+    // This handles cases like A010402-01 -> A010402-02 for renewal
+    $base_number = preg_replace('/-[0-9]+$/', '', $original_cert_number);
     
-    return $original_cert_number . $suffix;
+    return $base_number . $suffix;
 }
 
 function renew_handle_cpd_submit() {
@@ -725,6 +720,7 @@ function renew_update_certificate_status($user_id, $method, $cert_id, $cert_numb
             }
         } else {
             // Update the original certificate with renewal status instead of creating new row
+            // For recertification, set renewal_method to 'RECERT', for renewal set to 'CPD'
             $renewal_method = strtoupper($method) === 'RECERT' ? 'RECERT' : 'CPD';
             
             $update_result = $wpdb->update(
@@ -768,6 +764,8 @@ function renew_update_certificate_status($user_id, $method, $cert_id, $cert_numb
         $cert_status_key = 'cert_status_' . $cert_number;
 
         // Update status using the new professional system - ALWAYS set to 'submitted' initially
+        // Include renewal_method in status_data so status display can differentiate between renewal and recertification
+        $renewal_method_for_status = strtoupper($method) === 'RECERT' ? 'RECERT' : 'CPD';
         $status_data = [
             'submission_method' => 'cpd_form',
             'submission_id' => $submission_id,
@@ -776,14 +774,23 @@ function renew_update_certificate_status($user_id, $method, $cert_id, $cert_numb
             'original_cert_id' => $cert_id,
             'reviewing_cert_id' => isset($new_cert_id) ? $new_cert_id : null,
             'level' => $level,
-            'sector' => $sector
+            'sector' => $sector,
+            'renewal_method' => $renewal_method_for_status // Include renewal_method for status display
         ];
 
         $status_updated = update_certificate_status($user_id, $cert_number, 'submitted', $status_data);
+        
+        // Also update by ID for consistency (so status can be retrieved by cert_id)
+        if (function_exists('update_certificate_status_by_id') && !empty($cert_id)) {
+            update_certificate_status_by_id($user_id, $cert_id, 'submitted', array_merge($status_data, [
+                'cert_number' => $cert_number
+            ]));
+        }
 
         if ($status_updated) {
             renew_log_info('Certificate status updated using new system', array(
                 'cert_number' => $cert_number,
+                'cert_id' => $cert_id,
                 'new_status' => 'submitted',
                 'user_id' => $user_id
             ));

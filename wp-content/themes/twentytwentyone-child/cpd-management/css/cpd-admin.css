@@ -1,0 +1,195 @@
+/**
+ * CPD Management Admin Styles
+ */
+
+/* Dashboard Statistics */
+.cpd-dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.stat-box {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-left: 4px solid #0073aa;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+}
+
+.stat-box.pending {
+    border-left-color: #f0b849;
+}
+
+.stat-box.approved {
+    border-left-color: #46b450;
+}
+
+.stat-icon {
+    font-size: 32px;
+    color: #0073aa;
+}
+
+.stat-box.pending .stat-icon {
+    color: #f0b849;
+}
+
+.stat-box.approved .stat-icon {
+    color: #46b450;
+}
+
+.stat-content h3 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 600;
+    color: #23282d;
+}
+
+.stat-content p {
+    margin: 5px 0 0;
+    color: #646970;
+    font-size: 14px;
+}
+
+/* Dashboard Sections */
+.cpd-dashboard-sections {
+    margin-top: 30px;
+}
+
+.dashboard-section {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+}
+
+.dashboard-section h2 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ccd0d4;
+}
+
+.quick-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Review Container */
+.cpd-review-container {
+    max-width: 1200px;
+}
+
+.cpd-review-header {
+    margin-bottom: 20px;
+}
+
+.cpd-review-content {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    padding: 20px;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+}
+
+.review-section {
+    margin-bottom: 30px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid #ccd0d4;
+}
+
+.review-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.review-section h2 {
+    margin-top: 0;
+    color: #0073aa;
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-badge.status-approved {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.status-rejected {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Filters */
+.cpd-filters {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    padding: 15px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.cpd-filters select {
+    min-width: 150px;
+}
+
+/* Reports Actions */
+.cpd-reports-actions {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.cpd-reports-actions .description {
+    margin: 10px 0 0;
+    color: #646970;
+}
+
+/* Table Styles */
+.wp-list-table th,
+.wp-list-table td {
+    vertical-align: middle;
+}
+
+.text-muted {
+    color: #646970;
+}
+
+/* Responsive */
+@media (max-width: 782px) {
+    .cpd-dashboard-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .quick-actions {
+        flex-direction: column;
+    }
+    
+    .quick-actions .button {
+        width: 100%;
+        text-align: center;
+    }
+}
+

@@ -561,6 +561,10 @@
     color: white;
 }
 
+
+div .user-profile-container .user-profile-content table a.download-btn:focus { background: #e39e38 !important; color: #fff !important; }
+div .user-profile-container .user-profile-content table .action-button:focus { background: #007cba !important; color: #fff !important ; }
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .user-profile-header {

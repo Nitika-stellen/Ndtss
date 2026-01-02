@@ -92,7 +92,7 @@ function render_form_31_assignment_interface($entry_id, $examiner_users, $invigi
                 <h2 class="hndle ui-sortable-handle">Assign Examiner and Invigilator for Renew/Recertification</h2>
             </div>
             <div class="inside Examiners_label p-4">
-                <form id="assign-users-form-31">
+                <form id="assign-users-form-31" novalidate>
                     <?php wp_nonce_field('assign_users_nonce_31', 'assign_users_nonce_field_31'); ?>
                     
                     <h3 class="text-lg font-semibold mb-3">Select Examiners:</h3>
@@ -125,11 +125,11 @@ function render_form_31_assignment_interface($entry_id, $examiner_users, $invigi
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
                                         <label>Slot 1 Date <span class="text-red-500">*</span></label>
-                                        <input type="date" name="method_slots[<?= esc_attr($method) ?>][slot_1_date]" min="<?= esc_attr($tomorrow) ?>" value="<?= esc_attr($method_dates[$method]['slot_1']['date'] ?? '') ?>" class="w-full p-2 border rounded" required />
+                                        <input type="date" name="method_slots[<?= esc_attr($method) ?>][slot_1_date]" min="<?= esc_attr($tomorrow) ?>" value="<?= esc_attr($method_dates[$method]['slot_1']['date'] ?? '') ?>" class="w-full p-2 border rounded" />
                                     </div>
                                     <div>
                                         <label>Slot 1 Time <span class="text-red-500">*</span></label>
-                                        <input type="time" name="method_slots[<?= esc_attr($method) ?>][slot_1_time]" value="<?= esc_attr($method_dates[$method]['slot_1']['time'] ?? '') ?>" class="w-full p-2 border rounded" required />
+                                        <input type="time" name="method_slots[<?= esc_attr($method) ?>][slot_1_time]" value="<?= esc_attr($method_dates[$method]['slot_1']['time'] ?? '') ?>" class="w-full p-2 border rounded" />
                                     </div>
                                 </div>
                             </div>
@@ -257,20 +257,167 @@ function handle_form_31_assignments_ajax() {
     gform_update_meta($entry_id, '_assigned_examiners', $assigned_examiners);
     gform_update_meta($entry_id, '_assigned_invigilators', $assigned_invigilators);
 
-    // Update user assigned entries
-    $roles = ['examiner' => $assigned_examiners, 'invigilator' => $assigned_invigilators];
+    // Get entry details for email notifications
+    $field_789_value = rgar($entry, '789'); // Order number
+    $center_name = trim(rgar($entry, '833')); // Center name
+    $exam_type = 'Renewal/Recertification Exam';
+    
+    // Log assignment activity
+    $current_time = current_time('mysql');
+    $admin_id = get_current_user_id();
+    $roles = [
+        'examiner'     => $assigned_examiners,
+        'invigilator'  => $assigned_invigilators
+    ];
+
+    foreach ($roles as $role_key => $user_ids) {
+        $meta_key = "_gform_assignment_log_{$role_key}";
+        $existing_log = gform_get_meta($entry_id, $meta_key) ?: [];
+
+        foreach ($user_ids as $user_id) {
+            $already_logged = false;
+            foreach ($existing_log as $log_item) {
+                if ($log_item['user_id'] == $user_id && in_array($log_item['status'], ['assigned', 'accepted'])) {
+                    $already_logged = true;
+                    break;
+                }
+            }
+
+            if (!$already_logged) {
+                $existing_log[] = [
+                    'user_id'     => $user_id,
+                    'status'      => 'assigned',
+                    'timestamp'   => $current_time,
+                    'assigned_by' => $admin_id,
+                ];
+            }
+        }
+
+        gform_update_meta($entry_id, $meta_key, $existing_log);
+    }
+
+    // Build method date table (used in email)
+    $method_dates_html = '<table style="width:100%; border-collapse: collapse; margin: 15px 0; font-family: Arial, sans-serif; font-size: 14px;">';
+    $method_dates_html .= '<thead><tr style="background-color: #f4f4f4;">
+    <th style="border: 1px solid #ddd; padding: 10px;">Method</th>
+    <th style="border: 1px solid #ddd; padding: 10px;">Slot</th>
+    <th style="border: 1px solid #ddd; padding: 10px;">Date</th>
+    <th style="border: 1px solid #ddd; padding: 10px;">Time</th>
+    </tr></thead><tbody>';
+
+    if (!empty($sanitized_method_slots)) {
+        foreach ($sanitized_method_slots as $method => $slots) {
+            $method_clean = esc_html(ucwords(str_replace('_', ' ', $method)));
+            foreach ($slots as $slot => $slot_data) {
+                $method_dates_html .= "<tr>
+                <td style=\"border: 1px solid #ddd; padding: 10px;\">{$method_clean}</td>
+                <td style=\"border: 1px solid #ddd; padding: 10px;\">".ucfirst(str_replace('_', ' ', $slot))."</td>
+                <td style=\"border: 1px solid #ddd; padding: 10px;\">".esc_html(date('F j, Y', strtotime($slot_data['date'])))."</td>
+                <td style=\"border: 1px solid #ddd; padding: 10px;\">".esc_html(date('g:i A', strtotime($slot_data['time'])))."</td>
+                </tr>";
+            }
+        }
+    } else {
+        $method_dates_html .= '<tr><td colspan="4" style="border: 1px solid #ddd; padding: 10px; text-align: center; font-style: italic;">No methods scheduled</td></tr>';
+    }
+    $method_dates_html .= '</tbody></table>';
+
+    // Send email notifications
+    add_filter('wp_mail_content_type', function() { return 'text/html'; });
+
+    // Update user assigned entries and send emails to examiners/invigilators
     foreach ($roles as $role => $users) {
         foreach ($users as $user_id) {
             $meta_key = "_assigned_entries_{$role}";
-            $entries = get_user_meta($user_id, $meta_key, true) ?: [];
+            $entries = get_user_meta($user_id, $meta_key, true);
+            if (!is_array($entries)) $entries = [];
             if (!in_array($entry_id, $entries)) {
                 $entries[] = $entry_id;
                 update_user_meta($user_id, $meta_key, $entries);
             }
+
+            $user_info = get_userdata($user_id);
+            if ($user_info && $user_info->user_email) {
+                $user_subject = "Assignment Notification: " . ucfirst($role) . " for {$exam_type} Order #{$field_789_value}";
+                $user_body = "
+                    <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; padding: 20px;'>
+                        <h2>Assignment Notification</h2>
+                        <p>Dear {$user_info->display_name},</p>
+                        <p>You have been assigned as <strong>".ucfirst($role)."</strong> 
+                        for <strong>{$exam_type}</strong> Order <strong>#{$field_789_value}</strong>.</p>
+                        <h3>Scheduled Methods and Dates</h3>{$method_dates_html}
+                        <p>Please log in to your dashboard to review and prepare.</p>
+                        <p>Contact: <a href='mailto:".esc_attr(get_option('admin_email'))."'>".esc_html(get_option('admin_email'))."</a></p>
+                        <p>Regards,<br>Administration Team</p>
+                    </div>";
+                
+                wp_mail($user_info->user_email, $user_subject, $user_body);
+            }
         }
     }
 
-    wp_send_json_success('Form 39 assignments saved successfully.');
+    // Send admin summary email
+    $center_post = get_page_by_title($center_name, OBJECT, 'exam_center');
+    $admin_emails = [];
+    
+    if ($center_post) {
+        // Center Admins
+        $center_admin_ids = (array) get_post_meta($center_post->ID, '_center_admin_id', true);
+        foreach ($center_admin_ids as $admin_user_id) {
+            $admin_user = get_userdata($admin_user_id);
+            if ($admin_user && is_email($admin_user->user_email)) {
+                $admin_emails[] = $admin_user->user_email;
+            }
+        }
+        
+        // AQB Admins
+        $aqb_admin_ids = (array) get_post_meta($center_post->ID, '_aqb_admin_ids', true);
+        foreach ($aqb_admin_ids as $admin_user_id) {
+            $admin_user = get_userdata($admin_user_id);
+            if ($admin_user && is_email($admin_user->user_email) && !in_array($admin_user->user_email, $admin_emails)) {
+                $admin_emails[] = $admin_user->user_email;
+            }
+        }
+    }
+    
+    // WordPress Administrators
+    $wp_admins = get_users(['role' => 'administrator', 'fields' => ['user_email']]);
+    foreach ($wp_admins as $admin) {
+        if (is_email($admin->user_email) && !in_array($admin->user_email, $admin_emails)) {
+            $admin_emails[] = $admin->user_email;
+        }
+    }
+    
+    if (!empty($admin_emails)) {
+        $admin_subject = "Assignment Summary: {$exam_type} Order #{$field_789_value}";
+        $admin_body = "
+            <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; padding: 20px;'>
+                <h2>Assignment Summary for {$exam_type} Order #{$field_789_value}</h2>
+                <p>The following users have been assigned:</p>";
+        
+        foreach ($roles as $role => $user_ids) {
+            $label = ucfirst($role) . 's';
+            $admin_body .= "<h3>{$label}</h3><ul>";
+            foreach ($user_ids as $id) {
+                $u = get_userdata($id);
+                if ($u) {
+                    $admin_body .= "<li>".esc_html($u->display_name)." (ID: {$id})</li>";
+                }
+            }
+            $admin_body .= "</ul>";
+        }
+
+        $admin_body .= "<h3>Scheduled Methods and Dates</h3>{$method_dates_html}
+        <p>Review these assignments in the system.</p>
+        <p>Regards,<br>System Notification</p>
+        </div>";
+
+        wp_mail($admin_emails, $admin_subject, $admin_body);
+    }
+
+    remove_filter('wp_mail_content_type', function() { return 'text/html'; });
+
+    wp_send_json_success('Form 39 assignments saved successfully and emails sent.');
 }
 
 /**

@@ -75,7 +75,13 @@ abstract class Updraft_Smush_Task extends Updraft_Task_1_2 {
 		$this->update_option('original_filesize', filesize($file_path));
 
 		// build list of files for smush.
-		$files = array_merge(array('full' => $file_path), WPO_Image_Utils::get_attachment_files($attachment_id));
+		if (is_multisite()) {
+			switch_to_blog($this->get_option('blog_id', 1));
+			$files = array_merge(array('full' => $file_path), WPO_Image_Utils::get_attachment_files($attachment_id));
+			restore_current_blog();
+		} else {
+			$files = array_merge(array('full' => $file_path), WPO_Image_Utils::get_attachment_files($attachment_id));
+		}
 
 		$sizes_info = array();
 		$webp_tools_available = true;
@@ -145,6 +151,18 @@ abstract class Updraft_Smush_Task extends Updraft_Task_1_2 {
 
 		if (!$webp_tools_available) {
 			$this->log('There were no WebP conversion tools found on your server.');
+		}
+
+		$webp_converter = new WPO_WebP_Convert();
+		$destination = $webp_converter->get_destination_path($file_path);
+		if ($webp_tools_available && file_exists($destination)) {
+			if (is_multisite()) {
+				switch_to_blog($this->get_option('blog_id', 1));
+				update_post_meta($attachment_id, 'wpo-webp-conversion-complete', true);
+				restore_current_blog();
+			} else {
+				update_post_meta($attachment_id, 'wpo-webp-conversion-complete', true);
+			}
 		}
 
 		return $this->success;

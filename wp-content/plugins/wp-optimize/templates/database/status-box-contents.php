@@ -51,7 +51,7 @@
 	}
 	echo '<br>';
 
-	if ('true' == $retention_enabled) {
+	if ('true' === $retention_enabled) {
 		echo '<strong><span style="font-color: #0000FF;">';
 		// translators: %s is number of weeks
 		printf(esc_html__('Keeping last %s weeks data', 'wp-optimize'), esc_html($retention_period));
@@ -62,7 +62,7 @@
 	
 	echo '<br>';
 
-	if ('true' == $revisions_retention_enabled) {
+	if ('true' === $revisions_retention_enabled) {
 		echo '<strong><span style="font-color: #0000FF;">';
 		// translators: %s is number of revisions
 		printf(esc_html__('Keeping last %s revisions', 'wp-optimize'), esc_html($revisions_retention_count));

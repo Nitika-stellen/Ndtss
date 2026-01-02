@@ -8,7 +8,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language-Team: Team Updraft <mail@example.com>\n"
 "Last-Translator: Team Updraft <mail@example.com>\n"
-"POT-Creation-Date: 2025-09-09 14:24+0000\n"
+"POT-Creation-Date: 2025-11-06 13:53+0000\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/all-in-one-wp-security-and-firewall\n"
 "X-Poedit-Basepath: ..\n"
 "X-Poedit-KeywordsList: __;_e;_ex:1,2c;_n:1,2;_n_noop:1,2;_nx:1,2,4c;_nx_noop:1,2,3c;_x:1,2c;esc_attr__;esc_attr_e;esc_attr_x:1,2c;esc_html__;esc_html_e;esc_html_x:1,2c\n"
@@ -17,11 +17,11 @@ msgstr ""
 "X-Poedit-SourceCharset: UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: dist/wp-security-core.php:351, dist/admin/wp-security-database-menu.php:134, dist/admin/wp-security-database-menu.php:137, dist/admin/wp-security-database-menu.php:141, dist/includes/simba-tfa/simba-tfa.php:1065, dist/includes/simba-tfa/simba-tfa.php:1470, dist/includes/simba-tfa/simba-tfa.php:1507, dist/includes/simba-tfa/simba-tfa.php:1521, dist/includes/simba-tfa/simba-tfa.php:1664, dist/includes/simba-tfa/includes/login-form-integrations.php:128
+#: dist/wp-security-core.php:352, dist/admin/wp-security-database-menu.php:134, dist/admin/wp-security-database-menu.php:137, dist/admin/wp-security-database-menu.php:141, dist/includes/simba-tfa/simba-tfa.php:1065, dist/includes/simba-tfa/simba-tfa.php:1470, dist/includes/simba-tfa/simba-tfa.php:1507, dist/includes/simba-tfa/simba-tfa.php:1521, dist/includes/simba-tfa/simba-tfa.php:1664, dist/includes/simba-tfa/includes/login-form-integrations.php:128
 msgid "Error:"
 msgstr ""
 
-#: dist/wp-security-core.php:351
+#: dist/wp-security-core.php:352
 msgid "template not found"
 msgstr ""
 
@@ -115,7 +115,7 @@ msgstr ""
 msgid "Lock Status"
 msgstr ""
 
-#: dist/admin/wp-security-admin-init.php:351, dist/templates/wp-admin/settings/advanced-settings.php:84
+#: dist/admin/wp-security-admin-init.php:351, dist/templates/wp-admin/settings/advanced-settings.php:83
 msgid "Unexpected response:"
 msgstr ""
 
@@ -272,7 +272,7 @@ msgstr ""
 msgid "Press to toggle"
 msgstr ""
 
-#: dist/admin/wp-security-admin-menu.php:160, dist/admin/wp-security-admin-menu.php:176, dist/classes/wp-security-commands.php:264, dist/classes/commands/wp-brute-force-commands.php:51, dist/classes/commands/wp-brute-force-commands.php:123, dist/classes/commands/wp-security-tools-commands.php:129, dist/classes/commands/wp-security-user-security-commands.php:206, dist/classes/commands/wp-security-user-security-commands.php:284, dist/classes/commands/wp-security-user-security-commands.php:329, dist/classes/commands/wp-security-user-security-commands.php:376, dist/classes/commands/wp-security-user-security-commands.php:417, dist/classes/commands/wp-security-user-security-commands.php:508
+#: dist/admin/wp-security-admin-menu.php:160, dist/admin/wp-security-admin-menu.php:176, dist/classes/wp-security-commands.php:266, dist/classes/commands/wp-brute-force-commands.php:51, dist/classes/commands/wp-brute-force-commands.php:123, dist/classes/commands/wp-security-tools-commands.php:129, dist/classes/commands/wp-security-user-security-commands.php:206, dist/classes/commands/wp-security-user-security-commands.php:284, dist/classes/commands/wp-security-user-security-commands.php:329, dist/classes/commands/wp-security-user-security-commands.php:376, dist/classes/commands/wp-security-user-security-commands.php:417, dist/classes/commands/wp-security-user-security-commands.php:508
 msgid "The settings have been successfully updated."
 msgstr ""
 
@@ -669,10 +669,6 @@ msgstr ""
 msgid "Malware scan"
 msgstr ""
 
-#: dist/admin/wp-security-filescan-menu.php:64, dist/classes/commands/wp-security-file-scan-commands.php:95
-msgid "Nothing is currently scheduled"
-msgstr ""
-
 #: dist/admin/wp-security-filesystem-menu.php:18
 msgid "File security"
 msgstr ""
@@ -725,24 +721,8 @@ msgstr ""
 msgid "Advanced settings"
 msgstr ""
 
-#: dist/admin/wp-security-firewall-menu.php:104, dist/admin/wp-security-firewall-setup-notice.php:389, dist/admin/wp-security-firewall-setup-notice.php:521, dist/templates/notices/firewall-installed-notice.php:2, dist/templates/notices/firewall-setup-notice.php:9, dist/templates/wp-admin/settings/general-settings.php:12
+#: dist/admin/wp-security-firewall-setup-notice.php:389, dist/admin/wp-security-firewall-setup-notice.php:521, dist/classes/commands/wp-security-firewall-commands.php:725, dist/templates/notices/firewall-installed-notice.php:2, dist/templates/notices/firewall-setup-notice.php:9, dist/templates/wp-admin/settings/general-settings.php:12
 msgid "All-In-One Security"
-msgstr ""
-
-#: dist/admin/wp-security-firewall-menu.php:105
-msgid "We were unable to access the firewall's configuration file:"
-msgstr ""
-
-#: dist/admin/wp-security-firewall-menu.php:107
-msgid "As a result, the firewall will be unavailable."
-msgstr ""
-
-#: dist/admin/wp-security-firewall-menu.php:108
-msgid "Please check your PHP error log for further information."
-msgstr ""
-
-#: dist/admin/wp-security-firewall-menu.php:109
-msgid "If you're unable to locate your PHP log file, please contact your web hosting company to ask them where it can be found on their setup."
 msgstr ""
 
 #: dist/admin/wp-security-firewall-setup-notice.php:391
@@ -847,7 +827,7 @@ msgstr ""
 msgid "Are you sure you want to delete this item?"
 msgstr ""
 
-#: dist/admin/wp-security-list-404.php:48, dist/admin/wp-security-list-404.php:148, dist/admin/wp-security-list-audit.php:62, dist/admin/wp-security-list-locked-ip.php:65, dist/admin/wp-security-list-locked-ip.php:160, dist/admin/wp-security-list-registered-users.php:37, dist/admin/wp-security-list-registered-users.php:104, dist/templates/wp-admin/filesystem-security/partials/wp-file-access.php:27
+#: dist/admin/wp-security-list-404.php:48, dist/admin/wp-security-list-404.php:148, dist/admin/wp-security-list-audit.php:62, dist/admin/wp-security-list-locked-ip.php:65, dist/admin/wp-security-list-locked-ip.php:161, dist/admin/wp-security-list-registered-users.php:37, dist/admin/wp-security-list-registered-users.php:104, dist/templates/wp-admin/filesystem-security/partials/wp-file-access.php:27
 msgid "Delete"
 msgstr ""
 
@@ -871,7 +851,7 @@ msgstr ""
 msgid "Are you sure you want to unblock this item?"
 msgstr ""
 
-#: dist/admin/wp-security-list-404.php:56, dist/admin/wp-security-list-404.php:52, dist/admin/wp-security-list-permanent-blocked-ip.php:91
+#: dist/admin/wp-security-list-404.php:56, dist/admin/wp-security-list-404.php:52, dist/admin/wp-security-list-permanent-blocked-ip.php:89
 msgid "Unblock"
 msgstr ""
 
@@ -891,19 +871,19 @@ msgstr ""
 msgid "Temporarily block IP"
 msgstr ""
 
-#: dist/admin/wp-security-list-404.php:167, dist/admin/wp-security-list-404.php:175, dist/admin/wp-security-list-404.php:182, dist/admin/wp-security-list-audit.php:240, dist/admin/wp-security-list-comment-spammer-ip.php:102, dist/admin/wp-security-list-locked-ip.php:176, dist/admin/wp-security-list-locked-ip.php:184, dist/admin/wp-security-list-permanent-blocked-ip.php:103, dist/admin/wp-security-list-registered-users.php:122, dist/admin/wp-security-list-registered-users.php:130, dist/admin/wp-security-list-registered-users.php:138
+#: dist/admin/wp-security-list-404.php:169, dist/admin/wp-security-list-404.php:178, dist/admin/wp-security-list-404.php:186, dist/admin/wp-security-list-audit.php:240, dist/admin/wp-security-list-comment-spammer-ip.php:102, dist/admin/wp-security-list-locked-ip.php:179, dist/admin/wp-security-list-locked-ip.php:188, dist/admin/wp-security-list-permanent-blocked-ip.php:102, dist/admin/wp-security-list-registered-users.php:122, dist/admin/wp-security-list-registered-users.php:130, dist/admin/wp-security-list-registered-users.php:138
 msgid "Please select some records using the checkboxes"
 msgstr ""
 
-#: dist/admin/wp-security-list-404.php:207, dist/admin/wp-security-list-404.php:241
+#: dist/admin/wp-security-list-404.php:213, dist/admin/wp-security-list-404.php:247
 msgid "Could not process the request because the IP addresses for the selected entries could not be found."
 msgstr ""
 
-#: dist/admin/wp-security-list-404.php:216
+#: dist/admin/wp-security-list-404.php:222
 msgid "The selected IP addresses are now temporarily blocked."
 msgstr ""
 
-#: dist/admin/wp-security-list-404.php:260, dist/classes/commands/wp-brute-force-commands.php:510
+#: dist/admin/wp-security-list-404.php:266, dist/classes/commands/wp-brute-force-commands.php:510
 msgid "The selected IP addresses have been added to the blacklist and will be permanently blocked."
 msgstr ""
 
@@ -927,7 +907,7 @@ msgstr ""
 msgid "Lock IP"
 msgstr ""
 
-#: dist/admin/wp-security-list-audit.php:90, dist/admin/wp-security-list-locked-ip.php:64, dist/admin/wp-security-list-locked-ip.php:159
+#: dist/admin/wp-security-list-audit.php:90, dist/admin/wp-security-list-locked-ip.php:64, dist/admin/wp-security-list-locked-ip.php:160
 msgid "Unlock"
 msgstr ""
 
@@ -963,7 +943,7 @@ msgstr ""
 msgid "Site ID"
 msgstr ""
 
-#: dist/admin/wp-security-list-audit.php:180, dist/admin/wp-security-list-locked-ip.php:128, dist/classes/commands/wp-security-log-commands.php:108
+#: dist/admin/wp-security-list-audit.php:180, dist/admin/wp-security-list-locked-ip.php:129, dist/classes/commands/wp-security-log-commands.php:108
 msgid "Username"
 msgstr ""
 
@@ -1051,35 +1031,35 @@ msgstr ""
 msgid "Not Found"
 msgstr ""
 
-#: dist/admin/wp-security-list-locked-ip.php:112, dist/admin/wp-security-list-locked-ip.php:132
+#: dist/admin/wp-security-list-locked-ip.php:113, dist/admin/wp-security-list-locked-ip.php:133
 msgid "IP lookup result"
 msgstr ""
 
-#: dist/admin/wp-security-list-locked-ip.php:112
+#: dist/admin/wp-security-list-locked-ip.php:113
 msgid "Show result"
 msgstr ""
 
-#: dist/admin/wp-security-list-locked-ip.php:126
+#: dist/admin/wp-security-list-locked-ip.php:127
 msgid "Locked IP/range"
 msgstr ""
 
-#: dist/admin/wp-security-list-locked-ip.php:127, dist/admin/wp-security-list-logged-in-users.php:53, dist/admin/wp-security-list-registered-users.php:80
+#: dist/admin/wp-security-list-locked-ip.php:128, dist/admin/wp-security-list-logged-in-users.php:53, dist/admin/wp-security-list-registered-users.php:80
 msgid "User ID"
 msgstr ""
 
-#: dist/admin/wp-security-list-locked-ip.php:129, dist/admin/wp-security-list-permanent-blocked-ip.php:73
+#: dist/admin/wp-security-list-locked-ip.php:130, dist/admin/wp-security-list-permanent-blocked-ip.php:73
 msgid "Reason"
 msgstr ""
 
-#: dist/admin/wp-security-list-locked-ip.php:130
+#: dist/admin/wp-security-list-locked-ip.php:131
 msgid "Date locked"
 msgstr ""
 
-#: dist/admin/wp-security-list-locked-ip.php:131
+#: dist/admin/wp-security-list-locked-ip.php:132
 msgid "Release date"
 msgstr ""
 
-#: dist/admin/wp-security-list-locked-ip.php:209
+#: dist/admin/wp-security-list-locked-ip.php:216
 msgid "The selected IP entries were unlocked successfully."
 msgstr ""
 
@@ -1095,15 +1075,15 @@ msgstr ""
 msgid "Login name"
 msgstr ""
 
-#: dist/admin/wp-security-list-logged-in-users.php:98
+#: dist/admin/wp-security-list-logged-in-users.php:97
 msgid "Logout all"
 msgstr ""
 
-#: dist/admin/wp-security-list-logged-in-users.php:99
+#: dist/admin/wp-security-list-logged-in-users.php:98
 msgid "Logout selected"
 msgstr ""
 
-#: dist/admin/wp-security-list-logged-in-users.php:163
+#: dist/admin/wp-security-list-logged-in-users.php:166
 msgid "Some users were not logged out due to the ID being invalid, or them being a super admin or a member of a different subsite on a multisite"
 msgstr ""
 
@@ -1119,11 +1099,11 @@ msgstr ""
 msgid "Date and Time"
 msgstr ""
 
-#: dist/admin/wp-security-list-permanent-blocked-ip.php:131, dist/classes/commands/wp-security-ip-commands.php:75
+#: dist/admin/wp-security-list-permanent-blocked-ip.php:132, dist/classes/commands/wp-security-ip-commands.php:75
 msgid "Failed to unblock and delete the selected record(s)."
 msgstr ""
 
-#: dist/admin/wp-security-list-permanent-blocked-ip.php:127, dist/classes/commands/wp-security-ip-commands.php:77
+#: dist/admin/wp-security-list-permanent-blocked-ip.php:128, dist/classes/commands/wp-security-ip-commands.php:77
 msgid "Successfully unblocked and deleted the selected record(s)."
 msgstr ""
 
@@ -1218,22 +1198,6 @@ msgstr ""
 
 #: dist/admin/wp-security-settings-menu.php:56
 msgid "Import/Export"
-msgstr ""
-
-#: dist/admin/wp-security-settings-menu.php:152
-msgid "Default - if correct, then this is the best option"
-msgstr ""
-
-#: dist/admin/wp-security-settings-menu.php:153
-msgid "Only use if you're using Cloudflare."
-msgstr ""
-
-#: dist/admin/wp-security-settings-menu.php:165
-msgid "no value (i.e. empty) on your server"
-msgstr ""
-
-#: dist/admin/wp-security-settings-menu.php:162
-msgid "(current value: %s)"
 msgstr ""
 
 #: dist/admin/wp-security-spam-menu.php:19, dist/templates/wp-admin/dashboard/may-also-like.php:174
@@ -1719,28 +1683,64 @@ msgstr ""
 msgid "ERROR"
 msgstr ""
 
-#: dist/classes/wp-security-commands.php:68
+#: dist/classes/wp-security-commands.php:70
 msgid "The feature item manager could not be initialized."
 msgstr ""
 
-#: dist/classes/wp-security-commands.php:86
+#: dist/classes/wp-security-commands.php:88
 msgid "Invalid IP retrieve method."
 msgstr ""
 
-#: dist/classes/wp-security-commands.php:264
+#: dist/classes/wp-security-commands.php:266
 msgid "The settings update was unsuccessful."
 msgstr ""
 
-#: dist/classes/wp-security-commands.php:315
+#: dist/classes/wp-security-commands.php:318
 msgid "Invalid email address."
 msgstr ""
 
-#: dist/classes/wp-security-commands.php:324
+#: dist/classes/wp-security-commands.php:327
 msgid "The diagnostic report has been sent successfully."
 msgstr ""
 
-#: dist/classes/wp-security-commands.php:330
+#: dist/classes/wp-security-commands.php:333
 msgid "There was an error sending the diagnostic report."
+msgstr ""
+
+#: dist/classes/wp-security-commands.php:401
+msgid "AIOS premium"
+msgstr ""
+
+#: dist/classes/wp-security-commands.php:403
+msgid "Advanced malware scanning"
+msgstr ""
+
+#: dist/classes/wp-security-commands.php:404
+msgid "Real-time response time monitoring"
+msgstr ""
+
+#: dist/classes/wp-security-commands.php:405
+msgid "Custom two-factor authentication"
+msgstr ""
+
+#: dist/classes/wp-security-commands.php:406
+msgid "404 error protection & bot blocking"
+msgstr ""
+
+#: dist/classes/wp-security-commands.php:407
+msgid "Country-based traffic blocking"
+msgstr ""
+
+#: dist/classes/wp-security-commands.php:408
+msgid "Country whitelist management"
+msgstr ""
+
+#: dist/classes/wp-security-commands.php:409
+msgid "Guaranteed premium support"
+msgstr ""
+
+#: dist/classes/wp-security-commands.php:412
+msgid "Upgrade Now"
 msgstr ""
 
 #: dist/classes/wp-security-configure-settings.php:519
@@ -1964,11 +1964,11 @@ msgstr ""
 msgid "Completely block xmlrpc.php"
 msgstr ""
 
-#: dist/classes/wp-security-notices.php:71, dist/templates/wp-admin/firewall/partials/proxy-comment.php:14
+#: dist/classes/wp-security-notices.php:71, dist/templates/wp-admin/firewall/partials/proxy-comment.php:13
 msgid "Forbid proxy comment posting"
 msgstr ""
 
-#: dist/classes/wp-security-notices.php:74, dist/templates/wp-admin/firewall/partials/bad-query-strings.php:14
+#: dist/classes/wp-security-notices.php:74, dist/templates/wp-admin/firewall/partials/bad-query-strings.php:13
 msgid "Deny bad query strings"
 msgstr ""
 
@@ -2602,7 +2602,7 @@ msgstr ""
 
 #. translators: %s: Total items
 #. translators: %s: Item count.
-#: dist/admin/general/wp-security-ajax-data-table.php:808, dist/admin/general/wp-security-ajax-data-table.php:1433, dist/admin/general/wp-security-list-table.php:819, dist/admin/general/wp-security-list-table.php:1425
+#: dist/admin/general/wp-security-ajax-data-table.php:808, dist/admin/general/wp-security-ajax-data-table.php:1434, dist/admin/general/wp-security-list-table.php:819, dist/admin/general/wp-security-list-table.php:1425
 msgid "%s item"
 msgid_plural "%s items"
 msgstr[0] ""
@@ -2818,39 +2818,47 @@ msgstr ""
 msgid "In order to ensure that future scan results are accurate, the old scan data has been refreshed."
 msgstr ""
 
-#: dist/classes/commands/wp-security-file-scan-commands.php:132
+#: dist/classes/commands/wp-security-file-scan-commands.php:95, dist/templates/wp-admin/scanner/file-change-detect.php:22
+msgid "Nothing is currently scheduled"
+msgstr ""
+
+#: dist/classes/commands/wp-security-file-scan-commands.php:126, dist/classes/commands/wp-security-firewall-commands.php:386, dist/classes/commands/wp-security-log-commands.php:153, dist/classes/commands/wp-security-log-commands.php:199, dist/classes/commands/wp-security-tfa-commands.php:34, dist/classes/commands/wp-security-tfa-commands.php:63, dist/classes/commands/wp-security-tfa-commands.php:84, dist/classes/commands/wp-security-tfa-commands.php:108, dist/classes/commands/wp-security-tfa-commands.php:198
+msgid "Sorry, you do not have enough privilege to execute the requested action."
+msgstr ""
+
+#: dist/classes/commands/wp-security-file-scan-commands.php:175
 msgid "No previous scan data was found; either run a manual scan or schedule regular file scans"
 msgstr ""
 
-#: dist/classes/commands/wp-security-file-scan-commands.php:156
+#: dist/classes/commands/wp-security-file-scan-commands.php:199
 msgid "There was an error during the file change detection scan."
 msgstr ""
 
-#: dist/classes/commands/wp-security-file-scan-commands.php:156
+#: dist/classes/commands/wp-security-file-scan-commands.php:199
 msgid "Please check the plugin debug logs."
 msgstr ""
 
-#: dist/classes/commands/wp-security-file-scan-commands.php:167, dist/templates/wp-admin/scanner/file-change-detect.php:5
+#: dist/classes/commands/wp-security-file-scan-commands.php:212, dist/templates/wp-admin/scanner/file-change-detect.php:5
 msgid "The scan has detected that there was a change in your website's files."
 msgstr ""
 
-#: dist/classes/commands/wp-security-file-scan-commands.php:167, dist/classes/commands/wp-security-file-scan-commands.php:162
+#: dist/classes/commands/wp-security-file-scan-commands.php:212, dist/classes/commands/wp-security-file-scan-commands.php:207
 msgid "View the file scan results"
 msgstr ""
 
-#: dist/classes/commands/wp-security-file-scan-commands.php:165
+#: dist/classes/commands/wp-security-file-scan-commands.php:210
 msgid "The scan is complete - There were no file changes detected."
 msgstr ""
 
-#: dist/classes/commands/wp-security-file-scan-commands.php:162
+#: dist/classes/commands/wp-security-file-scan-commands.php:207
 msgid "This is your first file change detection scan."
 msgstr ""
 
-#: dist/classes/commands/wp-security-file-scan-commands.php:162
+#: dist/classes/commands/wp-security-file-scan-commands.php:207
 msgid "The details from this scan will be used for future scans."
 msgstr ""
 
-#: dist/classes/commands/wp-security-file-scan-commands.php:163
+#: dist/classes/commands/wp-security-file-scan-commands.php:208
 msgid "View last file scan results"
 msgstr ""
 
@@ -2906,21 +2914,37 @@ msgstr ""
 msgid "Could not write to the .htaccess file for the 5G firewall settings, please check the file permissions."
 msgstr ""
 
-#: dist/classes/commands/wp-security-firewall-commands.php:405
+#: dist/classes/commands/wp-security-firewall-commands.php:430
 msgid "Firewall has been setup successfully."
 msgstr ""
 
-#: dist/classes/commands/wp-security-firewall-commands.php:424
+#: dist/classes/commands/wp-security-firewall-commands.php:449
 msgid "Something went wrong please try again later."
 msgstr ""
 
-#: dist/classes/commands/wp-security-firewall-commands.php:424
+#: dist/classes/commands/wp-security-firewall-commands.php:449
 msgid "Firewall has been downgraded successfully."
 msgstr ""
 
 #. translators: %s URL entered by user.
-#: dist/classes/commands/wp-security-firewall-commands.php:497
+#: dist/classes/commands/wp-security-firewall-commands.php:522
 msgid "%s is not a valid url."
+msgstr ""
+
+#: dist/classes/commands/wp-security-firewall-commands.php:726
+msgid "We were unable to access the firewall's configuration file:"
+msgstr ""
+
+#: dist/classes/commands/wp-security-firewall-commands.php:728
+msgid "As a result, the firewall will be unavailable."
+msgstr ""
+
+#: dist/classes/commands/wp-security-firewall-commands.php:729
+msgid "Please check your PHP error log for further information."
+msgstr ""
+
+#: dist/classes/commands/wp-security-firewall-commands.php:730
+msgid "If you're unable to locate your PHP log file, please contact your web hosting company to ask them where it can be found on their setup."
 msgstr ""
 
 #: dist/classes/commands/wp-security-ip-commands.php:19, dist/classes/commands/wp-security-ip-commands.php:43, dist/classes/commands/wp-security-ip-commands.php:92, dist/classes/commands/wp-security-ip-commands.php:118
@@ -3029,6 +3053,22 @@ msgstr ""
 
 #: dist/classes/commands/wp-security-settings-commands.php:311
 msgid "Please choose a file to import your settings from."
+msgstr ""
+
+#: dist/classes/commands/wp-security-settings-commands.php:532
+msgid "Default - if correct, then this is the best option"
+msgstr ""
+
+#: dist/classes/commands/wp-security-settings-commands.php:533
+msgid "Only use if you're using Cloudflare."
+msgstr ""
+
+#: dist/classes/commands/wp-security-settings-commands.php:546
+msgid "no value (i.e. empty) on your server"
+msgstr ""
+
+#: dist/classes/commands/wp-security-settings-commands.php:543
+msgid "(current value: %s)"
 msgstr ""
 
 #: dist/classes/commands/wp-security-tools-commands.php:39, dist/classes/commands/wp-security-tools-commands.php:33
@@ -3149,6 +3189,26 @@ msgstr ""
 
 #: dist/classes/commands/wp-security-user-security-commands.php:600
 msgid "The selected IP was successfully added to the permanent block list."
+msgstr ""
+
+#: dist/classes/commands/wp-security-user-security-commands.php:682
+msgid "You don't have enough permissions to whitelist your IP address."
+msgstr ""
+
+#: dist/classes/commands/wp-security-user-security-commands.php:700
+msgid "Your IP address could not be detected."
+msgstr ""
+
+#: dist/classes/commands/wp-security-user-security-commands.php:708
+msgid "There was an error whitelisting your IP address, please try again."
+msgstr ""
+
+#: dist/classes/commands/wp-security-user-security-commands.php:712
+msgid "Your IP address has been whitelisted successfully."
+msgstr ""
+
+#: dist/classes/commands/wp-security-user-security-commands.php:693
+msgid "Your IP address is already whitelisted."
 msgstr ""
 
 #: dist/classes/grade-system/wp-security-feature-item-manager.php:53
@@ -3519,7 +3579,7 @@ msgstr ""
 msgid "Two factor authentication in All In One WP Security is currently disabled because the incompatible plugin %s is active."
 msgstr ""
 
-#: dist/templates/info/ip-address-ip-range-info.php:2, dist/templates/wp-admin/brute-force/cookie-based-brute-force-prevention.php:63, dist/templates/wp-admin/brute-force/cookie-based-brute-force-prevention.php:100, dist/templates/wp-admin/brute-force/cookie-based-brute-force-prevention.php:123, dist/templates/wp-admin/brute-force/cookie-based-brute-force-prevention.php:145, dist/templates/wp-admin/firewall/5g.php:17, dist/templates/wp-admin/scanner/file-change-detect.php:97, dist/templates/wp-admin/scanner/file-change-detect.php:116, dist/templates/wp-admin/settings/advanced-settings.php:67, dist/templates/wp-admin/spam-prevention/comment-spam-ip-monitoring.php:46, dist/templates/wp-admin/spam-prevention/comment-spam-ip-monitoring.php:81, dist/templates/wp-admin/spam-prevention/comment-spam.php:25, dist/templates/wp-admin/spam-prevention/comment-spam.php:42, dist/templates/wp-admin/spam-prevention/comment-spam.php:86, dist/templates/wp-admin/user-security/login-lockout.php:117, dist/templates/wp-admin/user-security/salt.php:36, dist/templates/wp-admin/brute-force/partials/other-plugins.php:58, dist/templates/wp-admin/firewall/partials/advanced-character-filter.php:18, dist/templates/wp-admin/firewall/partials/advanced-settings-6g.php:17, dist/templates/wp-admin/firewall/partials/bad-query-strings.php:18, dist/templates/wp-admin/firewall/partials/basic-firewall-settings.php:17, dist/templates/wp-admin/firewall/partials/blank-ref-and-useragent.php:17, dist/templates/wp-admin/firewall/partials/block-debug-log.php:18, dist/templates/wp-admin/firewall/partials/disable-rss-atom.php:17, dist/templates/wp-admin/firewall/partials/disable-trace.php:18, dist/templates/wp-admin/firewall/partials/fake-googlebots.php:33, dist/templates/wp-admin/firewall/partials/firewall-setup.php:18, dist/templates/wp-admin/firewall/partials/listing-directory-contents.php:18, dist/templates/wp-admin/firewall/partials/ng.php:29, dist/templates/wp-admin/firewall/partials/proxy-comment.php:18, dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:19, dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:40
+#: dist/templates/info/ip-address-ip-range-info.php:2, dist/templates/wp-admin/brute-force/cookie-based-brute-force-prevention.php:63, dist/templates/wp-admin/brute-force/cookie-based-brute-force-prevention.php:100, dist/templates/wp-admin/brute-force/cookie-based-brute-force-prevention.php:123, dist/templates/wp-admin/brute-force/cookie-based-brute-force-prevention.php:145, dist/templates/wp-admin/firewall/5g.php:17, dist/templates/wp-admin/scanner/file-change-detect.php:100, dist/templates/wp-admin/scanner/file-change-detect.php:119, dist/templates/wp-admin/settings/advanced-settings.php:66, dist/templates/wp-admin/spam-prevention/comment-spam-ip-monitoring.php:46, dist/templates/wp-admin/spam-prevention/comment-spam-ip-monitoring.php:81, dist/templates/wp-admin/spam-prevention/comment-spam.php:25, dist/templates/wp-admin/spam-prevention/comment-spam.php:42, dist/templates/wp-admin/spam-prevention/comment-spam.php:86, dist/templates/wp-admin/user-security/login-lockout.php:117, dist/templates/wp-admin/user-security/salt.php:36, dist/templates/wp-admin/brute-force/partials/other-plugins.php:58, dist/templates/wp-admin/firewall/partials/advanced-character-filter.php:17, dist/templates/wp-admin/firewall/partials/advanced-settings-6g.php:17, dist/templates/wp-admin/firewall/partials/bad-query-strings.php:17, dist/templates/wp-admin/firewall/partials/basic-firewall-settings.php:17, dist/templates/wp-admin/firewall/partials/blank-ref-and-useragent.php:17, dist/templates/wp-admin/firewall/partials/block-debug-log.php:18, dist/templates/wp-admin/firewall/partials/disable-rss-atom.php:17, dist/templates/wp-admin/firewall/partials/disable-trace.php:18, dist/templates/wp-admin/firewall/partials/fake-googlebots.php:33, dist/templates/wp-admin/firewall/partials/firewall-setup.php:18, dist/templates/wp-admin/firewall/partials/listing-directory-contents.php:18, dist/templates/wp-admin/firewall/partials/ng.php:29, dist/templates/wp-admin/firewall/partials/proxy-comment.php:17, dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:18, dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:39
 msgid "More info"
 msgstr ""
 
@@ -4178,7 +4238,7 @@ msgstr ""
 msgid "A blocked visitor will be automatically redirected to this URL."
 msgstr ""
 
-#: dist/templates/wp-admin/brute-force/404-detection.php:73, dist/templates/wp-admin/brute-force/captcha-settings.php:62, dist/templates/wp-admin/brute-force/honeypot.php:50, dist/templates/wp-admin/brute-force/login-whitelist.php:63, dist/templates/wp-admin/brute-force/rename-login.php:52, dist/templates/wp-admin/filesystem-security/file-protection.php:59, dist/templates/wp-admin/filesystem-security/frames.php:30, dist/templates/wp-admin/firewall/block-and-allow-lists.php:82, dist/templates/wp-admin/scanner/file-change-detect.php:142, dist/templates/wp-admin/settings/advanced-settings.php:221, dist/templates/wp-admin/settings/delete-plugin-settings.php:37, dist/templates/wp-admin/settings/wp-version-info.php:35, dist/templates/wp-admin/spam-prevention/comment-spam-ip-monitoring.php:62, dist/templates/wp-admin/spam-prevention/comment-spam.php:97, dist/templates/wp-admin/user-security/additional.php:28, dist/templates/wp-admin/user-security/force-logout.php:36, dist/templates/wp-admin/user-security/hibp.php:32, dist/templates/wp-admin/user-security/http-authentication.php:103, dist/templates/wp-admin/user-security/login-lockout.php:141, dist/templates/wp-admin/user-security/login-lockout.php:184, dist/templates/wp-admin/user-security/manual-approval.php:30, dist/templates/wp-admin/user-security/salt.php:49, dist/templates/wp-admin/user-security/user-accounts.php:14, dist/templates/wp-admin/firewall/partials/upgrade-unsafe-http-calls.php:45
+#: dist/templates/wp-admin/brute-force/404-detection.php:73, dist/templates/wp-admin/brute-force/captcha-settings.php:62, dist/templates/wp-admin/brute-force/honeypot.php:50, dist/templates/wp-admin/brute-force/login-whitelist.php:63, dist/templates/wp-admin/brute-force/rename-login.php:52, dist/templates/wp-admin/filesystem-security/file-protection.php:59, dist/templates/wp-admin/filesystem-security/frames.php:30, dist/templates/wp-admin/firewall/block-and-allow-lists.php:82, dist/templates/wp-admin/scanner/file-change-detect.php:145, dist/templates/wp-admin/settings/advanced-settings.php:220, dist/templates/wp-admin/settings/delete-plugin-settings.php:37, dist/templates/wp-admin/settings/wp-version-info.php:35, dist/templates/wp-admin/spam-prevention/comment-spam-ip-monitoring.php:62, dist/templates/wp-admin/spam-prevention/comment-spam.php:97, dist/templates/wp-admin/user-security/additional.php:28, dist/templates/wp-admin/user-security/force-logout.php:36, dist/templates/wp-admin/user-security/hibp.php:32, dist/templates/wp-admin/user-security/http-authentication.php:103, dist/templates/wp-admin/user-security/login-lockout.php:141, dist/templates/wp-admin/user-security/login-lockout.php:184, dist/templates/wp-admin/user-security/manual-approval.php:30, dist/templates/wp-admin/user-security/salt.php:49, dist/templates/wp-admin/user-security/user-accounts.php:14, dist/templates/wp-admin/firewall/partials/upgrade-unsafe-http-calls.php:45
 msgid "Save settings"
 msgstr ""
 
@@ -4532,7 +4592,7 @@ msgstr ""
 msgid "Your current IP address"
 msgstr ""
 
-#: dist/templates/wp-admin/brute-force/login-whitelist.php:52, dist/templates/wp-admin/settings/advanced-settings.php:85, dist/templates/wp-admin/settings/advanced-settings.php:194
+#: dist/templates/wp-admin/brute-force/login-whitelist.php:52, dist/templates/wp-admin/settings/advanced-settings.php:84, dist/templates/wp-admin/settings/advanced-settings.php:193
 msgid "getting..."
 msgstr ""
 
@@ -5416,116 +5476,116 @@ msgstr ""
 msgid "Next file scan"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:28
+#: dist/templates/wp-admin/scanner/file-change-detect.php:31
 msgid "Previous file scan results"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:36
+#: dist/templates/wp-admin/scanner/file-change-detect.php:39
 msgid "No previous scan results"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:34
+#: dist/templates/wp-admin/scanner/file-change-detect.php:37
 msgid "View the last file scan results"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:47
+#: dist/templates/wp-admin/scanner/file-change-detect.php:50
 msgid "Time now"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:52
+#: dist/templates/wp-admin/scanner/file-change-detect.php:55
 msgid "Scan now"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:53
+#: dist/templates/wp-admin/scanner/file-change-detect.php:56
 msgid "or schedule regular file scans below."
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:62
+#: dist/templates/wp-admin/scanner/file-change-detect.php:65
 msgid "File change detection settings"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:73
+#: dist/templates/wp-admin/scanner/file-change-detect.php:76
 msgid "Enable automated file change detection scan"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:76
+#: dist/templates/wp-admin/scanner/file-change-detect.php:79
 msgid "Enable this if you want the system to automatically and periodically scan your files to check for file changes based on the settings below"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:81
+#: dist/templates/wp-admin/scanner/file-change-detect.php:84
 msgid "Scan time interval"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:84
+#: dist/templates/wp-admin/scanner/file-change-detect.php:87
 msgid "Hours"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:85
+#: dist/templates/wp-admin/scanner/file-change-detect.php:88
 msgid "Days"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:86
+#: dist/templates/wp-admin/scanner/file-change-detect.php:89
 msgid "Weeks"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:88
+#: dist/templates/wp-admin/scanner/file-change-detect.php:91
 msgid "Set the value for how often you would like a scan to occur"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:92
+#: dist/templates/wp-admin/scanner/file-change-detect.php:95
 msgid "File types to ignore"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:96
+#: dist/templates/wp-admin/scanner/file-change-detect.php:99
 msgid "Enter each file type or extension on a new line which you wish to exclude from the file change detection scan."
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:100
+#: dist/templates/wp-admin/scanner/file-change-detect.php:103
 msgid "You can exclude file types from the scan which would not normally pose any security threat if they were changed."
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:100
+#: dist/templates/wp-admin/scanner/file-change-detect.php:103
 msgid "These can include things such as image files."
 msgstr ""
 
 #. translators: 1. JPG, 2. PNG, 3. BMP.
-#: dist/templates/wp-admin/scanner/file-change-detect.php:102
+#: dist/templates/wp-admin/scanner/file-change-detect.php:105
 msgid "Example: If you want the scanner to ignore files of type %1$s, %2$s, and %3$s, then you would enter the following:"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:111
+#: dist/templates/wp-admin/scanner/file-change-detect.php:114
 msgid "Files/Directories to ignore"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:115
+#: dist/templates/wp-admin/scanner/file-change-detect.php:118
 msgid "Enter each file or directory on a new line which you wish to exclude from the file change detection scan."
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:119
+#: dist/templates/wp-admin/scanner/file-change-detect.php:122
 msgid "You can exclude specific files/directories from the scan which would not normally pose any security threat if they were changed."
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:119
+#: dist/templates/wp-admin/scanner/file-change-detect.php:122
 msgid "These can include things such as log files."
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:120
+#: dist/templates/wp-admin/scanner/file-change-detect.php:123
 msgid "Example: If you want the scanner to ignore certain files in different directories or whole directories, then you would enter the following:"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:122
+#: dist/templates/wp-admin/scanner/file-change-detect.php:125
 msgid "somedirectory"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:129
+#: dist/templates/wp-admin/scanner/file-change-detect.php:132
 msgid "Send email when change detected"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:133
+#: dist/templates/wp-admin/scanner/file-change-detect.php:136
 msgid "Enable this if you want the system to email you if a file change was detected"
 msgstr ""
 
-#: dist/templates/wp-admin/scanner/file-change-detect.php:138
+#: dist/templates/wp-admin/scanner/file-change-detect.php:141
 msgid "Enter one or more email addresses on a new line."
 msgstr ""
 
@@ -5685,23 +5745,23 @@ msgstr ""
 msgid "If your site is setup on localhost, you won't see your external IP address using your server's IP detection setting; but on a localhost-served site (not available to the outside world), the setting is irrelevant and can be ignored."
 msgstr ""
 
-#: dist/templates/wp-admin/settings/advanced-settings.php:65
+#: dist/templates/wp-admin/settings/advanced-settings.php:64
 msgid "Choose a $_SERVER variable you would like to detect visitors' IP address using."
 msgstr ""
 
-#: dist/templates/wp-admin/settings/advanced-settings.php:71
+#: dist/templates/wp-admin/settings/advanced-settings.php:70
 msgid "If your chosen server variable fails the plugin will automatically fall back to retrieving the IP address from $_SERVER[\"REMOTE_ADDR\"]"
 msgstr ""
 
-#: dist/templates/wp-admin/settings/advanced-settings.php:77
+#: dist/templates/wp-admin/settings/advanced-settings.php:76
 msgid "Your IP address if using this setting:"
 msgstr ""
 
-#: dist/templates/wp-admin/settings/advanced-settings.php:79
+#: dist/templates/wp-admin/settings/advanced-settings.php:78
 msgid "fetching..."
 msgstr ""
 
-#: dist/templates/wp-admin/settings/advanced-settings.php:93
+#: dist/templates/wp-admin/settings/advanced-settings.php:92
 msgid "look-up possibly blocked by an ad-blocker or similar tool"
 msgstr ""
 
@@ -7087,23 +7147,23 @@ msgstr ""
 msgid "Automatically delete the files after a WP core update."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/advanced-character-filter.php:14
+#: dist/templates/wp-admin/firewall/partials/advanced-character-filter.php:13
 msgid "Enable advanced character string filter"
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/advanced-character-filter.php:17
+#: dist/templates/wp-admin/firewall/partials/advanced-character-filter.php:16
 msgid "This will block character sequences which resemble XSS attacks."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/advanced-character-filter.php:22
+#: dist/templates/wp-admin/firewall/partials/advanced-character-filter.php:21
 msgid "This is an advanced character string filter to prevent malicious string attacks on your site coming from Cross Site Scripting (XSS)."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/advanced-character-filter.php:23
+#: dist/templates/wp-admin/firewall/partials/advanced-character-filter.php:22
 msgid "This setting matches for common malicious string patterns and exploits and will produce a 403 error for the hacker attempting the query."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/advanced-character-filter.php:24
+#: dist/templates/wp-admin/firewall/partials/advanced-character-filter.php:23
 msgid "NOTE: Some strings for this setting might break some functionality."
 msgstr ""
 
@@ -7205,15 +7265,15 @@ msgstr ""
 msgid "Bad query strings"
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/bad-query-strings.php:17
+#: dist/templates/wp-admin/firewall/partials/bad-query-strings.php:16
 msgid "This will help protect you against malicious queries via XSS."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/bad-query-strings.php:22
+#: dist/templates/wp-admin/firewall/partials/bad-query-strings.php:21
 msgid "This feature will prevent malicious string attacks on your site using XSS."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/bad-query-strings.php:23
+#: dist/templates/wp-admin/firewall/partials/bad-query-strings.php:22
 msgid "NOTE: Some of these strings might be used for plugins or themes and hence this might break some functionality."
 msgstr ""
 
@@ -7518,15 +7578,15 @@ msgstr ""
 msgid "Proxy comment posting"
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/proxy-comment.php:17
+#: dist/templates/wp-admin/firewall/partials/proxy-comment.php:16
 msgid "Enable this if you want to forbid proxy comment posting."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/proxy-comment.php:22
+#: dist/templates/wp-admin/firewall/partials/proxy-comment.php:21
 msgid "This setting will deny any requests that use a proxy server when posting comments."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/proxy-comment.php:23
+#: dist/templates/wp-admin/firewall/partials/proxy-comment.php:22
 msgid "By forbidding proxy comments you are in effect eliminating some spam and other proxy requests."
 msgstr ""
 
@@ -7620,67 +7680,67 @@ msgstr ""
 msgid "WordPress XMLRPC and pingback vulnerability protection"
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:15
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:14
 msgid "Completely block access to XMLRPC"
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:18
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:17
 msgid "Enable this if you are not using the WP XML-RPC functionality and you want to completely block external access to XMLRPC."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:22
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:21
 msgid "This setting will disable access to the WordPress xmlrpc.php file which is responsible for the XML-RPC functionality in WordPress."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:23
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:22
 msgid "Hackers can exploit various vulnerabilities in the WordPress XML-RPC API in a number of ways such as:"
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:24
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:23
 msgid "1) Denial of Service (DoS) attacks"
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:25
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:24
 msgid "2) Hacking internal routers."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:26
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:25
 msgid "3) Scanning ports in internal networks to get info from various hosts."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:27
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:26
 msgid "Apart from the security protection benefit, this feature may also help reduce load on your server, particularly if your site currently has a lot of unwanted traffic hitting the XML-RPC API on your installation."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:28
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:27
 msgid "NOTE: You should only enable this feature if you are not currently using the XML-RPC functionality on your WordPress installation."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:29
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:28
 msgid "Leave this feature disabled and use the feature below if you want pingback protection but you still need XMLRPC."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:36
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:35
 msgid "Disable pingback functionality from XMLRPC"
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:39
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:38
 msgid "If you use Jetpack or WP iOS or other apps which need WP XML-RPC functionality then check this."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:39
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:38
 msgid "This will enable protection against WordPress pingback vulnerabilities."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:43
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:42
 msgid "NOTE: If you use Jetpack or the Wordpress iOS or other apps then you should enable this feature but leave the \"Completely Block Access To XMLRPC\" checkbox unchecked."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:44
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:43
 msgid "The feature will still allow XMLRPC functionality on your site but will disable the pingback methods."
 msgstr ""
 
-#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:45
+#: dist/templates/wp-admin/firewall/partials/xmlrpc-pingback-protection.php:44
 msgid "This feature will also remove the \"X-Pingback\" header if it is present."
 msgstr ""
 

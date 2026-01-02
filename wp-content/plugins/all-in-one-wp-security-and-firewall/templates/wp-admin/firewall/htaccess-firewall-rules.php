@@ -47,7 +47,7 @@
 		<div class="aiowps-settings">
 			<?php
 			foreach ($templates as $key => $template) {
-				$aio_wp_security->include_template('wp-admin/firewall/partials/' . $key . '.php');
+				$aio_wp_security->include_template('wp-admin/firewall/partials/' . $key . '.php', false, $htaccess_rules_data);
 			}
 			?>
 		</div>

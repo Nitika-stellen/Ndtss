@@ -32,6 +32,7 @@ class AIOWPSecurity_Block_Bootstrap extends AIOWPSecurity_Block_File {
 			);
 		}
 
+		// phpcs:disable WordPress.WP.AlternativeFunctions -- wp_filesystem not recommended for firewall.
 		if (!is_writable($info['dirname'])) {
 			return new WP_Error(
 				'file_directory_not_writable',
@@ -41,6 +42,7 @@ class AIOWPSecurity_Block_Bootstrap extends AIOWPSecurity_Block_File {
 		}
 
 		return (false !== @file_put_contents($this->file_path, $this->get_contents())); // phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- ignore this
+		// phpcs:enable WordPress.WP.AlternativeFunctions -- wp_filesystem not recommended for firewall.
 	}
 
 	/**
@@ -80,7 +82,7 @@ class AIOWPSecurity_Block_Bootstrap extends AIOWPSecurity_Block_File {
 	 * @return array|boolean Array with the version information; false otherwise.
 	 */
 	protected function get_bootstrap_version() {
-		
+
 		$contents = @file_get_contents($this->file_path); // phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- ignore this
 
 		if (false === $contents) return false;

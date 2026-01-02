@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Database Management tool - Adminer\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-06 16:05+0000\n"
+"POT-Creation-Date: 2025-11-01 17:56+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: \n"
@@ -15,32 +15,36 @@ msgstr ""
 "X-Generator: Loco https://localise.biz/\n"
 "X-Loco-Version: 2.4.6; wp-5.9"
 
-#: pexlechris-adminer.php:354
+#: pexlechris-adminer.php:351
 msgid "-> Current Order"
 msgstr ""
 
-#: pexlechris-adminer.php:371
+#: pexlechris-adminer.php:368
 msgid "-> Current Orders meta"
 msgstr ""
 
-#: pexlechris-adminer.php:392
+#: pexlechris-adminer.php:389
 msgid "-> Current Post"
 msgstr ""
 
-#: pexlechris-adminer.php:409
+#: pexlechris-adminer.php:406
 msgid "-> Current Postmeta"
 msgstr ""
 
-#: pexlechris-adminer.php:432
+#: pexlechris-adminer.php:429
 msgid "-> Current User"
 msgstr ""
 
-#: pexlechris-adminer.php:450
+#: pexlechris-adminer.php:447
 msgid "-> Current Usermeta"
 msgstr ""
 
 #. Name of the plugin
 msgid "Database Manager - WP Adminer"
+msgstr ""
+
+#: inc/class-pexlechris-adminer.php:91
+msgid "Home"
 msgstr ""
 
 #. Author URI of the plugin
@@ -51,7 +55,7 @@ msgstr ""
 msgid "Manage the database from your WordPress Dashboard using Adminer."
 msgstr ""
 
-#: pexlechris-adminer.php:220
+#: pexlechris-adminer.php:221
 msgid "Open Adminer in a new tab"
 msgstr ""
 
@@ -59,15 +63,15 @@ msgstr ""
 msgid "Open WP Adminer"
 msgstr ""
 
-#: pexlechris-adminer.php:421
+#: pexlechris-adminer.php:418
 msgid "Options Table"
 msgstr ""
 
-#: pexlechris-adminer.php:365
+#: pexlechris-adminer.php:362
 msgid "Orders meta Table"
 msgstr ""
 
-#: pexlechris-adminer.php:348
+#: pexlechris-adminer.php:345
 msgid "Orders Table"
 msgstr ""
 
@@ -75,36 +79,40 @@ msgstr ""
 msgid "Pexle Chris"
 msgstr ""
 
-#: pexlechris-adminer.php:403
+#: pexlechris-adminer.php:400
 msgid "Postmeta Table"
 msgstr ""
 
-#: pexlechris-adminer.php:386
+#: pexlechris-adminer.php:383
 msgid "Posts Table"
 msgstr ""
 
-#: pexlechris-adminer.php:444
+#: pexlechris-adminer.php:441
 msgid "Usermeta Table"
 msgstr ""
 
-#: pexlechris-adminer.php:426
+#: pexlechris-adminer.php:423
 msgid "Users Table"
 msgstr ""
 
-#: pexlechris-adminer.php:463
+#: pexlechris-adminer.php:460
 msgid "Variable Inspector Table"
 msgstr ""
 
-#: pexlechris-adminer.php:168 pexlechris-adminer.php:204
-#: pexlechris-adminer.php:205
+#: inc/class-pexlechris-adminer.php:87
+msgid "WP Admin"
+msgstr ""
+
+#: pexlechris-adminer.php:169 pexlechris-adminer.php:205
+#: pexlechris-adminer.php:206
 msgid "WP Adminer"
 msgstr ""
 
-#: inc/class-pexlechris-adminer.php:78
+#: inc/class-pexlechris-adminer.php:269
 msgid "You are connecting to the database..."
 msgstr ""
 
-#: pexlechris-adminer.php:243
+#: pexlechris-adminer.php:239
 msgid ""
 "You haven't access to any database other than the site's database. In order "
 "to enable access, you need to add the following line code in the wp-config."

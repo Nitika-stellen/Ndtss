@@ -340,6 +340,7 @@ class WP_Optimizer {
 		if (is_array($table_status)) {
 
 			$corrupted_tables_count = 0;
+			$array_index_was_unset = false;
 
 			foreach ($table_status as $index => $table) {
 				$table_name = $table->Name;
@@ -350,6 +351,7 @@ class WP_Optimizer {
 
 				if (!$include_table && '' !== $table_prefix) {
 					unset($table_status[$index]);
+					$array_index_was_unset = true;
 					continue;
 				}
 
@@ -365,6 +367,10 @@ class WP_Optimizer {
 				$table_status[$index] = $this->join_plugin_information($table_name, $table_status[$index]);
 
 				$table_status[$index]->blog_id = $wpo_db_info->get_table_blog_id($table_name);
+			}
+			if ($array_index_was_unset) {
+				// Reset array keys after removing elements
+				$table_status = array_values($table_status);
 			}
 
 			WP_Optimize()->get_options()->update_option('corrupted-tables-count', $corrupted_tables_count);
@@ -419,11 +425,12 @@ class WP_Optimizer {
 		// if table belongs to any plugin then add plugins status.
 		$plugins = WP_Optimize()->get_db_info()->get_table_plugin($table_name);
 
+		$plugin_status = array();
+
 		if (false !== $plugins) {
 			// if belongs to any of plugin then we can remove table if plugin not active.
 			$can_be_removed = true;
 
-			$plugin_status = array();
 			foreach ($plugins as $plugin) {
 				$status = WP_Optimize()->get_db_info()->get_plugin_status($plugin);
 
@@ -438,10 +445,9 @@ class WP_Optimizer {
 					);
 				}
 			}
-
-			$table_obj->plugin_status = $plugin_status;
 		}
 
+		$table_obj->plugin_status = $plugin_status;
 		$table_obj->wp_core_table = $wp_core_table;
 		$table_obj->can_be_removed = $can_be_removed;
 

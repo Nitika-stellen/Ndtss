@@ -53,7 +53,6 @@
 					<td>
 						<select id="aiowps_ip_retrieve_method" name="aiowps_ip_retrieve_method">
 							<?php
-							$current_ip_retrieve_method = $aio_wp_security->configs->get_value('aiowps_ip_retrieve_method');
 							foreach ($ip_retrieve_methods as $ip_method_id => $vals) {
 							?>
 								<option value="<?php echo esc_attr($ip_method_id); ?>" <?php selected($current_ip_retrieve_method, $ip_method_id); ?> <?php disabled($vals['is_enabled'], false); ?>><?php echo esc_html($vals['ip_method']); ?></option>

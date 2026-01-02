@@ -52,8 +52,9 @@ class Pexlechris_Adminer extends Adminer\Adminer
     }
 
 	function navigation($missing) {
+        $this->print_sticky_urls();
 		parent::navigation($missing);
-		$this->print_dark_mode_switcher();
+        $this->print_dark_mode_switcher();
 	}
 
 	public function get_wp_locale()
@@ -74,9 +75,37 @@ class Pexlechris_Adminer extends Adminer\Adminer
 
 	public function print_dark_mode_switcher()
 	{
-		echo "<big style='position: fixed; bottom: .5em; right: .5em; cursor: pointer;'>☀</big>"
-			. Adminer\script("qsl('big').onclick = adminerDarkSwitch;") . "\n";
+		echo "<big style='position: fixed; bottom: .5em; right: .5em; cursor: pointer;'>☀</big>";
+		echo Adminer\script("qsl('big').onclick = adminerDarkSwitch;");
+        echo "\n";
 	}
+
+    public function print_sticky_urls(){
+        $sticky_links = [
+            [
+                'label' => __('WP Admin', 'pexlechris-adminer'),
+                'url'   => admin_url(),
+            ],
+            [
+                'label' => __('Home', 'pexlechris-adminer'),
+                'url'   => home_url(),
+            ],
+        ];
+        $sticky_links = apply_filters('pexlechris_adminer_sticky_links', $sticky_links);
+
+        if( !$sticky_links ){
+            return;
+        }
+        
+        $sticky_links_html = array_map(function ($sticky_link) {
+            $target = !empty($sticky_link['target']) ? ' target="' . esc_attr( $sticky_link['target'] ) . '"' : '';
+            return '<a href="' . esc_url( $sticky_link['url'] ) . '"' . $target .'>' . esc_html( $sticky_link['label'] ) . '</a>';
+        }, $sticky_links);
+
+        echo '<p style="position: sticky; top: 0; background: var(--dim); height: 2em; line-height: 1.8em; padding: 0 1em;">';
+        echo implode(' | ', $sticky_links_html);
+        echo '</p>';
+    }
 
 	/**
 	 * @since 4.1.0
@@ -185,6 +214,9 @@ class Pexlechris_Adminer extends Adminer\Adminer
             // auto login
             window.addEventListener('load', function(){
 
+                function setCookie(e,t,n){var i="";if(n){var o=new Date;o.setTime(o.getTime()+1e3*n),i="; expires="+o.toUTCString()}document.cookie=e+"="+(t||"")+i+"; path=/"}
+                function getCookie(e,t=null){for(var n=e+"=",i=document.cookie.split(";"),o=0;o<i.length;o++){for(var r=i[o];" "==r.charAt(0);)r=r.substring(1,r.length);if(0==r.indexOf(n))return r.substring(n.length,r.length)}return t}
+
                 if ( null === document.querySelector('.pexle_loginForm') ) return;
 
                 // Do following only in login screen
@@ -199,7 +231,7 @@ class Pexlechris_Adminer extends Adminer\Adminer
                     var event = new Event('change', { bubbles: true });
                     selectElement.dispatchEvent(event);
 
-                }else if( document.querySelector('.error') ) {
+                }else if( document.querySelector('.error') && getCookie('pexlechris_adminer_login_tries', 0) >= 3 ) {
                     document.querySelector('.pexle_loginForm').classList.add('pexle_hide_form');
 
                 }else{
@@ -210,6 +242,7 @@ class Pexlechris_Adminer extends Adminer\Adminer
                     }
 
                     // auto login
+                    setCookie('pexlechris_adminer_login_tries', parseInt(getCookie('pexlechris_adminer_login_tries', 0)) + 1, 15)
                     document.querySelector('.pexle_loginForm + p > input').click();
                 }
 
@@ -276,13 +309,31 @@ class Pexlechris_Adminer extends Adminer\Adminer
             #dbs{
                 display: none;
             }
-            .footer > div > fieldset > div > p{
-                width: 150px;
+            .footer > div > fieldset:last-of-type:nth-child(2):not(.jsonly) > legend{
                 color: transparent;
-                display: inline-block;
-                margin-top: -15px;
+                width: 90px;
+                height: 17px;
+                position: relative;
             }
-            .footer > div > fieldset > div > p > *:not([name="copy"]){
+            .footer > div > fieldset:nth-child(2) > legend > span{
+                color: var(--fg);
+                position: absolute;
+                top: 0;
+                left: 70px;
+                padding-right: 4px;
+                background: var(--bg);
+            }
+            .footer > div > fieldset:nth-child(2) > legend > span::before{
+                content: "Selected ";
+                position: absolute;
+                left: -66px;
+            }
+            .footer input[name="copy"]{
+                z-index: 2;
+                position: relative;
+            }
+            .footer > div > fieldset:nth-child(2) > div > select[name="target"],
+            .footer > div > fieldset:nth-child(2) > div > input[name="move"]{
                 display: none;
             }
         </style>

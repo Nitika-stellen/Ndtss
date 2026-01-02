@@ -9,6 +9,6 @@
 		<legend class="screen-reader-text">
 		<?php esc_html_e('Preload key requests', 'wp-optimize'); ?>
 		</legend>
-		<p><strong><?php esc_html_e('Preload key requests is a premium feature.', 'wp-optimize'); ?></strong> <a href="<?php echo esc_url(WP_Optimize()->premium_version_link); ?> . &utm_content=preload-key-requests"><?php esc_html_e('Find out more here.', 'wp-optimize'); ?></a></p>
+		<p><strong><?php esc_html_e('Preload key requests is a premium feature.', 'wp-optimize'); ?></strong> <a href="<?php echo esc_url(WP_Optimize()->premium_version_link); ?>&utm_content=preload-key-requests"><?php esc_html_e('Find out more here.', 'wp-optimize'); ?></a></p>
 	</fieldset>
 </div>

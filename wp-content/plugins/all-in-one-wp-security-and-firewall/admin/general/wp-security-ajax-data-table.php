@@ -1391,10 +1391,11 @@ class AIOWPSecurity_Ajax_Data_Table {
 	/**
 	 * Handle an incoming ajax request (called from admin-ajax.php)
 	 *
+	 * @param bool $return_instead_of_echo - Whether to return data or die() with data.
+	 *
 	 * @since 3.1.0
 	 */
-	public function ajax_response() {
-
+	public function ajax_response($return_instead_of_echo = false) {
 		$this->prepare_items(false);
 
 		ob_start();
@@ -1444,6 +1445,10 @@ class AIOWPSecurity_Ajax_Data_Table {
 		if ($list_message) {
 			$response['message'] = $list_message['message'];
 			$response['status'] = $list_message['type'];
+		}
+
+		if ($return_instead_of_echo) {
+			return $response;
 		}
 
 		die(wp_json_encode($response));

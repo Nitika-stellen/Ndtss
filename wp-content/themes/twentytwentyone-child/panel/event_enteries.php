@@ -265,6 +265,7 @@ function manage_attendees_cpd_points_page() {
                     <th>Name</th>
                     <th>Email</th>
                     <th>Attended Events</th>
+                    <th>CPD Points Category</th>
                     <th>Total CPD Points</th>
                 </tr>
             </thead>
@@ -313,6 +314,7 @@ function manage_attendees_cpd_points_page() {
                             <?php endif; ?>
                         </div>
                     </td>
+                    <td>Attending Seminar</td>
                     <td><?php echo $user['total_cpd']; ?></td>
                 </tr>
             <?php endforeach; ?>

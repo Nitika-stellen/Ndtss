@@ -1,0 +1,344 @@
+/**
+ * CPD Management Frontend Styles
+ */
+
+.cpd-upload-header h2 {
+    margin: 0 0 10px;
+    color: #0073aa;    font-size: 24px;
+}
+
+.cpd-upload-header p {
+    margin: 0;
+    color: #646970;
+}
+.cpd-upload-wrapper select, .cpd-upload-wrapper input, .cpd-upload-wrapper textarea { background-color: #fff; border: 1px solid #ddd !important; border-radius: 9px !important; font-size: 16px !important; padding: 10px !important; height: fit-content; outline-offset: 0px; outline: unset; box-shadow: unset; }
+/* Form Sections */
+.cpd-form-section {
+    margin-bottom: 30px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid #eee;
+}
+
+.cpd-form-section:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.cpd-form-section h3 {
+    margin: 0 0 20px;
+    color: #0073aa;
+    font-size: 18px;
+}
+
+.form-field {
+    margin-bottom: 20px;
+}
+
+.form-field label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #23282d;
+}
+
+.form-field .required {
+    color: #dc3232;
+}
+
+.form-field input[type="text"],
+.form-field input[type="date"],
+.form-field input[type="number"],
+.form-field select,
+.form-field textarea {
+    width: 100%;
+    max-width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-field .description {
+    margin: 5px 0 0;
+    font-size: 13px;
+    color: #646970;
+    font-style: italic;
+}
+
+.form-field input[type="file"] {
+    padding: 8px 0;
+}
+
+.file-name {
+    display: block;
+    margin-top: 5px;
+    color: #0073aa;
+    font-size: 13px;
+}
+
+/* Form Actions */
+.cpd-form-actions {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 2px solid #eee;
+}
+
+.cpd-form-actions .button {
+    min-width: 150px;
+}
+
+.loading-spinner {
+    display: inline-block;
+    margin-left: 10px;
+}
+
+/* Form Message */
+.cpd-form-message {
+    margin: 20px 0;
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.cpd-form-message.success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.cpd-form-message.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+/* Upload Help */
+.cpd-upload-help {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f0f6fc;
+    border-left: 4px solid #0073aa;
+    border-radius: 4px;
+}
+
+.cpd-upload-help h3 {
+    margin: 0 0 15px;
+    color: #0073aa;
+}
+
+.cpd-upload-help ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.cpd-upload-help li {
+    margin-bottom: 10px;
+    color: #646970;
+}
+
+
+.cpd-summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #0073aa;
+}
+
+.cpd-summary-header h2 {
+    margin: 0;
+    color: #0073aa;
+}
+
+.year-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+div .cpd-profile-tabs ul.cpd-inner-tabs li a.cpd-tab-link { border: 1px solid #e5e5e5 !important; font-weight: 600; color: #000; }
+div .cpd-profile-tabs ul.cpd-inner-tabs li a.cpd-tab-link.active {background: #0073aa !important;color: #ffffff !important;}
+
+.year-selector label {
+    font-weight: 600;margin-bottom: 0;
+}
+
+.year-selector select {
+    padding: 6px 30px 6px 12px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+}
+
+/* Summary Statistics */
+.cpd-summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-left: 4px solid #0073aa;
+    padding: 20px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stat-card.warning {
+    border-left-color: #f0b849;
+}
+
+.stat-card.success {
+    border-left-color: #46b450;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #646970;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 600;
+    color: #23282d;
+}
+
+.stat-subtitle {
+    font-size: 12px;
+    color: #646970;
+    margin-top: 5px;
+    font-weight: normal;
+}
+
+.stat-card.warning .stat-value {
+    color: #f0b849;
+}
+
+.stat-card.success .stat-value {
+    color: #46b450;
+}
+
+/* Progress Bar */
+.cpd-summary-progress {
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 20px;
+    margin-bottom: 30px;
+    border-radius: 4px;
+}
+.user-profile-container .user-profile-content h3, .user-profile-container .user-profile-content h4 {font-size: 24px;}
+a.button.button-small { background: #0a81c9 !important; padding: 6px 15px; border-radius: 4px; font-size: 14px;border: 0 !important; outline: unset; box-shadow: inset !important;}
+a.button.button-small:hover{ opacity: 0.7; color: #fff !important;}
+.cpd-profile-tabs ul.cpd-inner-tabs li:before{display: none;}
+div .cpd-profile-tabs ul.cpd-inner-tabs{margin-bottom: 0; border: 0 !important;}
+.progress-bar {
+    width: 100%;
+    height: 10px;
+    background: #f0f0f0;
+    border-radius: 15px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #0073aa, #005a87);
+    transition: width 0.3s ease;
+    border-radius: 15px;
+}
+
+.progress-text {
+    text-align: center;
+    font-weight: 600;
+    color: #23282d;
+    margin: 0;
+}
+
+/* Entries List */
+.cpd-entries-list {
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 20px;
+    border-radius: 4px;
+}
+
+.cpd-entries-list h3 {
+    margin: 0 0 20px;
+    color: #0073aa;
+}
+
+.cpd-entries-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.cpd-entries-table th,
+.cpd-entries-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.cpd-entries-table th {
+    background: #f9f9f9;
+    font-weight: 600;
+    color: #23282d;
+}
+
+.cpd-entries-table tr:hover {
+    background: #f9f9f9;
+}
+
+/* Status Badge (Frontend) */
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-badge.status-approved {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.status-rejected {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Responsive */
+@media (max-width: 782px) {
+    .cpd-summary-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .cpd-summary-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .cpd-entries-table {
+        font-size: 14px;
+    }
+    
+    .cpd-entries-table th,
+    .cpd-entries-table td {
+        padding: 8px;
+    }
+}
+

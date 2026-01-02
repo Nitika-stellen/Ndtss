@@ -45,14 +45,14 @@ if (!defined('AIOWPSECURITY_NOADS_B') || !AIOWPSECURITY_NOADS_B) {
 					<th scope="row"><?php _e('Enable IP or user agent blacklisting', 'all-in-one-wp-security-and-firewall'); ?>:</th>
 					<td>
 						<div class="aiowps_switch_container">
-							<?php AIOWPSecurity_Utility_UI::setting_checkbox(__('Enable this if you want the banning (or blacklisting) of selected IP addresses and/or user agents specified in the settings below', 'all-in-one-wp-security-and-firewall'), 'aiowps_enable_blacklisting', '1' == $aio_wp_security->configs->get_value('aiowps_enable_blacklisting')); ?>
+							<?php AIOWPSecurity_Utility_UI::setting_checkbox(__('Enable this if you want the banning (or blacklisting) of selected IP addresses and/or user agents specified in the settings below', 'all-in-one-wp-security-and-firewall'), 'aiowps_enable_blacklisting', '1' == $aiowps_enable_blacklisting); ?>
 						</div>
 					</td>
 				</tr>
 				<tr valign="top">
 					<th scope="row"><label for="aiowps_banned_ip_addresses"><?php _e('Enter IP addresses:', 'all-in-one-wp-security-and-firewall'); ?></label></th>
 					<td>
-						<textarea id="aiowps_banned_ip_addresses" name="aiowps_banned_ip_addresses" rows="5" cols="50"><?php echo (-1 == $result) ? esc_textarea($aiowps_banned_ip_addresses) : esc_textarea($aio_wp_security->configs->get_value('aiowps_banned_ip_addresses')); ?></textarea>
+						<textarea id="aiowps_banned_ip_addresses" name="aiowps_banned_ip_addresses" rows="5" cols="50"><?php echo esc_textarea($aiowps_banned_ip_addresses); ?></textarea>
 						<br />
 						<span class="description"><?php _e('Enter one or more IP addresses or IP ranges.', 'all-in-one-wp-security-and-firewall');?></span>
 						<?php $aio_wp_security->include_template('info/ip-address-ip-range-info.php');?>
@@ -61,7 +61,7 @@ if (!defined('AIOWPSECURITY_NOADS_B') || !AIOWPSECURITY_NOADS_B) {
 				<tr valign="top">
 					<th scope="row"><label for="aiowps_banned_user_agents"><?php _e('Enter user agents:', 'all-in-one-wp-security-and-firewall'); ?></label></th>
 					<td>
-						<textarea id="aiowps_banned_user_agents" name="aiowps_banned_user_agents" rows="5" cols="50"><?php echo (-1 == $result) ? esc_textarea($aiowps_banned_user_agents) : esc_textarea($aio_wp_security->configs->get_value('aiowps_banned_user_agents')); ?></textarea>
+						<textarea id="aiowps_banned_user_agents" name="aiowps_banned_user_agents" rows="5" cols="50"><?php echo esc_textarea($aiowps_banned_user_agents); ?></textarea>
 						<br />
 						<span class="description">
 						<?php _e('Enter one or more user agent strings.', 'all-in-one-wp-security-and-firewall');?></span>

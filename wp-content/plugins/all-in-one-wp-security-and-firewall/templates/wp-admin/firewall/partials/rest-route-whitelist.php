@@ -11,7 +11,7 @@
 		<td>
 			<?php foreach ($route_namespaces as $route_namespace) { ?>
 			<div class="aiowps_switch_container">
-			<?php AIOWPSecurity_Utility_UI::setting_checkbox($route_namespace, 'aios_whitelisted_rest_routes_'.str_replace('-', '_', $route_namespace), in_array($route_namespace, $aio_wp_security->configs->get_value('aios_whitelisted_rest_routes'))); ?>
+			<?php AIOWPSecurity_Utility_UI::setting_checkbox($route_namespace, 'aios_whitelisted_rest_routes_'.str_replace('-', '_', $route_namespace), in_array($route_namespace, $aios_whitelisted_rest_routes)); ?>
 			</div>
 			<br>
 			<?php } ?>

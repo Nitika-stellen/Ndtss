@@ -1,3 +1,15 @@
+### 4.0.1 | 2025-12-08
+- Fixed an issue where payments on mobile can be returned to the form without a confirmation.
+- Removed app switch functionality which is causing redirect errors on non-app based mobile payments.
+
+### 4.0.0 | 2025-11-11
+- Added some extra error checking to prevent a fatal error when the PayPal API returns an unexpected result.
+- Added the ability to map a telephone field in the PayPal feed.
+- Added the ability to switch to the PayPal App when completing purchases on mobile devices.
+- Added buy now/pay later messaging above the PayPal buttons.
+- Updated the PayPal modal to show the mapped address, email, and phone number by default.
+- Fixed an issue with notices not displaying correctly in the form editor sidebar when the PayPal field is not configured correctly.
+
 ### 3.9.0 | 2025-03-06
 - Updated deprecated `currency` class to `gform.Currency`.
 - Fixed an issue for the Gravity theme where credit card inputs are not getting a focus state outline for accessibility.

@@ -260,7 +260,7 @@ class AIOWPSecurity_Notices extends Updraft_Notices_1_2 {
 						'utm_content' => 'bf-sale',
 						'utm_creative_format' => 'advert',
 					),
-				'https://teamupdraft.com/all-in-one-security/blackfriday'),
+				'https://teamupdraft.com/plugin-black-friday/?utm_source=aios-plugin&utm_medium=referral&utm_campaign=bf25-aios-plugin-banner&utm_content=bf-sale&utm_creative_format=advert'),
 				'campaign' => 'blackfriday',
 				'button_meta' => 'inline',
 				'dismiss_time' => 'dismiss_season',

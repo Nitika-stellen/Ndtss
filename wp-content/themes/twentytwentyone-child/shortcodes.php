@@ -3,7 +3,13 @@
 function custom_login_logout_button() {
     if (is_user_logged_in()) {
         $current_user = wp_get_current_user();
-        $first_name = $current_user->user_firstname;
+        if($current_user->user_firstname){
+            $first_name = $current_user->user_firstname;
+        }
+        else{
+            $first_name = $current_user->display_name;
+        }
+        
         $profile_url = home_url('/user-profile/');
         $logout_url = wp_logout_url(home_url());
         $output = '<div class="user-menu">';

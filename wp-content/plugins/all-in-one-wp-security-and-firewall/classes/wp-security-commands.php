@@ -14,6 +14,7 @@ if (!trait_exists('AIOWPSecurity_Files_Commands_Trait')) require_once(AIO_WP_SEC
 if (!trait_exists('AIOWPSecurity_Firewall_Commands_Trait')) require_once(AIO_WP_SECURITY_PATH.'/classes/commands/wp-security-firewall-commands.php');
 if (!trait_exists('AIOWPSecurity_Tools_Commands_Trait')) require_once(AIO_WP_SECURITY_PATH.'/classes/commands/wp-security-tools-commands.php');
 if (!trait_exists('AIOWPSecurity_File_Scan_Commands_Trait')) require_once(AIO_WP_SECURITY_PATH.'/classes/commands/wp-security-file-scan-commands.php');
+if (!trait_exists('AIOWPSecurity_Tfa_Commands_Trait')) require_once(AIO_WP_SECURITY_PATH.'/classes/commands/wp-security-tfa-commands.php');
 class AIOWPSecurity_Commands {
 
 	use AIOWPSecurity_Log_Commands_Trait;
@@ -26,6 +27,7 @@ class AIOWPSecurity_Commands {
 	use AIOWPSecurity_Firewall_Commands_Trait;
 	use AIOWPSecurity_Tools_Commands_Trait;
 	use AIOWPSecurity_File_Scan_Commands_Trait;
+	use AIOWPSecurity_Tfa_Commands_Trait;
 
 	/**
 	 * This variable holds an instance of AIOWPSecurity_Feature_Item_Manager.
@@ -80,7 +82,7 @@ class AIOWPSecurity_Commands {
 		$ip_retrieve_methods = AIOS_Abstracted_Ids::get_ip_retrieve_methods();
 		if (isset($ip_retrieve_methods[$ip_method_id])) {
 			return array(
-				'ip_address' => isset($_SERVER[$ip_retrieve_methods[$ip_method_id]]) ? $_SERVER[$ip_retrieve_methods[$ip_method_id]] : '',
+				'ip_address' => isset($_SERVER[$ip_retrieve_methods[$ip_method_id]]) ? sanitize_text_field(wp_unslash($_SERVER[$ip_retrieve_methods[$ip_method_id]])) : '',
 			);
 		} else {
 			return new WP_Error('aios-invalid-ip-retrieve-method', __('Invalid IP retrieve method.', 'all-in-one-wp-security-and-firewall'));
@@ -278,8 +280,9 @@ class AIOWPSecurity_Commands {
 			'status' => 'success',
 			'data' => array(),
 		);
-		
-		$nonce = empty($_POST['nonce']) ? '' : $_POST['nonce'];
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- PCP warning. It is the nonce.
+		$nonce = empty($_POST['nonce']) ? '' : sanitize_key(wp_unslash($_POST['nonce']));
 		if (!wp_verify_nonce($nonce, 'wp-security-ajax-nonce')) {
 			$response['status'] = false;
 			$response['error_code'] = 'invalid_nonce';
@@ -292,7 +295,7 @@ class AIOWPSecurity_Commands {
 			}
 		}
 		
-		echo json_encode($response);
+		echo wp_json_encode($response);
 		exit;
 	}
 
@@ -328,6 +331,93 @@ class AIOWPSecurity_Commands {
 		return array(
 			'status' => 'error',
 			'message' => __('There was an error sending the diagnostic report.', 'all-in-one-wp-security-and-firewall'),
+		);
+	}
+
+	/**
+	 * Returns an array of translations used by the AIOS plugin. Primarily used for UpdraftCentral consumption.
+	 *
+	 * @param array $params - The parameters passed to the function.
+	 *
+	 * @return array - The AIOS translations array
+	 */
+	public function get_js_translation($params) {
+		$translations = array();
+
+		if (isset($params['return_formatted_response'])) {
+			return array(
+				'error' => false,
+				'data' => array(
+					'translations' => $translations,
+				)
+			);
+		}
+
+		return $translations;
+	}
+
+	/**
+	 * Get multiple widgets data. Primarily used for UpdraftCentral consumption.
+	 *
+	 * @param array $args - The arguments containing the widgets to retrieve data for.
+	 *
+	 * @return array - An array containing error status and data for each widget.
+	 */
+	public function get_widgets_data($args) {
+		// Widgets.
+		$widgets = isset($args['widgets']) ? $args['widgets'] : array();
+
+		// Return early if no widgets supplied.
+		if (!is_array($widgets) || empty($widgets)) {
+			return array('error' => false, 'data' => array());
+		}
+
+		// Get the data for each widget.
+		$data = array();
+
+		// Loop through the widgets and get their data.
+		foreach ($widgets as $widget) {
+			$method = 'get_' . $widget . '_data';
+
+			if (method_exists($this, $method)) {
+				$data[$widget] = $this->$method($args);
+			}
+		}
+
+		return array('error' => false, 'data' => $data);
+	}
+
+	/**
+	 * Get the AIOS premium upsell data for UDC widget.
+	 *
+	 * @return array
+	 */
+	public function get_is_premium_data() {
+		$is_premium = AIOWPSecurity_Utility_Permissions::is_premium_installed();
+		$upgrade_to_premium_data = array();
+
+		if (false === $is_premium) {
+			$upgrade_to_premium_data = array(
+				'heading' => __('AIOS premium', 'all-in-one-wp-security-and-firewall'),
+				'checklist' => array(
+					__('Advanced malware scanning', 'all-in-one-wp-security-and-firewall'),
+					__('Real-time response time monitoring', 'all-in-one-wp-security-and-firewall'),
+					__('Custom two-factor authentication', 'all-in-one-wp-security-and-firewall'),
+					__('404 error protection & bot blocking', 'all-in-one-wp-security-and-firewall'),
+					__('Country-based traffic blocking', 'all-in-one-wp-security-and-firewall'),
+					__('Country whitelist management', 'all-in-one-wp-security-and-firewall'),
+					__('Guaranteed premium support', 'all-in-one-wp-security-and-firewall'),
+				),
+				'cta' => array(
+					'text' => __('Upgrade Now', 'all-in-one-wp-security-and-firewall'),
+					'url' => 'https://teamupdraft.com/all-in-one-security/pricing/',
+				),
+			);
+		}
+
+		return array(
+			'is_premium' => $is_premium,
+			'upgrade_to_premium_data' => $upgrade_to_premium_data,
 		);
 	}
 }

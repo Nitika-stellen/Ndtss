@@ -21,6 +21,7 @@ function render_center_admin_assignment_page() {
         'numberposts' => -1,
         'orderby'     => 'title',
         'order'       => 'ASC',
+        'post_status' => 'any'
     ]);
 
     $center_admins = get_users(['role' => 'center_admin']);

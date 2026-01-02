@@ -3,8 +3,7 @@
 	<h3 class="hndle"><label for="title"><?php esc_html_e('WordPress XMLRPC and pingback vulnerability protection', 'all-in-one-wp-security-and-firewall'); ?></label></h3>
 	<div class="inside">
 		<div id="firewall-pingback-rules-badge">
-				<?php
-				$aiowps_firewall_config = AIOS_Firewall_Resource::request(AIOS_Firewall_Resource::CONFIG);
+		<?php
 				//Display security info badge
 				$aiowps_feature_mgr->output_feature_details_badge("firewall-pingback-rules");
 				?>
@@ -15,7 +14,7 @@
 				<th scope="row"><?php esc_html_e('Completely block access to XMLRPC', 'all-in-one-wp-security-and-firewall'); ?>:</th>
 				<td>
 					<div class="aiowps_switch_container">
-						<?php AIOWPSecurity_Utility_UI::setting_checkbox(esc_html__('Enable this if you are not using the WP XML-RPC functionality and you want to completely block external access to XMLRPC.', 'all-in-one-wp-security-and-firewall'), 'aiowps_enable_pingback_firewall', $aiowps_firewall_config->get_value('aiowps_enable_pingback_firewall')); ?>
+						<?php AIOWPSecurity_Utility_UI::setting_checkbox(esc_html__('Enable this if you are not using the WP XML-RPC functionality and you want to completely block external access to XMLRPC.', 'all-in-one-wp-security-and-firewall'), 'aiowps_enable_pingback_firewall', $aiowps_enable_pingback_firewall); ?>
 						<span class="aiowps_more_info_anchor"><span class="aiowps_more_info_toggle_char">+</span><span class="aiowps_more_info_toggle_text"><?php esc_html_e('More info', 'all-in-one-wp-security-and-firewall'); ?></span></span>
 						<div class="aiowps_more_info_body">
 								<?php
@@ -36,7 +35,7 @@
 				<th scope="row"><?php esc_html_e('Disable pingback functionality from XMLRPC', 'all-in-one-wp-security-and-firewall'); ?>:</th>
 				<td>
 					<div class="aiowps_switch_container">
-						<?php AIOWPSecurity_Utility_UI::setting_checkbox(esc_html__('If you use Jetpack or WP iOS or other apps which need WP XML-RPC functionality then check this.', 'all-in-one-wp-security-and-firewall') . ' ' . esc_html__('This will enable protection against WordPress pingback vulnerabilities.', 'all-in-one-wp-security-and-firewall'), 'aiowps_disable_xmlrpc_pingback_methods', '1' == $aio_wp_security->configs->get_value('aiowps_disable_xmlrpc_pingback_methods')); ?>
+						<?php AIOWPSecurity_Utility_UI::setting_checkbox(esc_html__('If you use Jetpack or WP iOS or other apps which need WP XML-RPC functionality then check this.', 'all-in-one-wp-security-and-firewall') . ' ' . esc_html__('This will enable protection against WordPress pingback vulnerabilities.', 'all-in-one-wp-security-and-firewall'), 'aiowps_disable_xmlrpc_pingback_methods', '1' == $aiowps_disable_xmlrpc_pingback_methods); ?>
 						<span class="aiowps_more_info_anchor"><span class="aiowps_more_info_toggle_char">+</span><span class="aiowps_more_info_toggle_text"><?php esc_html_e('More info', 'all-in-one-wp-security-and-firewall'); ?></span></span>
 						<div class="aiowps_more_info_body">
 								<?php

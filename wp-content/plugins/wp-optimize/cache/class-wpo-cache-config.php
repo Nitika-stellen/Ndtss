@@ -189,8 +189,16 @@ class WPO_Cache_Config {
 		}
 
 		if ((!$only_if_present || file_exists($config_file)) && (!wp_is_writable(WPO_CACHE_CONFIG_DIR) || !file_put_contents($config_file, $config_content))) {
-			// translators: %s is the path to the cache config file
-			return new WP_Error('write_cache_config', sprintf(__('The cache configuration file could not be saved to the disk; please check the file/folder permissions of %s .', 'wp-optimize'), $config_file));
+			// If translations are already loaded, use the translated string
+			if (is_textdomain_loaded('wp-optimize')) {
+				/* translators: %s is the path to the cache config file */
+				$message = sprintf(__('The cache configuration file could not be saved to the disk; please check the file/folder permissions of %s .', 'wp-optimize'), $config_file);
+			} else {
+				// Fallback to plain English string to avoid triggering premature translation loading
+				$message = sprintf('The cache configuration file could not be saved to the disk; please check the file/folder permissions of %s .', $config_file);
+			}
+
+			return new WP_Error('write_cache_config', $message);
 		}
 
 		return true;

@@ -487,4 +487,76 @@ trait AIOWPSecurity_Settings_Commands_Trait {
 
 		return $this->handle_response(true, false, array('extra_args' => $extra_args));
 	}
+
+	/**
+	 * Render the Import/Export settings UI for legacy UDC.
+	 *
+	 * @return array
+	 */
+	public function get_import_export_contents() {
+		global $aio_wp_security;
+
+		$content = $aio_wp_security->include_template('wp-admin/settings/settings-file-operations.php', true, array());
+
+		return array(
+			'status' => 'success',
+			'content' => $content,
+		);
+	}
+
+	/**
+	 * Render the reset settings UI for legacy UDC.
+	 *
+	 * @return array
+	 */
+	public function get_reset_contents() {
+		global $aio_wp_security;
+
+		$content = $aio_wp_security->include_template('wp-admin/settings/general-settings.php', true, array());
+
+		return array(
+			'status' => 'success',
+			'content' => $content,
+		);
+	}
+
+	/**
+	 * Return ip address detection data for the advanced settings.
+	 *
+	 * @return array
+	 */
+	public function get_ip_address_detection_data() {
+		global $aio_wp_security;
+
+		$ip_retrieve_methods_postfixes = array(
+			'REMOTE_ADDR' => __('Default - if correct, then this is the best option', 'all-in-one-wp-security-and-firewall'),
+			'HTTP_CF_CONNECTING_IP' => __("Only use if you're using Cloudflare.", 'all-in-one-wp-security-and-firewall'),
+		);
+
+		$ip_retrieve_methods = array();
+
+		foreach (AIOS_Abstracted_Ids::get_ip_retrieve_methods() as $id => $ip_method) {
+			$ip_retrieve_methods[$id]['ip_method'] = $ip_method;
+
+			if (isset($_SERVER[$ip_method])) {
+				/* translators: %s: IP Method */
+				$ip_retrieve_methods[$id]['ip_method'] .= ' ' . sprintf(__('(current value: %s)', 'all-in-one-wp-security-and-firewall'), sanitize_text_field(wp_unslash($_SERVER[$ip_method])));
+				$ip_retrieve_methods[$id]['is_enabled'] = true;
+			} else {
+				$ip_retrieve_methods[$id]['ip_method'] .= '  (' . __('no value (i.e. empty) on your server', 'all-in-one-wp-security-and-firewall') . ')';
+				$ip_retrieve_methods[$id]['is_enabled'] = false;
+			}
+
+			if (!empty($ip_retrieve_methods_postfixes[$ip_method])) {
+				$ip_retrieve_methods[$id]['ip_method'] .= ' (' . $ip_retrieve_methods_postfixes[$ip_method] . ')';
+			}
+		}
+
+		return array(
+			'is_localhost' => AIOWPSecurity_Utility::is_localhost(),
+			'current_ip_retrieve_method' => $aio_wp_security->configs->get_value('aiowps_ip_retrieve_method'),
+			'ip_retrieve_methods' => $ip_retrieve_methods,
+			'server_suitable_ip_methods' => AIOWPSecurity_Utility_IP::get_server_suitable_ip_methods()
+		);
+	}
 }

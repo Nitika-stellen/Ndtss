@@ -2,17 +2,17 @@
 /**
  * Plugin Name: Database Manager - WP Adminer
  * Description: Manage the database from your WordPress Dashboard using Adminer.
- * Version: 4.1.3
- * Stable tag: 4.1.3
- * Adminer version: 5.3.0
+ * Version: 4.3.2
+ * Stable tag: 4.3.2
+ * Adminer version: 5.4.1
  * Author: Pexle Chris
  * Author URI: https://www.pexlechris.dev
  * Contributors: pexlechris
  * Domain Path: /languages
  * Requires at least: 4.7.0
- * Tested up to: 6.8.2
+ * Tested up to: 6.9
  * Requires PHP: 7.0
- * Tested up to PHP: 8.2
+ * Tested up to PHP: 8.3
  * License: GPLv2
  */
 
@@ -215,12 +215,26 @@ function register_pexlechris_adminer_as_tool(){
 //IN TOOLS
 if( !function_exists('pexlechris_adminer_tools_page_content') ){
 	function pexlechris_adminer_tools_page_content(){
+        global $wpdb;
 		?>
 		<br>
 		<a href="<?php echo esc_url( get_pexlechris_adminer_url() ); ?>" class="button-primary pexlechris-adminer-tools-page-button" target="_blank">
-			<?php esc_html_e('Open Adminer in a new tab', 'pexlechris-adminer');?>
+			<?php esc_html_e('Open Adminer in a new tab', 'pexlechris-adminer'); ?>
         </a>
 		<?php
+        foreach(pexlechris_adminer_admin_bar_dropdown_items() as $table):
+            $name  = $table['name'];
+            $label = $table['label'];
+            $args  = $table['args'] ?? [];
+
+            $table_name = $wpdb->$name ?? $wpdb->prefix . $name;
+            ?>
+            <br>
+            <br>
+            <a href="<?php echo esc_url( get_pexlechris_adminer_url($table_name, $args) ); ?>" class="button pexlechris-adminer-tools-page-button" target="_blank">
+                <?php echo $label; ?>
+            </a>
+        <?php endforeach;
 	}
 }
 
@@ -286,7 +300,11 @@ function get_pexlechris_adminer_url( $table = null, $args = [] )
         $str .= '&' . $get_key . '=' . $get_value;
     }
 
-    $table_url = home_url() . '/' . PEXLECHRIS_ADMINER_SLUG . '?username=' . $str;
+    if( get_option('permalink_structure') ) {
+        $table_url = strtok(home_url(), '?') . '/' . PEXLECHRIS_ADMINER_SLUG . '?username=' . $str;
+    }else{
+        $table_url = strtok(admin_url(), '?') . '?username=' . $str;
+    }
 
 	/**
      * Filter to alter generated adminer URL

@@ -1,6 +1,6 @@
 <?php
 if (!defined('ABSPATH')) {
-	exit;//Exit if accessed directly
+	exit; // Exit if accessed directly.
 }
 
 require_once(AIO_WP_SECURITY_PATH.'/classes/wp-security-base-tasks.php');
@@ -19,6 +19,9 @@ class AIOWPSecurity_Uninstallation_Tasks extends AIOWPSecurity_Base_Tasks {
 
 	/**
 	 * Run uninstallation task for a single site.
+	 *
+	 * This method overrides {@see AIOWPSecurity_Base_Tasks::run_for_a_site()}.
+	 * It drops database tables, deletes options/configs, and removes firewall files when the plugin is uninstalled.
 	 *
 	 * @return void
 	 */
@@ -56,6 +59,7 @@ class AIOWPSecurity_Uninstallation_Tasks extends AIOWPSecurity_Base_Tasks {
 		// check and drop database tables
 		if ('1' == $aio_wp_security->configs->get_value('aiowps_on_uninstall_delete_db_tables')) {
 			foreach ($database_tables as $table_name) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
 				$wpdb->query("DROP TABLE IF EXISTS `$table_name`");
 			}
 		}

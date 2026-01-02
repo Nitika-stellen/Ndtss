@@ -146,7 +146,7 @@ class AIOWPSecurity_Utility_Firewall {
 		$server_type = AIOWPSecurity_Utility::get_server_type();
 		$is_cgi = false;
 		$sapi = PHP_SAPI;
-	
+
 		if (false !== stripos($sapi, 'cgi')) {
 			$is_cgi = true;
 		}
@@ -155,17 +155,15 @@ class AIOWPSecurity_Utility_Firewall {
 			return self::MANUAL_SETUP;
 
 		} elseif (false === $is_cgi && 'apache' === $server_type) {
-		
-			$htpath = path_join(get_home_path(), '.htaccess');
+			$htpath = path_join(AIOWPSecurity_Utility_File::get_home_path(), '.htaccess');
 			return new AIOWPSecurity_Block_Htaccess($htpath);
-			
-		} elseif ('litespeed' === $server_type || 'litespeed' === $sapi) {
 
-			$htpath = path_join(get_home_path(), '.htaccess');
+		} elseif ('litespeed' === $server_type || 'litespeed' === $sapi) {
+			$htpath = path_join(AIOWPSecurity_Utility_File::get_home_path(), '.htaccess');
 			return new AIOWPSecurity_Block_Litespeed($htpath);
 		   
 		} else {
-			$userini = path_join(get_home_path(), '.user.ini');
+			$userini = path_join(AIOWPSecurity_Utility_File::get_home_path(), '.user.ini');
 			return new AIOWPSecurity_Block_Userini($userini);
 		}
 

@@ -4,7 +4,6 @@
 		<div class="inside">
 		<div id="firewall-advanced-character-string-filter-badge">
 			<?php
-			$aiowps_firewall_config = AIOS_Firewall_Resource::request(AIOS_Firewall_Resource::CONFIG);
 			//Display security info badge
 			$aiowps_feature_mgr->output_feature_details_badge("firewall-advanced-character-string-filter");
 			?>
@@ -14,7 +13,7 @@
 				<th scope="row"><?php esc_html_e('Enable advanced character string filter', 'all-in-one-wp-security-and-firewall'); ?>:</th>
 				<td>
 					<div class="aiowps_switch_container">
-						<?php AIOWPSecurity_Utility_UI::setting_checkbox(__('This will block character sequences which resemble XSS attacks.', 'all-in-one-wp-security-and-firewall'), 'aiowps_advanced_char_string_filter', $aiowps_firewall_config->get_value('aiowps_advanced_char_string_filter')); ?>
+						<?php AIOWPSecurity_Utility_UI::setting_checkbox(__('This will block character sequences which resemble XSS attacks.', 'all-in-one-wp-security-and-firewall'), 'aiowps_advanced_char_string_filter', $aiowps_advanced_char_string_filter); ?>
 						<span class="aiowps_more_info_anchor"><span class="aiowps_more_info_toggle_char">+</span><span class="aiowps_more_info_toggle_text"><?php esc_html_e('More info', 'all-in-one-wp-security-and-firewall'); ?></span></span>
 						<div class="aiowps_more_info_body">
 							<p class="description">

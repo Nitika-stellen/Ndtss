@@ -1041,25 +1041,18 @@ var WP_Optimize = function () {
 	 * @return {[type]} optimizations
 	 */
 	function run_optimization() {
-		$optimizations = $('#optimizations_list .optimization_checkbox:checked');
+		var optimizations = $('#optimizations_list .optimization_checkbox:checked').toArray();
 
-		$optimizations.toArray().sort(function (a, b) {
-			// Convert to IDs.
-			a = $(a).closest('.wp-optimize-settings').data('optimization_run_sort_order');
-			b = $(b).closest('.wp-optimize-settings').data('optimization_run_sort_order');
-			if (a > b) {
-				return 1;
-			} else if (a < b) {
-				return -1;
-			} else {
-				return 0;
-			}
+		var sorted_optimizations = optimizations.sort(function (a, b) {
+			var aOrder = $(a).closest('.wp-optimize-settings').data('optimization_run_sort_order');
+			var bOrder = $(b).closest('.wp-optimize-settings').data('optimization_run_sort_order');
+			return aOrder - bOrder; // Ascending order - so all other optimizations will run before optimizetables
 		});
 
 		var optimization_options = {};
 
-		$optimizations.each(function (index) {
-			var optimization_id = $(this).closest('.wp-optimize-settings').data('optimization_id');
+		sorted_optimizations.forEach(function (element) {
+			var optimization_id = $(element).closest('.wp-optimize-settings').data('optimization_id');
 			if (!optimization_id) {
 				console.log("Optimization ID corresponding to pressed button not found");
 				return;

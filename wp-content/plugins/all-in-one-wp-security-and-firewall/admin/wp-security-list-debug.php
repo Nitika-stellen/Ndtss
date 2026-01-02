@@ -110,8 +110,10 @@ class AIOWPSecurity_List_Debug_Log extends AIOWPSecurity_List_Table {
 		/* -- Ordering parameters -- */
 
 		//Parameters that are going to be used to order the result
-		isset($_GET["orderby"]) ? $orderby = strip_tags($_GET["orderby"]) : $orderby = '';
-		isset($_GET["order"]) ? $order = strip_tags($_GET["order"]) : $order = '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- PCP warning. No nonce.
+		isset($_GET["orderby"]) ? $orderby = sanitize_text_field(wp_unslash($_GET["orderby"])) : $orderby = '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- PCP warning. No nonce.
+		isset($_GET["order"]) ? $order = sanitize_text_field(wp_unslash($_GET["order"])) : $order = '';
 
 		// By default show the most recent debug log entries.
 		$orderby = !empty($orderby) ? esc_sql($orderby) : 'logtime';
@@ -126,11 +128,14 @@ class AIOWPSecurity_List_Debug_Log extends AIOWPSecurity_List_Table {
 		$where_sql = (!is_super_admin()) ? 'WHERE site_id = '.get_current_blog_id() : '';
 
 		if ($ignore_pagination) {
-			$data = $wpdb->get_results("SELECT * FROM {$debug_log_tbl} {$where_sql} ORDER BY {$orderby} {$order}", 'ARRAY_A');
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
+			$data = $wpdb->get_results("SELECT * FROM {$debug_log_tbl}$where_sql ORDER BY $orderby $order", 'ARRAY_A');
 		} else {
-			$data = $wpdb->get_results("SELECT * FROM {$debug_log_tbl} {$where_sql} ORDER BY {$orderby} {$order} LIMIT {$per_page} OFFSET {$offset}", 'ARRAY_A');
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
+			$data = $wpdb->get_results("SELECT * FROM {$debug_log_tbl} $where_sql ORDER BY $orderby $order LIMIT $per_page OFFSET $offset", 'ARRAY_A');
 		}
-		$total_items = $wpdb->get_var("SELECT COUNT(*) FROM {$debug_log_tbl} {$where_sql}");
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- PCP warning. Ignore.
+		$total_items = $wpdb->get_var("SELECT COUNT(*) FROM {$debug_log_tbl} $where_sql");
 		$this->items = $data;
 
 		if ($ignore_pagination) return;

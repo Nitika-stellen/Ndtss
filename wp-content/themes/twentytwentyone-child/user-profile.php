@@ -33,10 +33,23 @@ function get_certificate_status_display($effective_status, $formatted_status_dat
         case 'submitted':
         case 'under_review':
         case 'reviewing':
+            // Determine status text based on renewal method
+            $renewal_method_upper = !empty($renewal_method) ? strtoupper($renewal_method) : '';
+            if ($renewal_method_upper === 'RECERT') {
+                // Recertification application
+                $status_text = 'Applied for recert';
+            } elseif ($renewal_method_upper === 'CPD') {
+                // CPD renewal application
+                $status_text = 'Applied for renewal CPD';
+            } else {
+                // Exam-based renewal (default)
+                $status_text = 'Applied for Renewal';
+            }
+            
             return '<div class="renewal-status-wrapper status-applied">' .
                    '<div class="status-header">' .
                    '<span class="status-icon">📝</span>' .
-                   '<span class="status-text">Applied for Renewal</span>' .
+                   '<span class="status-text">' . esc_html($status_text) . '</span>' .
                    $method_badge .
                    '</div>' .
                    '<div class="status-details">' .
@@ -48,7 +61,7 @@ function get_certificate_status_display($effective_status, $formatted_status_dat
             return '<div class="renewal-status-wrapper status-approved">' .
                    '<div class="status-header">' .
                    '<span class="status-icon">✅</span>' .
-                   '<span class="status-text">Renewal Approved</span>' .
+                   '<span class="status-text">Approved</span>' .
                    $method_badge .
                    '</div>' .
                    '<div class="status-details">' .
@@ -69,10 +82,26 @@ function get_certificate_status_display($effective_status, $formatted_status_dat
                    '</div>' .
                    '</div>';
         case 'renewed':
+            // Check if this is a recertification certificate (-04) or renewal certificate (-03)
+            $is_recert_cert = !empty($cert_issued_number) && preg_match('/-04$/', $cert_issued_number);
+            $is_renewal_cert = !empty($cert_issued_number) && preg_match('/-03$/', $cert_issued_number);
+            
+            if ($is_recert_cert) {
+                $status_text = 'Successfully Recertified';
+                $status_icon = '🎓';
+            } elseif ($is_renewal_cert) {
+                $status_text = 'Successfully Renewed';
+                $status_icon = '🔄';
+            } else {
+                // For mutual recognition certificates (-02) or any other case
+                $status_text = 'Certificate Issued';
+                $status_icon = '📜';
+            }
+            
             return '<div class="renewal-status-wrapper status-renewed">' .
                    '<div class="status-header">' .
-                   '<span class="status-icon">🔄</span>' .
-                   '<span class="status-text">Successfully Renewed</span>' .
+                   '<span class="status-icon">' . $status_icon . '</span>' .
+                   '<span class="status-text">' . esc_html($status_text) . '</span>' .
                    $method_badge .
                    '</div>' .
                    '<div class="status-details">' .
@@ -107,10 +136,17 @@ function get_certificate_status_display($effective_status, $formatted_status_dat
 }
 
 /**
- * Helper function to determine if certificate is renewed
+ * Helper function to determine if certificate is renewed or recertified
+ * Suffix meanings: 
+ * -01 = Initial
+ * -02 = Mutual Recognition (treated like initial for renewal/recertification)
+ * -03 = Renewal
+ * -04 = Recertification
  */
 function is_renewed_certificate($certificate_number) {
-    return preg_match('/-\d+$/', $certificate_number);
+    // Check if certificate has renewal (-03) or recertification (-04) suffix
+    // Note: -02 is treated as initial for renewal/recertification purposes
+    return preg_match('/-(03|04)$/', $certificate_number);
 }
 
 /**
@@ -134,6 +170,138 @@ function get_renewal_method_from_status($user_id, $cert_id, $cert_number) {
     }
     
     return '';
+}
+
+
+/**
+ * Calculate the combined subject price for a certificate based on stored exam data.
+ *
+ * @param string $cert_number Certificate number (e.g. A010101-01).
+ * @param string $level       Certification level (e.g. Level 2).
+ *
+ * @return array{total: float, subjects: array<string,float>} Total and per-subject prices.
+ */
+function calculate_certificate_exam_price($cert_number, $level) {
+    static $cache = [];
+
+    $cert_number = trim((string) $cert_number);
+    $level = trim((string) $level);
+
+    if ($cert_number === '' || $level === '') {
+        return ['total' => 0.0, 'subjects' => []];
+    }
+
+    $cache_key = md5($cert_number . '|' . $level);
+    if (isset($cache[$cache_key])) {
+        return $cache[$cache_key];
+    }
+
+    global $wpdb;
+
+    $table_certifications = $wpdb->prefix . 'sgndt_certifications';
+    $table_subject_marks   = $wpdb->prefix . 'sgndt_subject_marks';
+    $table_subject_price   = $wpdb->prefix . 'sgndt_exam_prices';
+
+    $subject_prices = [];
+    $total_price    = 0.0;
+
+    // Attempt to locate the most recent certification record for the given certificate number.
+    $certification_id = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT certification_id FROM {$table_certifications}
+             WHERE cert_number = %s
+             ORDER BY issue_date DESC
+             LIMIT 1",
+            $cert_number
+        )
+    );
+
+    if (!empty($certification_id)) {
+        $subjects = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT DISTINCT subject_name
+                 FROM {$table_subject_marks}
+                 WHERE certification_id = %d
+                 AND subject_name <> ''",
+                $certification_id
+            )
+        );
+    } else {
+        $subjects = [];
+    }
+
+    // Fallback to all subjects defined for the level when specific marks are unavailable.
+    if (empty($subjects)) {
+        $subjects = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT DISTINCT subject
+                 FROM {$table_subject_price}
+                 WHERE level = %s
+                 AND subject <> ''",
+                $level
+            )
+        );
+    }
+
+    if (!empty($subjects)) {
+        foreach ($subjects as $subject) {
+            $price = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT price FROM {$table_subject_price}
+                     WHERE level = %s AND subject = %s",
+                    $level,
+                    $subject
+                )
+            );
+
+            if (is_numeric($price)) {
+                $price_value = (float) $price;
+                $subject_prices[$subject] = $price_value;
+                $total_price += $price_value;
+            }
+        }
+    }
+
+    $result = [
+        'total'    => $total_price,
+        'subjects' => $subject_prices,
+    ];
+
+    $cache[$cache_key] = $result;
+
+    return $result;
+}
+
+/**
+ * Build query arguments for exam price data used in renewal/recertification flows.
+ *
+ * @param array $cert Certificate data array containing at least certificate_number and level.
+ *
+ * @return array<string,string> URL query arguments for price information.
+ */
+function build_exam_price_query_args(array $cert) {
+    if (empty($cert['certificate_number']) || empty($cert['level'])) {
+        return [];
+    }
+
+    $price_data = calculate_certificate_exam_price($cert['certificate_number'], $cert['level']);
+
+    if (empty($price_data['total']) || $price_data['total'] <= 0) {
+        return [];
+    }
+
+    $query_args = [
+        'exam_price' => number_format((float) $price_data['total'], 2, '.', ''),
+    ];
+
+    if (!empty($price_data['subjects'])) {
+        $breakdown_json = wp_json_encode($price_data['subjects']);
+        if ($breakdown_json !== false) {
+            $query_args['exam_price_breakdown'] = $breakdown_json;
+        }
+    }
+
+    return $query_args;
 }
 
 /**
@@ -160,7 +328,154 @@ function get_renewal_method_from_status($user_id, $cert_id, $cert_number) {
 //     }
 // }
 
+/**
+ * Check if a renewed/recertified certificate exists for the given certificate
+ * Note: -02 certificates are treated as initial certificates for renewal/recertification purposes
+ */
+function has_renewed_certificate($cert, $user_id) {
+    global $wpdb;
+    
+    // Extract base certificate number (remove any existing suffix like -01, -02, -03, -04)
+    $base_cert_number = preg_replace('/-[0-9]+$/', '', $cert['certificate_number']);
+    
+    // Check if a renewed certificate (-03) or recertified certificate (-04) exists
+    // Note: -02 certificates are treated as initial certificates, so we don't check for them here
+    $renewal_cert_number = $base_cert_number . '-03';
+    $recert_cert_number = $base_cert_number . '-04';
+    
+    $renewed_cert = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM {$wpdb->prefix}sgndt_final_certifications
+         WHERE user_id = %d 
+         AND (certificate_number = %s OR certificate_number = %s)
+         AND method = %s
+         AND level = %s
+         AND sector = %s
+         AND scope = %s
+         AND status = 'issued'",
+        $user_id,
+        $renewal_cert_number,
+        $recert_cert_number,
+        $cert['method'],
+        $cert['level'],
+        $cert['sector'],
+        $cert['scope']
+    ));
+    
+    return $renewed_cert > 0;
+}
+
 function get_certificate_validity_status($cert) {
+    global $wpdb;
+    
+    $user_id = get_current_user_id();
+    
+    // IMPORTANT: Check recertification eligibility FIRST (before checking if renewed)
+    // If eligible for recertification (9+ years from initial), show "Eligible for recertification"
+    // even if certificate has been renewed
+    if (!empty($cert['issue_date'])) {
+        $current_date = new DateTime('now', new DateTimeZone('Asia/Kolkata'));
+        $issue_date = new DateTime($cert['issue_date'], new DateTimeZone('Asia/Kolkata'));
+        
+        // Get the INITIAL certificate to check recertification eligibility
+        // Extract base certificate number (remove any suffix)
+        $base_cert_number = preg_replace('/-0[1-4]$/', '', $cert['certificate_number']);
+        
+        // Find the initial certificate (suffix -01, -02, or no suffix)
+        // -01 = Initial, -02 = Mutual Recognition (treated as initial for renewal/recertification)
+        $initial_cert = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}sgndt_final_certifications
+             WHERE user_id = %d 
+             AND (
+                 certificate_number = %s 
+                 OR certificate_number = %s
+                 OR (certificate_number NOT LIKE '%%-02' AND certificate_number NOT LIKE '%%-03' AND certificate_number LIKE %s)
+             )
+             AND method = %s
+             AND level = %s
+             AND sector = %s
+             AND scope = %s
+             ORDER BY issue_date ASC
+             LIMIT 1",
+            $user_id,
+            $base_cert_number,
+            $base_cert_number . '-01',
+            $base_cert_number . '%',
+            $cert['method'],
+            $cert['level'],
+            $cert['sector'],
+            $cert['scope']
+        ), ARRAY_A);
+        
+        // Use initial certificate issue date for recertification eligibility check
+        $cert_to_check = $initial_cert ?: $cert;
+        $initial_issue_date = new DateTime($cert_to_check['issue_date'], new DateTimeZone('Asia/Kolkata'));
+        $interval = $current_date->diff($initial_issue_date);
+        $years_since_initial_issue = $interval->y + ($interval->m / 12);
+        
+        // Check if recertification is eligible (9+ years from INITIAL certificate issue)
+        if ($years_since_initial_issue >= RECERTIFICATION_CYCLE_YEARS) {
+            // Check if this is the initial certificate (not renewal or recertification)
+            $is_initial_cert = ($cert_to_check['certificate_number'] === $cert['certificate_number']);
+            
+            if ($is_initial_cert) {
+                // Check if a recertification certificate (-03) already exists
+                $recert_cert_exists = $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$wpdb->prefix}sgndt_final_certifications
+                     WHERE user_id = %d 
+                     AND certificate_number = %s
+                     AND method = %s
+                     AND level = %s
+                     AND sector = %s
+                     AND scope = %s
+                     AND status = 'issued'",
+                    $user_id,
+                    $base_cert_number . '-03',
+                    $cert['method'],
+                    $cert['level'],
+                    $cert['sector'],
+                    $cert['scope']
+                ));
+                
+                // Only show "Eligible for recertification" if recertification certificate doesn't exist yet
+                if ($recert_cert_exists == 0) {
+                    return ['status' => 'eligible', 'message' => 'Eligible for recertification'];
+                } else {
+                    // Recertification certificate exists, show "Certificate has been recertified"
+                    return ['status' => 'renewed', 'message' => 'Certificate has been recertified'];
+                }
+            }
+        }
+    }
+    
+    // Then check if this certificate has been renewed/recertified
+    if (has_renewed_certificate($cert, $user_id)) {
+        // Check if it's recertified (-04) or renewed (-03)
+        $base_cert_number = preg_replace('/-[0-9]+$/', '', $cert['certificate_number']);
+        $recert_cert = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}sgndt_final_certifications
+             WHERE user_id = %d AND certificate_number = %s AND status = 'issued'",
+            $user_id, $base_cert_number . '-04'
+        ));
+        
+        if ($recert_cert > 0) {
+            return ['status' => 'renewed', 'message' => 'Certificate has been recertified'];
+        } else {
+            // Check if it's a renewal (-03)
+            $renewal_cert = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}sgndt_final_certifications
+                 WHERE user_id = %d AND certificate_number = %s AND status = 'issued'",
+                $user_id, $base_cert_number . '-03'
+            ));
+            
+            if ($renewal_cert > 0) {
+                return ['status' => 'renewed', 'message' => 'Certificate has been renewed'];
+            } else {
+                // For mutual recognition (-02) or other cases
+                return ['status' => 'valid', 'message' => 'Certificate is valid'];
+            }
+        }
+    }
+    
     if (empty($cert['expiry_date'])) {
         return ['status' => 'unknown', 'message' => 'Expiry date not available'];
     }
@@ -183,7 +498,32 @@ function get_certificate_validity_status($cert) {
             
             // Determine if this should be recertification (after 9+ years from initial issue)
             if ($years_since_issue >= RECERTIFICATION_CYCLE_YEARS) {
-                return ['status' => 'eligible', 'message' => 'Eligible for recertification'];
+                // Check if a recertification certificate (-03) already exists
+                $base_cert_number = preg_replace('/-[0-9]+$/', '', $cert['certificate_number']);
+                $recert_cert_exists = $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$wpdb->prefix}sgndt_final_certifications
+                     WHERE user_id = %d 
+                     AND certificate_number = %s
+                     AND method = %s
+                     AND level = %s
+                     AND sector = %s
+                     AND scope = %s
+                     AND status = 'issued'",
+                    $user_id,
+                    $base_cert_number . '-03',
+                    $cert['method'],
+                    $cert['level'],
+                    $cert['sector'],
+                    $cert['scope']
+                ));
+                
+                // Only show "Eligible for recertification" if recertification certificate doesn't exist yet
+                if ($recert_cert_exists == 0) {
+                    return ['status' => 'eligible', 'message' => 'Eligible for recertification'];
+                } else {
+                    // Recertification certificate exists, show "Certificate has been recertified"
+                    return ['status' => 'renewed', 'message' => 'Certificate has been recertified'];
+                }
             } else {
                 return ['status' => 'eligible', 'message' => 'Eligible for renewal'];
             }
@@ -274,8 +614,56 @@ function get_certificate_action_buttons($cert, $current_date, $renewal_url, $rec
         return '-';
     }
 
+    $user_id = get_current_user_id();
+
+    // Check if this is a renewal certificate (-02) - should NOT be eligible for renewal again
+    if (preg_match('/-02$/', $cert['certificate_number'])) {
+        // Renewed certificates cannot be renewed again - they need recertification
+        // But recertification button should appear on ORIGINAL certificate, not renewal
+        return '-';
+    }
+
+    // Check if this is a recertification certificate (-03) - no further actions
+    if (preg_match('/-03$/', $cert['certificate_number'])) {
+        return '-';  // Recertification certificate is final
+    }
+
     try {
-        $issue_datetime = new DateTime($cert['issue_date'], new DateTimeZone('Asia/Kolkata'));
+        global $wpdb;
+        
+        // Get the INITIAL certificate to check recertification eligibility
+        // Extract base certificate number (remove any suffix)
+        $base_cert_number = preg_replace('/-0[123]$/', '', $cert['certificate_number']);
+        
+        // Find the initial certificate (no suffix or -01)
+        $initial_cert = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}sgndt_final_certifications
+             WHERE user_id = %d 
+             AND (
+                 certificate_number = %s 
+                 OR certificate_number = %s
+                 OR (certificate_number NOT LIKE '%%-02' AND certificate_number NOT LIKE '%%-03' AND certificate_number LIKE %s)
+             )
+             AND method = %s
+             AND level = %s
+             AND sector = %s
+             AND scope = %s
+             ORDER BY issue_date ASC
+             LIMIT 1",
+            $user_id,
+            $base_cert_number,
+            $base_cert_number . '-01',
+            $base_cert_number . '%',
+            $cert['method'],
+            $cert['level'],
+            $cert['sector'],
+            $cert['scope']
+        ), ARRAY_A);
+
+        // If we can't find initial certificate, use current certificate
+        $cert_to_check = $initial_cert ?: $cert;
+        
+        $issue_datetime = new DateTime($cert_to_check['issue_date'], new DateTimeZone('Asia/Kolkata'));
         $expiry_datetime = new DateTime($cert['expiry_date'], new DateTimeZone('Asia/Kolkata'));
 
         // Calculate renewal window (6 months before expiry)
@@ -286,26 +674,43 @@ function get_certificate_action_buttons($cert, $current_date, $renewal_url, $rec
         $renewal_deadline_date = clone $expiry_datetime;
         $renewal_deadline_date->modify('+' . RENEWAL_DEADLINE_MONTHS . ' months');
 
-        // Calculate recertification eligibility (9 years from initial issue)
-        $recertification_eligible_date = clone $issue_datetime;
-        $recertification_eligible_date->modify('+' . RECERTIFICATION_CYCLE_YEARS . ' years');
-
+        // Calculate years since INITIAL certificate issue (for recertification eligibility)
         $interval = $current_date->diff($issue_datetime);
-        $years_since_issue = $interval->y + ($interval->m / 12);
+        $years_since_initial_issue = $interval->y + ($interval->m / 12);
 
-        // Determine if this is recertification cycle (9+ years from initial issue)
-        $is_recertification_cycle = $years_since_issue >= RECERTIFICATION_CYCLE_YEARS;
-
-        // Check if certificate is expired
-        if ($current_date > $renewal_deadline_date) {
-            return '<span class="status-expired">Expired</span>';
-        }
-
-        // Show recertification button if eligible (9+ years from initial issue)
-        if ($is_recertification_cycle && $current_date >= $recertification_eligible_date) {
+        // Check if recertification is eligible (9+ years from INITIAL certificate issue)
+        // Recertification button should ONLY appear on ORIGINAL/INITIAL certificate
+        // IMPORTANT: Even if certificate has been renewed, recertification button should still appear if 9+ years have passed
+        $is_recertification_eligible = $years_since_initial_issue >= RECERTIFICATION_CYCLE_YEARS;
+        $is_initial_cert = ($cert_to_check['certificate_number'] === $cert['certificate_number']);
+        $exam_price_query_args = build_exam_price_query_args($cert);
+        
+        // Check if a recertification certificate (-03) already exists
+        $recert_cert_exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}sgndt_final_certifications
+             WHERE user_id = %d 
+             AND certificate_number = %s
+             AND method = %s
+             AND level = %s
+             AND sector = %s
+             AND scope = %s
+             AND status = 'issued'",
+            $user_id,
+            $base_cert_number . '-03',
+            $cert['method'],
+            $cert['level'],
+            $cert['sector'],
+            $cert['scope']
+        ));
+        
+        // Show recertification button ONLY on initial/original certificate when 9+ years have passed
+        // BUT NOT if a recertification certificate (-03) already exists
+        // IMPORTANT: Check recertification eligibility BEFORE checking if expired
+        // If eligible for recertification, show button regardless of expiry status
+        if ($is_recertification_eligible && $is_initial_cert && $recert_cert_exists == 0) {
             return '<div class="action-cell-wrapper">
                 <div class="action-buttons recertification-buttons">
-                    <a href="' . esc_url(add_query_arg([
+                    <a href="' . esc_url(add_query_arg(array_merge([
                         'cert_id' => $cert['final_certification_id'],
                         'cert_number' => $cert['certificate_number'],
                         'method' => $cert['method'],
@@ -315,16 +720,34 @@ function get_certificate_action_buttons($cert, $current_date, $renewal_url, $rec
                         'exam_entry_id' => $cert['exam_entry_id'],
                         'marks_entry_id' => $cert['marks_entry_id'],
                         'type' => 'recertification'
-                    ], $recertification_url)) . '" class="action-button recertification-btn">Recertification</a>
+                    ], $exam_price_query_args), $recertification_url)) . '" class="action-button recertification-btn">Recertification</a>
                 </div>
             </div>';
+        } elseif ($is_recertification_eligible && $is_initial_cert && $recert_cert_exists > 0) {
+            return '-'; // Hide button if recertification certificate already exists
         }
 
-        // Show renewal button if in renewal window (6 months before expiry to 12 months after expiry)
-        if ($current_date >= $renewal_eligible_date && $current_date <= $renewal_deadline_date) {
+        // Check if certificate is expired (only if NOT eligible for recertification)
+        // If eligible for recertification, we already showed the button above
+        if (!$is_recertification_eligible && $current_date > $renewal_deadline_date) {
+            return '<span class="status-expired">Expired</span>';
+        }
+
+        // Check if this certificate has already been renewed/recertified - block renewal button if so
+        if (has_renewed_certificate($cert, $user_id)) {
+            return '-';  // No renewal button if certificate has been renewed/recertified
+        }
+
+        // Show renewal button ONLY if:
+        // 1. Not in recertification cycle (less than 9 years from initial)
+        // 2. In renewal window (6 months before expiry to 12 months after expiry)
+        // 3. This is the initial/original certificate (not renewal)
+        // 4. Certificate has NOT been renewed yet
+        if (!$is_recertification_eligible && $is_initial_cert && 
+            $current_date >= $renewal_eligible_date && $current_date <= $renewal_deadline_date) {
             return '<div class="action-cell-wrapper">
                 <div class="action-buttons renewal-buttons">
-                    <a href="' . esc_url(add_query_arg([
+                    <a href="' . esc_url(add_query_arg(array_merge([
                         'cert_id' => $cert['final_certification_id'],
                         'cert_number' => $cert['certificate_number'],
                         'method' => $cert['method'],
@@ -334,7 +757,7 @@ function get_certificate_action_buttons($cert, $current_date, $renewal_url, $rec
                         'exam_entry_id' => $cert['exam_entry_id'],
                         'marks_entry_id' => $cert['marks_entry_id'],
                         'type' => 'renewal'
-                    ], $renewal_url)) . '" class="action-button renewal-btn">Renew</a>
+                    ], $exam_price_query_args), $renewal_url)) . '" class="action-button renewal-btn">Renew</a>
                 </div>
             </div>';
         }
@@ -345,6 +768,57 @@ function get_certificate_action_buttons($cert, $current_date, $renewal_url, $rec
     }
 
     return '-';
+}
+
+/**
+ * Check if user is a certificate holder (has at least one issued final certificate)
+ *
+ * @param int $user_id User ID
+ * @return bool True if user has issued certificate(s)
+ */
+function is_certificate_holder($user_id) {
+    global $wpdb;
+    $count = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM {$wpdb->prefix}sgndt_final_certifications 
+         WHERE user_id = %d AND status = 'issued'",
+        $user_id
+    ));
+    return $count > 0;
+}
+
+/**
+ * Check if user is a member (has membership roles)
+ *
+ * @param int $user_id User ID
+ * @return bool True if user has membership role
+ */
+function is_member($user_id) {
+    $user = get_userdata($user_id);
+    if (!$user) {
+        return false;
+    }
+    
+    $membership_roles = ['member', 'individual_member', 'corporate_member'];
+    $user_roles = $user->roles;
+    
+    foreach ($membership_roles as $role) {
+        if (in_array($role, $user_roles)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Check if user has access to CPD and Final Certificates tabs
+ * Access granted to certificate holders or members
+ *
+ * @param int $user_id User ID
+ * @return bool True if user has access
+ */
+function has_cpd_certificate_access($user_id) {
+    return is_certificate_holder($user_id) || is_member($user_id);
 }
 
 function user_profile_shortcode() {
@@ -412,7 +886,10 @@ function user_profile_shortcode() {
                 <li><a href="#membership-section" class="tab-link" role="tab" aria-selected="false" aria-controls="membership-section">Membership</a></li>
                 <li><a href="#event-participation-section" class="tab-link" role="tab" aria-selected="false" aria-controls="event-participation-section">Event</a></li>
                 <li><a href="#certificate-section" class="tab-link" role="tab" aria-selected="false" aria-controls="certificate-section">SGNDT Certificates</a></li>
+                <?php if (has_cpd_certificate_access($current_user->ID)): ?>
                 <li><a href="#final-certificate-section" class="tab-link" role="tab" aria-selected="false" aria-controls="final-certificate-section">Final Certificates</a></li>
+                <li><a href="#cpd-management-section" class="tab-link" role="tab" aria-selected="false" aria-controls="cpd-management-section">CPD Management</a></li>
+                <?php endif; ?>
             </ul>
         </div>
 
@@ -464,17 +941,56 @@ function user_profile_shortcode() {
                         echo '<p>Error retrieving membership data.</p>';
                     } else {
                         $form_id = isset($entry['form_id']) ? $entry['form_id'] : '';
-                        $membership_types = '';
+                      //  $membership_types = '';
 
-                        if ($form_id == 5 && isset($entry[27])) {
-                            $membership_types = explode('|', $entry[27])[0];
-                        } elseif ($form_id == 4 && isset($entry[31])) {
-                            $membership_types = explode('|', $entry[31])[0];
-                        }
+                        // if ($form_id == 5 && isset($entry[27])) {
+                        //     $membership_types = explode('|', $entry[27])[0];
+                        // } elseif ($form_id == 4 && isset($entry[31])) {
+                        //     $membership_types = explode('|', $entry[31])[0];
+                        // }
 
-                        if ($membership_types === "Annual") {
-                            $membership_types = 1;
-                        }
+                        // if ($membership_types === "Annual") {
+                        //     $membership_types = 1;
+                        // }
+
+
+// Replace the hardcoded field IDs with dynamic detection
+$membership_types = '';
+
+// Get the form to access field properties
+$form = GFAPI::get_form($form_id);
+if ($form) {
+    foreach ($form['fields'] as $field) {
+        // Look for product fields that have a value
+        if ($field->type === 'product' && !empty($entry[$field->id])) {
+            $product_value = $entry[$field->id];
+            if (!empty($product_value)) {
+                // Extract the membership type (e.g., "1 Year" or "Annual")
+                $membership_types = $product_value;
+                
+                // If the format is "Name|Price", extract just the name
+                $parts = explode('|', $product_value);
+                if (count($parts) > 1) {
+                    $membership_types = $parts[0];
+                }
+                break; // Stop at the first found product with a value
+            }
+        }
+    }
+}
+
+// Handle "Annual" case
+if (strtolower($membership_types) === "annual") {
+    $membership_types = 1;
+} 
+// If it's in format "X Year(s)", extract the number
+elseif (preg_match('/(\d+)\s*(?:Year|Yr)s?/i', $membership_types, $matches)) {
+    $membership_types = intval($matches[1]);
+}
+// Default to 1 if no valid duration found
+else {
+    $membership_types = 1;
+}
 
                         if ($membership_status === 'approved' && $approval_date) {
                             try {
@@ -556,7 +1072,35 @@ function user_profile_shortcode() {
 
                         foreach ($failed_subjects_raw as $subj) {
                             $name = $subj['subject_name'];
+                            $marks_obtained = isset($subj['marks_obtained']) ? floatval($subj['marks_obtained']) : 0;
+                            $marks_total = isset($subj['marks_total']) ? floatval($subj['marks_total']) : 0;
+                            if ($marks_total <= 0 && $marks_obtained > 0) {
+                                $marks_total = 100;
+                            }
+                            $calculated_percent = percent($marks_obtained, $marks_total);
+
+                            if ($calculated_percent >= 70) {
+                                $wpdb->update(
+                                    $table_subject_marks,
+                                    [
+                                        'pass_status' => 'Pass',
+                                        'marks_total' => $marks_total,
+                                        'percentage' => $calculated_percent,
+                                    ],
+                                    [
+                                        'certification_id' => $cert_id,
+                                        'subject_name' => $name,
+                                        'attempt_number' => $latest_attempt,
+                                    ],
+                                    ['%s', '%f', '%f'],
+                                    ['%d', '%s', '%d']
+                                );
+                                continue;
+                            }
+
                             $failed_subjects[] = $name;
+                            $subj['marks_total'] = $marks_total;
+                            $subj['percentage'] = $calculated_percent;
                             $subject_details_by_name[$name] = $subj;
 
                             if (empty($subj['status']) || strtolower($subj['status']) !== 'pending') {
@@ -655,6 +1199,7 @@ function user_profile_shortcode() {
             </div>
 
               <!-- Final Certificates Section -->
+            <?php if (has_cpd_certificate_access($current_user->ID)): ?>
             <div id="final-certificate-section" class="user-profile-tab-content" style="display:none;" role="tabpanel" aria-labelledby="final-certificate-tab">
                 
                 <h3>Final Certificates</h3>
@@ -712,9 +1257,20 @@ function user_profile_shortcode() {
                     </thead>
                     <tbody id="final-certificate-tbody">
                 <?php
+                // Order certificates so original certificates appear first, then renewals, then recertifications
+                // Certificate type ordering: Initial (-01 or no suffix) = 1, Renewal (-02) = 2, Recertification (-03) = 3
+                // Within each type, order by issue_date ASC so original comes before renewal
                 $final_certifications = $wpdb->get_results(
                     $wpdb->prepare(
-                        "SELECT * FROM {$wpdb->prefix}sgndt_final_certifications WHERE user_id = %d ORDER BY method ASC, level ASC, scope ASC, issue_date DESC",
+                        "SELECT *,
+                        CASE 
+                            WHEN RIGHT(certificate_number, 4) = '-03' THEN 3  -- Recertification
+                            WHEN RIGHT(certificate_number, 4) = '-02' THEN 2  -- Renewal
+                            ELSE 1  -- Initial (no suffix or -01)
+                        END AS cert_type_order
+                        FROM {$wpdb->prefix}sgndt_final_certifications 
+                        WHERE user_id = %d 
+                        ORDER BY method ASC, level ASC, scope ASC, cert_type_order ASC, issue_date ASC",
                         $user_id
                     ),
                     ARRAY_A
@@ -730,34 +1286,72 @@ function user_profile_shortcode() {
                     foreach ($final_certifications as $cert) {
                         $issue_date = !empty($cert['issue_date']) ? date('d/m/Y', strtotime($cert['issue_date'])) : '-';
                         $expiry_date = !empty($cert['expiry_date']) ? date('d/m/Y', strtotime($cert['expiry_date'])) : '-';
-                        $certificate_link = !empty($cert['certificate_link']) ? 
-                            '<a href="' . esc_url(add_query_arg(array('download_renewed_cert' => '1', 'cert_id' => $cert['final_certification_id']), $cert['certificate_link'])) . '" class="download-btn" target="_blank">Download</a>' : 
-                            '-';
+                        
+                        // Generate secure download URL
+                        if (!empty($cert['certificate_link'])) {
+                            $cert_filename = basename($cert['certificate_link']);
+                            // Remove query string from filename if present
+                            $cert_filename = preg_replace('/\?.*$/', '', $cert_filename);
+                            
+                            $secure_url = get_stylesheet_directory_uri() . '/includes/secure-exam-certificate-download.php';
+                            $secure_download_url = add_query_arg([
+                                'file' => $cert_filename,
+                                'entry_id' => $cert['exam_entry_id'],
+                                'v' => time()
+                            ], $secure_url);
+                            
+                            $certificate_link = '<a href="' . esc_url($secure_download_url) . '" class="download-btn" target="_blank">Download</a>';
+                        } else {
+                            $certificate_link = '-';
+                        }
+                        
                         $cert_number = !empty($cert['certificate_number']) ? esc_html($cert['certificate_number']) : 'N/A';
                         $status = !empty($cert['status']) ? esc_html($cert['status']) : 'N/A';
                         
-                        // Add visual indicator for renewed certificates (using helper function)
-                        if (is_renewed_certificate($cert['certificate_number'])) {
-                            $renewal_type = '';
-                            if (strpos($cert['certificate_number'], '-01') !== false) {
-                                $renewal_type = 'RENEWED';
-                            } elseif (strpos($cert['certificate_number'], '-02') !== false) {
-                                $renewal_type = 'RECERTIFIED';
-                            }
-                            
+                        // Add visual indicator based on certificate type suffix
+                        // 01 = Initial, 02 = Mutual Recognition, 03 = Renewal, 04 = Recertification
+                        $cert_type_badge = '';
+                        if (preg_match('/-02$/', $cert['certificate_number'])) {
+                            // Mutual Recognition certificate (suffix -02)
+                            $cert_type_badge = '<span class="renewal-badge mutual-recognition">MUTUAL RECOGNITION</span>';
+                        } elseif (preg_match('/-03$/', $cert['certificate_number'])) {
+                            // Renewal certificate (suffix -03)
+                            $cert_type_badge = '<span class="renewal-badge renewed">RENEWED</span>';
+                        } elseif (preg_match('/-04$/', $cert['certificate_number'])) {
+                            // Recertification certificate (suffix -04)
+                            $cert_type_badge = '<span class="renewal-badge recertified">RECERTIFIED</span>';
+                        }
+                        
+                        // Show badge for renewal/recertification, validity status for initial certificates
+                        if (!empty($cert_type_badge)) {
+                            // Renewal or Recertification - show badge
                             $cert_number = '<div class="certificate-number-display">' .
                                           '<span class="cert-number">' . $cert_number . '</span>' .
-                                          '<span class="renewal-badge renewed">' . $renewal_type . '</span>' .
+                                          $cert_type_badge .
                                           '</div>';
                             
                             $status = '<span class="status-badge status-' . esc_attr($cert['status']) . '">' . 
                                      ucfirst($cert['status']) . '</span>';
-                            } else {
-                            // For original certificates, show validity status
+                        } else {
+                            // Initial certificate (suffix -01 or no suffix) - show validity status
                             $validity = get_certificate_validity_status($cert);
                             $validity_class = 'validity-' . $validity['status'];
-                            $validity_icon = $validity['status'] === 'expired' ? '❌' : 
-                                           ($validity['status'] === 'eligible' ? '⚠️' : '✅');
+                            
+                            // Determine icon based on status
+                            if ($validity['status'] === 'expired') {
+                                $validity_icon = '❌';
+                            } elseif ($validity['status'] === 'renewed') {
+                                $validity_icon = '🔄';
+                            } elseif ($validity['status'] === 'eligible') {
+                                // Use different icon for recertification vs renewal
+                                if (strpos($validity['message'], 'recertification') !== false) {
+                                    $validity_icon = '🎓'; // Graduation cap for recertification
+                                } else {
+                                    $validity_icon = '⚠️'; // Warning for renewal
+                                }
+                            } else {
+                                $validity_icon = '✅';
+                            }
                             
                             $cert_number = '<div class="certificate-number-display">' .
                                           '<span class="cert-number">' . $cert_number . '</span>' .
@@ -782,25 +1376,245 @@ function user_profile_shortcode() {
                             $cert_id = $cert['final_certification_id'];
                             $lifecycle = get_certificate_lifecycle($user_id, $cert['certificate_number']);
                             
-                            // Get status using the unique certificate ID
-                            $status_info = get_certificate_lifecycle_status($user_id, $cert_id);
-
-                            // Get status display or action button from lifecycle system
-                            if ($status_info && !empty($status_info['status']) && $status_info['cert_id'] == $cert_id) {
-                                // Show status from lifecycle system ONLY if it matches this specific certificate ID
-                                $action = get_certificate_lifecycle_display($status_info, $cert['certificate_number']);
-                            } else {
-                                // Show action button based on lifecycle eligibility
-                                $action = get_certificate_action_buttons($cert, $current_date, $renewal_url, $recertification_url, $full_exam_url);
+                            // IMPORTANT: Check for existing status FIRST (before showing button)
+                            // If status exists (submitted, approved, rejected), show status instead of button
+                            
+                            // First, check database directly for status (fallback method)
+                            global $wpdb;
+                            
+                            // Try multiple query methods to find the record
+                            $cert_record = null;
+                            $found_by_id = false;
+                            
+                            // Method 1: Query by ID and user_id
+                            $cert_record = $wpdb->get_row($wpdb->prepare(
+                                "SELECT renewal_status, renewal_method, renewal_approved_date, renewal_submitted_date, renewal_rejected_date, renewal_generated_date, user_id
+                                 FROM {$wpdb->prefix}sgndt_final_certifications 
+                                 WHERE final_certification_id = %d AND user_id = %d",
+                                $cert_id, $user_id
+                            ));
+                            
+                            if ($cert_record) {
+                                $found_by_id = true;
                             }
+                            
+                            // Method 2: If not found, try by ID only (in case user_id is wrong)
+                            if (!$cert_record || empty($cert_record->renewal_status)) {
+                                $cert_record = $wpdb->get_row($wpdb->prepare(
+                                    "SELECT renewal_status, renewal_method, renewal_approved_date, renewal_submitted_date, renewal_rejected_date, renewal_generated_date, user_id
+                                     FROM {$wpdb->prefix}sgndt_final_certifications 
+                                     WHERE final_certification_id = %d",
+                                    $cert_id
+                                ));
+                                
+                                if ($cert_record) {
+                                    $found_by_id = true;
+                                    // Update user_id if it was different
+                                    if ($cert_record->user_id != $user_id) {
+                                        $user_id = $cert_record->user_id;
+                                    }
+                                }
+                            }
+                            
+                            // Method 3: If still not found, try by certificate number and user_id
+                            if (!$cert_record || empty($cert_record->renewal_status)) {
+                                $cert_record = $wpdb->get_row($wpdb->prepare(
+                                    "SELECT renewal_status, renewal_method, renewal_approved_date, renewal_submitted_date, renewal_rejected_date, renewal_generated_date, user_id
+                                     FROM {$wpdb->prefix}sgndt_final_certifications 
+                                     WHERE certificate_number = %s AND user_id = %d
+                                     ORDER BY issue_date DESC LIMIT 1",
+                                    $cert['certificate_number'], $user_id
+                                ));
+                            }
+                            
+                            // Method 4: Last resort - try by certificate number only
+                            if (!$cert_record || empty($cert_record->renewal_status)) {
+                                $cert_record = $wpdb->get_row($wpdb->prepare(
+                                    "SELECT renewal_status, renewal_method, renewal_approved_date, renewal_submitted_date, renewal_rejected_date, renewal_generated_date, user_id
+                                     FROM {$wpdb->prefix}sgndt_final_certifications 
+                                     WHERE certificate_number = %s
+                                     ORDER BY issue_date DESC LIMIT 1",
+                                    $cert['certificate_number']
+                                ));
+                                
+                                if ($cert_record && $cert_record->user_id != $user_id) {
+                                    $user_id = $cert_record->user_id;
+                                }
+                            }
+                            
+                            // SIMPLIFIED LOGIC: Direct database check and display
+                            $action = '-'; // Default
+                            
+                            
+                            if ($cert_record && !empty($cert_record->renewal_status)) {
+                                // We have a status in the database
+                                $renewal_method = $cert_record->renewal_method;
+                                $is_recertification = (strtoupper($renewal_method) === 'RECERT');
+                                
+                                // Check if the target certificate exists
+                                $base_cert_number = preg_replace('/-0[123]$/', '', $cert['certificate_number']);
+                                $target_suffix = $is_recertification ? '-03' : '-02';
+                                $target_cert_exists = $wpdb->get_var($wpdb->prepare(
+                                    "SELECT COUNT(*) FROM {$wpdb->prefix}sgndt_final_certifications
+                                     WHERE user_id = %d 
+                                     AND certificate_number = %s
+                                     AND status = 'issued'",
+                                    $user_id,
+                                    $base_cert_number . $target_suffix
+                                ));
+                                
+                                // Only show status if target certificate doesn't exist yet
+                                if ($target_cert_exists == 0) {
+                                    $status = $cert_record->renewal_status;
+                                    $status_date = $cert_record->renewal_approved_date ?: $cert_record->renewal_submitted_date ?: $cert_record->renewal_rejected_date;
+                                    $formatted_date = $status_date ? date('d/m/Y', strtotime($status_date)) : 'N/A';
+                                    $method_badge = !empty($renewal_method) ? '<span class="renewal-method-badge">' . strtoupper($renewal_method) . '</span>' : '';
+                                    
+                                    if ($status === 'approved') {
+                                        $action = '<div class="renewal-status-wrapper status-approved">
+                                            <div class="status-header">
+                                                <span class="status-icon">✅</span>
+                                                <span class="status-text">Approved</span>
+                                                ' . $method_badge . '
+                                            </div>
+                                            <div class="status-details">
+                                                <small>Approved: ' . esc_html($formatted_date) . '</small><br>
+                                                <small class="status-note">Certificate will be issued soon</small>
+                                            </div>
+                                        </div>';
+                                    } elseif ($status === 'submitted') {
+                                        $status_text = $is_recertification ? 'Applied for recert' : 'Applied for Renewal';
+                                        $action = '<div class="renewal-status-wrapper status-applied">
+                                            <div class="status-header">
+                                                <span class="status-icon">📝</span>
+                                                <span class="status-text">' . esc_html($status_text) . '</span>
+                                                ' . $method_badge . '
+                                            </div>
+                                            <div class="status-details">
+                                                <small>Submitted: ' . esc_html($formatted_date) . '</small><br>
+                                                <small class="status-note">Your application is being reviewed</small>
+                                            </div>
+                                        </div>';
+                                    } elseif ($status === 'rejected') {
+                                        $rejection_reason = $cert_record->renewal_rejection_reason ?: 'No reason provided';
+                                        $action = '<div class="renewal-status-wrapper status-rejected">
+                                            <div class="status-header">
+                                                <span class="status-icon">❌</span>
+                                                <span class="status-text">Application Rejected</span>
+                                                ' . $method_badge . '
+                                            </div>
+                                            <div class="status-details">
+                                                <small>Rejected: ' . esc_html($formatted_date) . '</small><br>
+                                                <small class="status-note">Reason: ' . esc_html($rejection_reason) . '</small>
+                                            </div>
+                                        </div>';
+                                    }
+                                }
+                            }
+                            
+                            // If no status from database, try lifecycle system
+                            if ($action === '-') {
+                                $status_info = get_certificate_lifecycle_status($user_id, $cert_id);
+                                
+                                if ($status_info && !empty($status_info['status'])) {
+                                    // Status exists (submitted, approved, rejected) - show status instead of button
+                                    $action = get_certificate_lifecycle_display($status_info, $cert['certificate_number']);
+                                    
+                                    // If display function returns empty, use fallback
+                                    if (empty($action) || $action === '-') {
+                                        $status = $status_info['status'];
+                                        $renewal_method_display = isset($status_info['renewal_method']) ? $status_info['renewal_method'] : '';
+                                        $status_date = isset($status_info['status_date']) ? date('d/m/Y', strtotime($status_info['status_date'])) : 'N/A';
+                                        $method_badge = !empty($renewal_method_display) ? '<span class="renewal-method-badge">' . strtoupper($renewal_method_display) . '</span>' : '';
+                                        
+                                        if ($status === 'approved') {
+                                            $action = '<div class="renewal-status-wrapper status-approved">
+                                                <div class="status-header">
+                                                    <span class="status-icon">✅</span>
+                                                    <span class="status-text">Approved</span>
+                                                    ' . $method_badge . '
+                                                </div>
+                                                <div class="status-details">
+                                                    <small>Approved: ' . esc_html($status_date) . '</small><br>
+                                                    <small class="status-note">Certificate will be issued soon</small>
+                                                </div>
+                                            </div>';
+                                        } elseif ($status === 'submitted') {
+                                            $status_text = (strtoupper($renewal_method_display) === 'RECERT') ? 'Applied for recert' : 'Applied for Renewal';
+                                            $action = '<div class="renewal-status-wrapper status-applied">
+                                                <div class="status-header">
+                                                    <span class="status-icon">📝</span>
+                                                    <span class="status-text">' . esc_html($status_text) . '</span>
+                                                    ' . $method_badge . '
+                                                </div>
+                                                <div class="status-details">
+                                                    <small>Submitted: ' . esc_html($status_date) . '</small><br>
+                                                    <small class="status-note">Your application is being reviewed</small>
+                                                </div>
+                                            </div>';
+                                        }
+                                    }
+                                } else {
+                                    // No status exists - show action button (recertification or renewal)
+                                    // BUT: Only if there's no status in database either
+                                    // Double-check database one more time before showing button
+                                    if (!$cert_record || empty($cert_record->renewal_status)) {
+                                        // Get recertification/renewal button based on eligibility
+                                        $action = get_certificate_action_buttons($cert, $current_date, $renewal_url, $recertification_url, $full_exam_url);
+                                    } else {
+                                        // Database has status but we didn't catch it - show it now
+                                        $renewal_method = $cert_record->renewal_method;
+                                        $is_recertification = (strtoupper($renewal_method) === 'RECERT');
+                                        $base_cert_number = preg_replace('/-0[123]$/', '', $cert['certificate_number']);
+                                        $target_suffix = $is_recertification ? '-03' : '-02';
+                                        $target_cert_exists = $wpdb->get_var($wpdb->prepare(
+                                            "SELECT COUNT(*) FROM {$wpdb->prefix}sgndt_final_certifications
+                                             WHERE user_id = %d 
+                                             AND certificate_number = %s
+                                             AND status = 'issued'",
+                                            $user_id,
+                                            $base_cert_number . $target_suffix
+                                        ));
+                                        
+                                        if ($target_cert_exists == 0) {
+                                            $status = $cert_record->renewal_status;
+                                            $status_date = $cert_record->renewal_approved_date ?: $cert_record->renewal_submitted_date ?: $cert_record->renewal_rejected_date;
+                                            $formatted_date = $status_date ? date('d/m/Y', strtotime($status_date)) : 'N/A';
+                                            $method_badge = !empty($renewal_method) ? '<span class="renewal-method-badge">' . strtoupper($renewal_method) . '</span>' : '';
+                                            
+                                            if ($status === 'approved') {
+                                                $action = '<div class="renewal-status-wrapper status-approved">
+                                                    <div class="status-header">
+                                                        <span class="status-icon">✅</span>
+                                                        <span class="status-text">Approved</span>
+                                                        ' . $method_badge . '
+                                                    </div>
+                                                    <div class="status-details">
+                                                        <small>Approved: ' . esc_html($formatted_date) . '</small><br>
+                                                        <small class="status-note">Certificate will be issued soon</small>
+                                                    </div>
+                                                </div>';
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
                         } catch (Exception $e) {
                             error_log("Error in certificate lifecycle system for certificate {$cert['certificate_number']} (ID: {$cert['final_certification_id']}), user {$user_id}: " . $e->getMessage());
                             // Fallback to basic action button logic
                             $action = get_certificate_action_buttons($cert, $current_date, $renewal_url, $recertification_url, $full_exam_url);
                         }
 
-                        // Determine row class for renewed certificates
-                        $row_class = is_renewed_certificate($cert['certificate_number']) ? 'renewed-certificate' : '';
+                        // Determine row class based on certificate type
+                        $row_class = '';
+                        if (preg_match('/-02$/', $cert['certificate_number'])) {
+                            $row_class = 'renewed-certificate';
+                        } elseif (preg_match('/-03$/', $cert['certificate_number'])) {
+                            $row_class = 'recertified-certificate';
+                        } elseif (preg_match('/-01$/', $cert['certificate_number'])) {
+                            $row_class = 'initial-certificate';
+                        }
                         
                         echo '<tr class="' . $row_class . '" data-method="' . esc_attr($cert['method']) . '" data-level="' . esc_attr($cert['level']) . '" data-status="' . esc_attr($cert['status']) . '">';
                             echo '<td>' . $cert_number . '</td>';
@@ -816,13 +1630,14 @@ function user_profile_shortcode() {
                         echo '</tr>';
                     }
                 } else {
-                    echo '<tr><td colspan="12">No final certificates found.</td></tr>';
+                    echo '<tr><td colspan="10">No final certificates found.</td></tr>';
                 }
                 ?>
             </tbody>
                 </table>
                </div>
             </div>
+            <?php endif; ?>
 
             <!-- Event Participation Section (unchanged) -->
             <div id="event-participation-section" class="user-profile-tab-content" style="display:none;">
@@ -898,9 +1713,130 @@ function user_profile_shortcode() {
                 }
                 ?>
             </div>
+
+            <!-- CPD Management Section -->
+            <?php if (has_cpd_certificate_access($current_user->ID)): ?>
+            <div id="cpd-management-section" class="user-profile-tab-content" style="display:none;" role="tabpanel" aria-labelledby="cpd-management-tab">
+                <h3 class="section-title">CPD Management</h3>
+                
+                <div class="cpd-profile-section">
+                    <div class="cpd-profile-tabs">
+                        <ul class="cpd-inner-tabs">
+                            <li><a href="#cpd-summary-tab" class="cpd-tab-link active" data-tab="summary">My CPD Summary</a></li>
+                            <li><a href="#cpd-upload-tab" class="cpd-tab-link" data-tab="upload">Upload CPD Entry</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="cpd-profile-content">
+                        <div id="cpd-summary-tab" class="cpd-tab-content active">
+                            <h4>My CPD Summary</h4>
+                            <?php echo do_shortcode('[cpd_summary]'); ?>
+                        </div>
+                        
+                        <div id="cpd-upload-tab" class="cpd-tab-content" style="display:none;">
+                            <h4>Upload CPD Entry</h4>
+                            <?php echo do_shortcode('[cpd_upload_form]'); ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 
+    <style>
+    /* CPD Management Section Styles */
+    .cpd-profile-section {
+        margin-top: 20px;
+    }
+    
+    .cpd-profile-tabs ul.cpd-inner-tabs {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 20px 0;
+        display: flex;
+        border-bottom: 2px solid #ddd;
+    }
+    
+    .cpd-profile-tabs ul.cpd-inner-tabs li {
+        margin: 0;
+    }
+    
+    .cpd-profile-tabs ul.cpd-inner-tabs li a.cpd-tab-link {
+        display: block;
+        padding: 12px 24px;
+        text-decoration: none;
+        color: #666;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        border-bottom: none;
+        margin-right: 5px;
+        border-radius: 4px 4px 0 0;
+        transition: all 0.3s ease;
+    }
+    
+    .cpd-profile-tabs ul.cpd-inner-tabs li a.cpd-tab-link:hover {
+        background: #e9e9e9;
+        color: #0073aa;
+    }
+    
+    .cpd-profile-tabs ul.cpd-inner-tabs li a.cpd-tab-link.active {
+        background: #fff;
+        color: #0073aa;
+        font-weight: 600;
+        border-bottom: 2px solid #fff;
+        margin-bottom: -2px;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .cpd-tab-content {
+        padding: 20px;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-top: none;
+        border-radius: 0 4px 4px 4px;
+    }
+    
+    .cpd-tab-content h4 {
+        margin-top: 0;
+        color: #0073aa;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+        margin-bottom: 20px;
+    }
+    </style>
+
+    <script>
+    // CPD Inner Tab Functionality
+    jQuery(document).ready(function($) {
+        $('.cpd-tab-link').on('click', function(e) {
+            e.preventDefault();
+            var $this = $(this);
+            var targetTab = $this.data('tab');
+            
+            // Remove active class from all tabs
+            $('.cpd-tab-link').removeClass('active');
+            $('.cpd-tab-content').hide();
+            
+            // Add active class to clicked tab
+            $this.addClass('active');
+            
+            // Show corresponding content
+            if (targetTab === 'summary') {
+                $('#cpd-summary-tab').show();
+            } else if (targetTab === 'upload') {
+                $('#cpd-upload-tab').show();
+            }
+        });
+        
+        // Handle hash navigation for CPD section
+        if (window.location.hash === '#cpd-management-section') {
+            // If coming to CPD section, show summary tab by default
+            $('.cpd-tab-link[data-tab="summary"]').click();
+        }
+    });
+    </script>
 
     <script>
     // Function to update renewal status after successful form submission
@@ -970,6 +1906,9 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Tabs initialized from hash: ' + initialHash);
             if (initialHash === '#final-certificate-section') {
                 applyFilters();
+            } else if (initialHash === '#cpd-management-section') {
+                // Initialize CPD inner tabs
+                $('.cpd-tab-link[data-tab="summary"]').click();
             }
         } else {
             $('#basic-profile-section').show();
@@ -1004,6 +1943,9 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Switched to tab: ' + target);
         if (target === '#final-certificate-section') {
             applyFilters();
+        } else if (target === '#cpd-management-section') {
+            // Initialize CPD inner tabs when CPD section is opened
+            $('.cpd-tab-link[data-tab="summary"]').click();
         }
     });
 
@@ -1176,49 +2118,21 @@ add_action('template_redirect', 'disable_header_footer_for_popup');
 
 add_shortcode('user_profile', 'user_profile_shortcode');
 
-/**
- * TEMPORARY: Shortcode to clear renewal statuses for testing
- * Usage: [clear_renewal_statuses] on any page/post
- */
-add_shortcode('clear_renewal_statuses', 'clear_renewal_statuses_shortcode');
-function clear_renewal_statuses_shortcode($atts) {
-    if (!is_user_logged_in()) {
-        return '<p style="color: red;">You must be logged in to clear renewal statuses.</p>';
-    }
-    
-    $user_id = get_current_user_id();
-    $deleted_count = clear_all_renewal_statuses($user_id);
-    
-    if ($deleted_count > 0) {
-        return '<p style="color: green;">✅ Cleared ' . $deleted_count . ' renewal status entries. You can now retest the workflow!</p>';
-    } else {
-        return '<p style="color: blue;">ℹ️ No renewal statuses found to clear.</p>';
-    }
-}
 
 /**
  * Handle Form 31 (Renewal by Exam) submission to update certificate status
  */
 add_action('gform_after_submission_31', 'handle_form_31_renewal_submission', 12, 2);
+add_action('gform_after_submission_39', 'handle_form_31_renewal_submission', 12, 2); // Form 39 also uses same handler
 function handle_form_31_renewal_submission($entry, $form) {
+    // Handle both Form 31 and Form 39 (renewal by exam forms)
     $user_id = rgar($entry, 'created_by');
     $cert_number = rgar($entry, '13'); // Certificate number for logging
     
-    // Log all form fields for debugging first
-    error_log("=== Form 31 submission debug ===");
-    error_log("User ID: {$user_id}");
-    error_log("Certificate Number: {$cert_number}");
-    error_log("All form fields:");
-    foreach ($entry as $key => $value) {
-        if (is_numeric($key) && !empty($value)) {
-            error_log("  Field {$key}: {$value}");
-        }
-    }
+    $form_id = rgar($entry, 'form_id');
     
-    // Get certificate ID from field 28 (hidden field you added)
+    // Get certificate ID from field 28 (hidden field)
     $cert_id = rgar($entry, '28'); // Field 28 contains the final_certification_id
-    
-    error_log("Form 31 submission: cert_id from field 28: {$cert_id}");
     
     // If no cert_id found, try to find it by certificate number in database
     if (empty($cert_id) && !empty($cert_number) && !empty($user_id)) {
@@ -1232,19 +2146,63 @@ function handle_form_31_renewal_submission($entry, $form) {
         
         if ($cert_record) {
             $cert_id = $cert_record->final_certification_id;
-            error_log("Form 31 submission: Found cert_id {$cert_id} by database lookup for cert_number {$cert_number}");
         }
     }
     
     if (empty($cert_id) || empty($user_id)) {
-        error_log("Form 31 submission: FAILED - Missing certificate ID or user ID. cert_id: {$cert_id}, user_id: {$user_id}, cert_number: {$cert_number}");
         return;
     }
     
-    // Update the original certificate with renewal status
+    // Update the original certificate with renewal status - Same as CPD method
     global $wpdb;
-    $renewal_method = 'EXAM'; // Form 31 is always exam-based renewal
     
+    // Detect if this is recertification (Form 39 only)
+    $is_recertification = false;
+    if ($form_id == 39) {
+        // Check field 27 for explicit recertification type
+        $renewal_type = rgar($entry, '27');
+        $renewal_type_normalized = !empty($renewal_type) ? strtoupper(trim($renewal_type)) : '';
+        
+        // Also check if there's already a renewal certificate (-02) to determine if this is recertification
+        $cert_data_temp = $wpdb->get_row($wpdb->prepare(
+            "SELECT certificate_number FROM {$wpdb->prefix}sgndt_final_certifications 
+             WHERE final_certification_id = %d AND user_id = %d",
+            $cert_id, $user_id
+        ));
+        
+        if ($cert_data_temp && !empty($cert_data_temp->certificate_number)) {
+            $base_number = preg_replace('/-[0-9]+$/', '', $cert_data_temp->certificate_number);
+            $renewal_cert_count = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}sgndt_final_certifications 
+                 WHERE user_id = %d AND certificate_number = %s AND status = 'issued'",
+                $user_id, $base_number . '-02'
+            ));
+            
+            if ($renewal_cert_count > 0 || strpos($renewal_type_normalized, 'RECERT') !== false || strpos($renewal_type_normalized, 'RECERTIFICATION') !== false) {
+                $is_recertification = true;
+            }
+        }
+    }
+    
+    $renewal_method = $is_recertification ? 'RECERT' : 'EXAM'; // RECERT for recertification, EXAM for renewal
+    
+    // Get certificate details for status update
+    $cert_data = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}sgndt_final_certifications 
+         WHERE final_certification_id = %d AND user_id = %d",
+        $cert_id, $user_id
+    ));
+    
+    if (!$cert_data) {
+        return;
+    }
+    
+    // Ensure cert_number is from database to prevent tampering
+    $cert_number = $cert_data->certificate_number;
+    $level = $cert_data->level;
+    $sector = $cert_data->sector;
+    
+    // Update database table with renewal status - Same as CPD method
     $update_result = $wpdb->update(
         $wpdb->prefix . 'sgndt_final_certifications',
         array(
@@ -1258,32 +2216,62 @@ function handle_form_31_renewal_submission($entry, $form) {
         array('%d')
     );
     
-    // Also update certificate status using final_certification_id as key for user profile
-    $status_updated = update_certificate_status_by_id($user_id, $cert_id, 'submitted', [
+    // Update certificate status using cert_number - Same as CPD method
+    // This ensures both methods use the same status management system
+    $status_data = [
         'submission_method' => 'exam_form',
         'form_entry_id' => rgar($entry, 'id'),
-        'submission_type' => 'renewal_by_exam',
-        'cert_number' => $cert_number
-    ]);
+        'submission_type' => $is_recertification ? 'recertification_by_exam' : 'renewal_by_exam',
+        'original_cert_id' => $cert_id,
+        'level' => $level,
+        'sector' => $sector,
+        'renewal_method' => $renewal_method // Include renewal_method for status display
+    ];
     
-    if ($status_updated) {
-        error_log("Form 31 submission: SUCCESS - Certificate status updated to 'submitted' for cert_id {$cert_id}, cert_number {$cert_number}, user {$user_id}");
-    } else {
-        error_log("Form 31 submission: FAILED - Could not update certificate status for cert_id {$cert_id}, user {$user_id}");
-    }
+    $status_updated = update_certificate_status($user_id, $cert_number, 'submitted', $status_data);
+    
+    // Also update by ID for backward compatibility
+    update_certificate_status_by_id($user_id, $cert_id, 'submitted', array_merge($status_data, [
+        'cert_number' => $cert_number
+    ]));
+    
+    // Store original certificate ID in entry meta for admin access (similar to CPD submission)
+    gform_update_meta(rgar($entry, 'id'), 'original_cert_id', $cert_id);
 }
 
 /**
- * Handle Form 31 approval to update certificate status
- * Hook into the existing Form 31 approval AJAX handler
+ * Handle Form 31/39 approval to update certificate status - Same flow as CPD method
+ * Hook into the existing Form 31/39 approval AJAX handlers
  */
 add_action('wp_ajax_form_31_approve_entry_ajax', 'update_certificate_status_on_form_31_approval', 5);
+add_action('wp_ajax_exam_approve_entry_ajax', 'update_certificate_status_on_form_39_approval', 5); // Also handle Form 39 via exam approval handler
 
 /**
- * Handle Form 31 rejection to update certificate status
- * Hook into the existing Form 31 rejection AJAX handler
+ * Handle Form 31/39 rejection to update certificate status - Same flow as CPD method
+ * Hook into the existing Form 31/39 rejection AJAX handler
  */
 add_action('wp_ajax_form_31_reject_entry_ajax', 'update_certificate_status_on_form_31_rejection', 5);
+/**
+ * Update certificate status for Form 39 approval via exam_approve_entry_ajax
+ * This handles Form 39 when approved through the exam approval handler
+ */
+function update_certificate_status_on_form_39_approval() {
+    $entry_id = intval($_POST['entry_id']);
+    $user_id = intval($_POST['user_id']);
+    
+    if (!$entry_id || !$user_id) {
+        return; // Let the original function handle the error
+    }
+    
+    $entry = GFAPI::get_entry($entry_id);
+    if (is_wp_error($entry) || $entry['form_id'] != 39) {
+        return; // Only handle Form 39 here
+    }
+    
+    // Call the same approval handler logic
+    update_certificate_status_on_approval($entry_id, $user_id, $entry);
+}
+
 function update_certificate_status_on_form_31_approval() {
     // This runs before the existing form_31_handle_approve_entry_ajax function
     $entry_id = intval($_POST['entry_id']);
@@ -1294,44 +2282,116 @@ function update_certificate_status_on_form_31_approval() {
     }
     
     $entry = GFAPI::get_entry($entry_id);
-    if (is_wp_error($entry) || $entry['form_id'] != 31) {
-        return; // Let the original function handle the error
+    if (is_wp_error($entry) || !in_array($entry['form_id'], [31, 39])) {
+        return; // Let the original function handle the error - support both Form 31 and 39
     }
     
-    $cert_number = rgar($entry, '13'); // Certificate number for logging
+    // Call shared approval logic
+    update_certificate_status_on_approval($entry_id, $user_id, $entry);
+}
+
+/**
+ * Shared function to update certificate status on approval (used by both handlers)
+ */
+function update_certificate_status_on_approval($entry_id, $user_id, $entry) {
+    if (is_wp_error($entry) || !in_array($entry['form_id'], [31, 39])) {
+        return;
+    }
+    
+    $form_id = $entry['form_id'];
+    $cert_number = rgar($entry, '13'); // Certificate number field
     $cert_id = rgar($entry, '28'); // Certificate ID from field 28 (hidden field)
     
-    error_log("Form 31 approval: cert_id from field 28: {$cert_id}");
+    error_log("Form {$form_id} approval: Starting certificate status update - entry_id: {$entry_id}, user_id: {$user_id}, cert_number: {$cert_number}, cert_id from field 28: {$cert_id}");
     
-    if (!empty($cert_id)) {
-        // Update the original certificate with renewal approval status
+    // Fallback 1: get cert_id from entry meta if field 28 is empty
+    if (empty($cert_id)) {
+        $cert_id = gform_get_meta($entry_id, 'original_cert_id');
+        error_log("Form {$form_id} approval: cert_id from entry meta: {$cert_id}");
+    }
+    
+    // Fallback 2: Look up cert_id by certificate number if still not found
+    if (empty($cert_id) && !empty($cert_number) && !empty($user_id)) {
         global $wpdb;
-        $wpdb->update(
-            $wpdb->prefix . 'sgndt_final_certifications',
-            array(
-                'renewal_status' => 'approved',
-                'renewal_approved_date' => current_time('mysql'),
-                'renewal_approved_by' => get_current_user_id()
-            ),
-            array('final_certification_id' => $cert_id),
-            array('%s', '%s', '%d'),
-            array('%d')
-        );
+        $cert_record = $wpdb->get_row($wpdb->prepare(
+            "SELECT final_certification_id, certificate_number FROM {$wpdb->prefix}sgndt_final_certifications 
+             WHERE user_id = %d AND certificate_number = %s 
+             ORDER BY issue_date DESC LIMIT 1",
+            $user_id, $cert_number
+        ));
         
-        // Also update certificate status to 'approved' (Renewal Approved) for user profile
-        $status_updated = update_certificate_status_by_id($user_id, $cert_id, 'approved', [
-            'approval_method' => 'admin_approval',
-            'approved_by' => get_current_user_id(),
-            'approval_entry_id' => $entry_id,
-            'cert_number' => $cert_number
-        ]);
-        
-        if ($status_updated) {
-            error_log("Form 31 approval: Certificate status updated to 'approved' for cert_id {$cert_id}, cert_number {$cert_number}, user {$user_id}");
-        } else {
-            error_log("Form 31 approval: Failed to update certificate status for cert_id {$cert_id}, user {$user_id}");
+        if ($cert_record) {
+            $cert_id = $cert_record->final_certification_id;
+            // Ensure cert_number matches exactly what's in database
+            if (!empty($cert_record->certificate_number)) {
+                $cert_number = $cert_record->certificate_number;
+            }
+            error_log("Form {$form_id} approval: Found cert_id {$cert_id} by certificate number lookup");
         }
     }
+    
+    if (empty($cert_id)) {
+        error_log("Form {$form_id} approval: ERROR - Could not find cert_id for entry {$entry_id}, user {$user_id}, cert_number {$cert_number}");
+        return;
+    }
+    
+    // Get certificate details to ensure we have correct cert_number
+    global $wpdb;
+    $cert_data = $wpdb->get_row($wpdb->prepare(
+        "SELECT certificate_number FROM {$wpdb->prefix}sgndt_final_certifications 
+         WHERE final_certification_id = %d AND user_id = %d",
+        $cert_id, $user_id
+    ));
+    
+    if ($cert_data && !empty($cert_data->certificate_number)) {
+        $cert_number = $cert_data->certificate_number;
+    }
+    
+    if (empty($cert_number)) {
+        error_log("Form {$form_id} approval: ERROR - Could not find certificate number for cert_id {$cert_id}");
+        return;
+    }
+    
+    // Update the original certificate with renewal approval status - Same as CPD method
+    $update_result = $wpdb->update(
+        $wpdb->prefix . 'sgndt_final_certifications',
+        array(
+            'renewal_status' => 'approved',
+            'renewal_approved_date' => current_time('mysql'),
+            'renewal_approved_by' => get_current_user_id()
+        ),
+        array('final_certification_id' => $cert_id),
+        array('%s', '%s', '%d'),
+        array('%d')
+    );
+    
+    if ($update_result === false) {
+        error_log("Form {$form_id} approval: ERROR - Database update failed: " . $wpdb->last_error);
+    } else {
+        error_log("Form {$form_id} approval: Database updated - {$update_result} row(s) affected");
+    }
+    
+    // Update certificate status using cert_number - Same as CPD method
+    $cert_status_key = 'cert_status_' . $cert_number;
+    $meta_updated = update_user_meta($user_id, $cert_status_key, 'approved');
+    update_user_meta($user_id, $cert_status_key . '_date', current_time('mysql'));
+    update_user_meta($user_id, $cert_status_key . '_approved_by', get_current_user_id());
+    update_user_meta($user_id, $cert_status_key . '_submission_method', 'exam_form');
+    update_user_meta($user_id, $cert_status_key . '_approval_entry_id', $entry_id);
+    
+    if ($meta_updated) {
+        error_log("Form {$form_id} approval: SUCCESS - Certificate status updated to 'approved' (same as CPD method) for cert_id {$cert_id}, cert_number {$cert_number}, user {$user_id}, status key: {$cert_status_key}");
+    } else {
+        error_log("Form {$form_id} approval: WARNING - User meta may not have been updated (might already be 'approved')");
+    }
+    
+    // Also update by ID for backward compatibility
+    update_certificate_status_by_id($user_id, $cert_id, 'approved', [
+        'approval_method' => 'admin_approval',
+        'approved_by' => get_current_user_id(),
+        'approval_entry_id' => $entry_id,
+        'cert_number' => $cert_number
+    ]);
 }
 
 /**
@@ -1347,18 +2407,34 @@ function update_certificate_status_on_form_31_rejection() {
     }
     
     $entry = GFAPI::get_entry($entry_id);
-    if (is_wp_error($entry) || $entry['form_id'] != 31) {
-        return; // Let the original function handle the error
+    if (is_wp_error($entry) || !in_array($entry['form_id'], [31, 39])) {
+        return; // Let the original function handle the error - support both Form 31 and 39
     }
     
     $cert_number = rgar($entry, '13'); // Certificate number for logging
     $cert_id = rgar($entry, '28'); // Certificate ID from field 28 (hidden field)
     
-    error_log("Form 31 rejection: cert_id from field 28: {$cert_id}");
+    // Fallback: get cert_id from entry meta if field 28 is empty
+    if (empty($cert_id)) {
+        $cert_id = gform_get_meta($entry_id, 'original_cert_id');
+    }
+    
+    error_log("Form 31 rejection: cert_id from field 28 or meta: {$cert_id}");
     
     if (!empty($cert_id)) {
-        // Update the original certificate with renewal rejection status
+        // Get certificate details to ensure we have correct cert_number
         global $wpdb;
+        $cert_data = $wpdb->get_row($wpdb->prepare(
+            "SELECT certificate_number FROM {$wpdb->prefix}sgndt_final_certifications 
+             WHERE final_certification_id = %d AND user_id = %d",
+            $cert_id, $user_id
+        ));
+        
+        if ($cert_data) {
+            $cert_number = $cert_data->certificate_number;
+        }
+        
+        // Update the original certificate with renewal rejection status - Same as CPD method
         $rejection_reason = sanitize_textarea_field($_POST['reject_reason']);
         
         $wpdb->update(
@@ -1378,20 +2454,26 @@ function update_certificate_status_on_form_31_rejection() {
             array('%d')
         );
         
-        // Also update certificate status to 'rejected' for user profile
-        $status_updated = update_certificate_status_by_id($user_id, $cert_id, 'rejected', [
+        // Update certificate status using cert_number - Same as CPD method
+        if (!empty($cert_number)) {
+            $cert_status_key = 'cert_status_' . $cert_number;
+            update_user_meta($user_id, $cert_status_key, 'rejected');
+            update_user_meta($user_id, $cert_status_key . '_date', current_time('mysql'));
+            update_user_meta($user_id, $cert_status_key . '_rejected_by', get_current_user_id());
+            update_user_meta($user_id, $cert_status_key . '_rejection_reason', $rejection_reason);
+            update_user_meta($user_id, $cert_status_key . '_submission_method', 'exam_form');
+            
+            error_log("Form {$entry['form_id']} rejection: Certificate status updated to 'rejected' (same as CPD method) for cert_id {$cert_id}, cert_number {$cert_number}, user {$user_id}");
+        }
+        
+        // Also update by ID for backward compatibility
+        update_certificate_status_by_id($user_id, $cert_id, 'rejected', [
             'rejection_method' => 'admin_rejection',
             'rejected_by' => get_current_user_id(),
             'rejection_entry_id' => $entry_id,
             'cert_number' => $cert_number,
             'rejection_reason' => $rejection_reason
         ]);
-        
-        if ($status_updated) {
-            error_log("Form 31 rejection: Certificate status updated to 'rejected' for cert_id {$cert_id}, cert_number {$cert_number}, user {$user_id}");
-        } else {
-            error_log("Form 31 rejection: Failed to update certificate status for cert_id {$cert_id}, user {$user_id}");
-        }
     }
 }
 
@@ -1400,14 +2482,11 @@ function update_certificate_status_on_form_31_rejection() {
  */
 add_action('certificate_generated', 'update_certificate_status_on_generation', 10, 5);
 function update_certificate_status_on_generation($final_certification_id, $certificate_number, $user_id, $cert_data, $exam_entry_id) {
-    // Check if this is a renewed certificate (has suffix -01 or -02)
-    if (preg_match('/-0[12]$/', $certificate_number)) {
-        error_log("Certificate generation: Processing renewal certificate {$certificate_number} for exam_entry_id {$exam_entry_id}");
-        
+    // Check if this is a renewed certificate (has suffix -02 for renewal or -03 for recertification)
+    if (preg_match('/-0[23]$/', $certificate_number)) {
         // Get the Form 31 entry to find the cert_id (field 28)
         $entry = GFAPI::get_entry($exam_entry_id);
         if (is_wp_error($entry)) {
-            error_log("Certificate generation: Could not get exam entry {$exam_entry_id}");
             return;
         }
         
@@ -1419,72 +2498,44 @@ function update_certificate_status_on_generation($final_certification_id, $certi
             global $wpdb;
             $base_cert_number = preg_replace('/-0[12]$/', '', $certificate_number);
             $maybe_original = $wpdb->get_var($wpdb->prepare(
-                "SELECT final_certification_id FROM {$wpdb->prefix}sgndt_final_certifications \
+                "SELECT final_certification_id FROM {$wpdb->prefix}sgndt_final_certifications 
                  WHERE user_id = %d AND certificate_number = %s ORDER BY issue_date DESC LIMIT 1",
                 $user_id,
                 $base_cert_number
             ));
             if ($maybe_original) {
                 $original_cert_id = intval($maybe_original);
-                error_log("Certificate generation: Fallback matched original cert_id {$original_cert_id} by base number {$base_cert_number}");
             } else {
-                error_log("Certificate generation: No cert_id found in field 28 and no base match for {$base_cert_number} (exam_entry_id {$exam_entry_id})");
-            return;
+                return;
             }
         }
         
-        error_log("Certificate generation: Found original cert_id {$original_cert_id} from field 28");
+        // Clear renewal_status in database table (so "approved" status doesn't show after certificate is generated)
+        global $wpdb;
+        $wpdb->update(
+            $wpdb->prefix . 'sgndt_final_certifications',
+            array(
+                'renewal_status' => NULL,
+                'renewal_method' => NULL,
+                'renewal_submitted_date' => NULL,
+                'renewal_approved_date' => NULL,
+                'renewal_submission_id' => NULL
+            ),
+            array('final_certification_id' => $original_cert_id),
+            array('%s', '%s', '%s', '%s', '%d'),
+            array('%d')
+        );
         
-        // Update the original certificate status to 'renewed'
+        // Update the original certificate status to 'renewed' (user meta)
         $status_updated = update_certificate_status_by_id($user_id, $original_cert_id, 'renewed', [
             'renewed_cert_number' => $certificate_number,
             'renewed_cert_id' => $final_certification_id,
             'issue_date' => current_time('mysql')
         ]);
         
-        if ($status_updated) {
-            error_log("Certificate generation: SUCCESS - Status updated to 'renewed' for original cert_id {$original_cert_id}, new cert {$certificate_number}, user {$user_id}");
-        } else {
-            error_log("Certificate generation: FAILED - Could not update status for original cert_id {$original_cert_id}, user {$user_id}");
-        }
     }
 }
 
-/**
- * TEMPORARY: Clear all renewal statuses for testing
- * Call this function once to reset all statuses: clear_all_renewal_statuses()
- */
-function clear_all_renewal_statuses($user_id = null) {
-    global $wpdb;
-    
-    // If no user_id provided, get current user
-    if (!$user_id) {
-        $user_id = get_current_user_id();
-    }
-    
-    if (!$user_id) {
-        error_log("No user ID provided for clearing renewal statuses");
-        return false;
-    }
-    
-    // Get all user meta keys that contain renewal status
-    $meta_keys_to_delete = $wpdb->get_col($wpdb->prepare(
-        "SELECT meta_key FROM {$wpdb->usermeta} 
-         WHERE user_id = %d 
-         AND (meta_key LIKE 'cert_status_%' 
-              OR meta_key LIKE 'cert_submission_%')",
-        $user_id
-    ));
-    
-    $deleted_count = 0;
-    foreach ($meta_keys_to_delete as $meta_key) {
-        delete_user_meta($user_id, $meta_key);
-        $deleted_count++;
-    }
-    
-    error_log("Cleared {$deleted_count} renewal status entries for user {$user_id}");
-    return $deleted_count;
-}
 
 /**
  * Handle renewal status update via AJAX
@@ -1545,39 +2596,6 @@ function update_cpd_certificate() {
     }
 }
 
-/**
- * Manual test function to update certificate status (for debugging)
- * Call this function with: test_manual_status_update($user_id, $cert_number, $new_status)
- */
-function test_manual_status_update($user_id, $cert_number, $new_status) {
-    error_log("=== MANUAL STATUS UPDATE TEST ===");
-    error_log("User ID: {$user_id}");
-    error_log("Certificate Number: {$cert_number}");
-    error_log("New Status: {$new_status}");
-
-    // Test the status update
-    $success = update_certificate_status($user_id, $cert_number, $new_status, [
-        'cert_number' => $cert_number . '-1',
-        'issue_date' => current_time('mysql'),
-        'issued_by' => 'manual_test'
-    ]);
-
-    error_log("Status update result: " . ($success ? 'SUCCESS' : 'FAILED'));
-
-    // Check what was actually stored
-    $cert_status_key = 'cert_status_' . $cert_number;
-    $cert_status = get_user_meta($user_id, $cert_status_key, true);
-    $cert_status_date = get_user_meta($user_id, $cert_status_key . '_date', true);
-    $cert_issued_number = get_user_meta($user_id, $cert_status_key . '_cert_number', true);
-    $cert_issued_date = get_user_meta($user_id, $cert_status_key . '_issue_date', true);
-
-    error_log("Stored status: '{$cert_status}'");
-    error_log("Status date: '{$cert_status_date}'");
-    error_log("Issued cert number: '{$cert_issued_number}'");
-    error_log("Issued date: '{$cert_issued_date}'");
-
-    return $success;
-}
 
 /**
  * Update certificate status by final_certification_id (for unique certificate tracking)
@@ -1592,11 +2610,6 @@ function update_certificate_status_by_id($user_id, $cert_id, $new_status, $addit
 
     // Get current status
     $current_status = get_user_meta($user_id, $cert_status_key, true);
-
-    // Debug logging
-    error_log("DEBUG: Certificate ID {$cert_id} status update attempt:");
-    error_log("  - Current status: '{$current_status}'");
-    error_log("  - New status: '{$new_status}'");
 
     // Validate status transition
     $valid_transition = validate_status_transition($current_status, $new_status);
@@ -1716,15 +2729,24 @@ function get_certificate_status_info_by_id($user_id, $cert_id) {
     $renewed_cert_number = get_user_meta($user_id, $cert_status_key . '_renewed_cert_number', true);
     $renewed_cert_id = get_user_meta($user_id, $cert_status_key . '_renewed_cert_id', true);
     $cert_number = get_user_meta($user_id, $cert_status_key . '_cert_number', true);
+    
+    // Get renewal method (submission_method) and convert to display format
+    $submission_method = get_user_meta($user_id, $cert_status_key . '_submission_method', true);
+    $renewal_method = '';
+    if (!empty($submission_method)) {
+        $renewal_method = ($submission_method === 'cpd_form') ? 'CPD' : 'EXAM';
+    }
 
     return [
+        'status' => $cert_status,
         'effective_status' => $cert_status,
         'status_source' => 'cert_status_id',
         'status_date' => $status_date,
         'formatted_status_date' => $formatted_status_date,
         'renewed_cert_number' => $renewed_cert_number,
         'renewed_cert_id' => $renewed_cert_id,
-        'cert_number' => $cert_number
+        'cert_number' => $cert_number,
+        'renewal_method' => $renewal_method
     ];
 }
 

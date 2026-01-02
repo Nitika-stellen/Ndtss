@@ -665,4 +665,52 @@ trait AIOWPSecurity_User_Security_Commands_Trait {
 		return $diff > $logout_time_interval_val_seconds;
 	}
 
+	/**
+	 * Whitelists user's IP address
+	 *
+	 * @return array Returns an array containing the status of the operation ('success' or 'error'),
+	 *               a message indicating the result of the operation,
+	 *               and a badge representing the updated feature details.
+	 */
+	public function perform_whitelist_user_ip() {
+		$response = array(
+			'status' => 'success'
+		);
+
+		if (!AIOWPSecurity_Utility_Permissions::has_manage_cap()) {
+			$response['status'] = 'error';
+			$response['message'] = __('You don\'t have enough permissions to whitelist your IP address.', 'all-in-one-wp-security-and-firewall');
+			return $response;
+		}
+
+		$aiowps_firewall_allow_list = AIOS_Firewall_Resource::request(AIOS_Firewall_Resource::ALLOW_LIST);
+
+		$whitelisted_ips = $aiowps_firewall_allow_list::get_ips();
+		$is_whitelisted = $aiowps_firewall_allow_list::is_ip_allowed();
+
+		if ($is_whitelisted) {
+			$response['status'] = 'error';
+			$response['message'] = __('Your IP address is already whitelisted.', 'all-in-one-wp-security-and-firewall');
+			return $response;
+		} else {
+			$user_ip = AIOWPSecurity_Utility_IP::get_user_ip_address();
+
+			if (empty($user_ip)) {
+				$response['status'] = 'error';
+				$response['message'] = __('Your IP address could not be detected.', 'all-in-one-wp-security-and-firewall');
+				return $response;
+			}
+
+			$whitelisted_ips .= (empty($whitelisted_ips) ? '' : "\n") . $user_ip;
+
+			if (!$aiowps_firewall_allow_list::add_ips($whitelisted_ips)) {
+				$response['status'] = 'error';
+				$response['message'] = __('There was an error whitelisting your IP address, please try again.', 'all-in-one-wp-security-and-firewall');
+				return $response;
+			}
+
+			$response['message'] = __('Your IP address has been whitelisted successfully.', 'all-in-one-wp-security-and-firewall');
+			return $response;
+		}
+	}
 }

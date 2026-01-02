@@ -375,6 +375,31 @@ trait AIOWPSecurity_Firewall_Commands_Trait {
 	}
 
 	/**
+	 * The AJAX function for saving PHP firewall and block and allowlists in UDC.
+	 *
+	 * @param array $data The data send from UDC.
+	 *
+	 * @return array|WP_Error
+	 */
+	public function perform_save_firewall($data) {
+		if (!AIOWPSecurity_Utility_Permissions::has_manage_cap()) {
+			return new WP_Error(esc_html__('Sorry, you do not have enough privilege to execute the requested action.', 'all-in-one-wp-security-and-firewall'));
+		}
+
+		$response = $this->perform_firewall_allowlist($data);
+		if ('error' === $response['status']) {
+			return $response;
+		}
+
+		$response = $this->perform_save_blacklist_settings($data);
+		if ('error' === $response['status']) {
+			return $response;
+		}
+
+		return $this->perform_php_firewall_settings($data);
+	}
+
+	/**
 	 * Perform the setup process for the firewall.
 	 *
 	 * This function handles the setup form for the firewall and renders notices accordingly.
@@ -510,5 +535,253 @@ trait AIOWPSecurity_Firewall_Commands_Trait {
 		));
 
 		return $this->handle_response(true, '', array('badges' => array('upgrade-unsafe-http-calls')));
+	}
+
+	/**
+	 * Render the PHP firewall rules for the legacy UDC theme.
+	 *
+	 * @return array
+	 */
+	public function get_php_firewall_contents() {
+		global $aio_wp_security;
+
+		$GLOBALS['aiowps_feature_mgr'] = $this->get_feature_mgr_object();
+		$php_firewall_data = $this->get_php_firewall_data();
+
+		$content = $aio_wp_security->include_template('/wp-admin/firewall/php-firewall-rules.php', true, compact('php_firewall_data'));
+
+		return array(
+			'status' => 'success',
+			'content' => $php_firewall_data['no_firewall'] . $content,
+		);
+	}
+
+	/**
+	 * Render the .htaccess firewall rules for the legacy UDC theme.
+	 *
+	 * @return array
+	 */
+	public function get_htaccess_contents() {
+		global $aio_wp_security;
+
+		$GLOBALS['aiowps_feature_mgr'] = $this->get_feature_mgr_object();
+
+		$htaccess_rules_data = $this->get_htaccess_rules_data();
+
+		$content = $aio_wp_security->include_template('/wp-admin/firewall/htaccess-firewall-rules.php', true, compact('htaccess_rules_data'));
+
+		return array(
+			'status' => 'success',
+			'content' => $content,
+		);
+	}
+
+	/**
+	 * Render the Block & Allow Lists for the legacy UDC theme.
+	 *
+	 * @return array
+	 */
+	public function get_block_allow_lists_contents() {
+		global $aio_wp_security;
+
+		/* Needed for submit_button() */
+		require_once(ABSPATH . 'wp-admin/includes/template.php');
+
+		$GLOBALS['aiowps_feature_mgr'] = $this->get_feature_mgr_object();
+
+		$block_allowlist_data = $this->get_block_allow_lists_data();
+
+		$content = $aio_wp_security->include_template('wp-admin/firewall/block-and-allow-lists.php', true, $block_allowlist_data);
+
+		return array(
+			'status' => 'success',
+			'content' => $content,
+		);
+	}
+
+	/**
+	 * Render the Advanced Settings for the legacy UDC theme.
+	 *
+	 * @return array
+	 */
+	public function get_advanced_settings_contents() {
+		global $aio_wp_security;
+
+		$GLOBALS['aiowps_feature_mgr'] = $this->get_feature_mgr_object();
+
+		$advanced_settings_data = $this->get_firewall_advanced_settings_data();
+
+		$content = $aio_wp_security->include_template('wp-admin/firewall/advanced-settings.php', true, compact('advanced_settings_data'));
+
+		return array(
+			'status' => 'success',
+			'content' => $content,
+		);
+	}
+
+	/**
+	 * Return data for the advanced firewall.
+	 *
+	 * @return array
+	 */
+	public function get_firewall_advanced_settings_data() {
+		global $aio_wp_security;
+
+		$aiowps_upgrade_unsafe_http_calls = $aio_wp_security->configs->get_value('aiowps_upgrade_unsafe_http_calls');
+		$aiowps_upgrade_unsafe_http_calls_url_exceptions = $aio_wp_security->configs->get_value('aiowps_upgrade_unsafe_http_calls_url_exceptions');
+
+		return array(
+			'aiowps_upgrade_unsafe_http_calls' => $aiowps_upgrade_unsafe_http_calls,
+			'aiowps_upgrade_unsafe_http_calls_url_exceptions' => $aiowps_upgrade_unsafe_http_calls_url_exceptions,
+		);
+	}
+
+
+	/**
+	 * Return data for the allow & block lists.
+	 *
+	 * @return array
+	 */
+	public function get_block_allow_lists_data() {
+		global $aio_wp_security;
+
+		$aiowps_enable_blacklisting = $aio_wp_security->configs->get_value('aiowps_enable_blacklisting');
+		$aiowps_banned_ip_addresses = $aio_wp_security->configs->get_value('aiowps_banned_ip_addresses');
+		$aiowps_banned_user_agents = $aio_wp_security->configs->get_value('aiowps_banned_user_agents');
+
+		$aiowps_firewall_allow_list = AIOS_Firewall_Resource::request(AIOS_Firewall_Resource::ALLOW_LIST);
+		$allowlist = $aiowps_firewall_allow_list::get_ips();
+
+		return array(
+			'aiowps_enable_blacklisting' => $aiowps_enable_blacklisting,
+			'aiowps_banned_ip_addresses' => $aiowps_banned_ip_addresses,
+			'aiowps_banned_user_agents' => $aiowps_banned_user_agents,
+			'allowlist' => $allowlist,
+		);
+	}
+
+	/**
+	 * Return data for the .htaccess rules.
+	 *
+	 * @return array
+	 */
+	public function get_htaccess_rules_data() {
+		global $aio_wp_security;
+
+		$aiowps_enable_basic_firewall = $aio_wp_security->configs->get_value('aiowps_enable_basic_firewall');
+		$aiowps_max_file_upload_size = $aio_wp_security->configs->get_value('aiowps_max_file_upload_size');
+		$aiowps_block_debug_log_file_access = $aio_wp_security->configs->get_value('aiowps_block_debug_log_file_access');
+		$aiowps_disable_index_views = $aio_wp_security->configs->get_value('aiowps_disable_index_views');
+
+		return array(
+			'aiowps_enable_basic_firewall' => $aiowps_enable_basic_firewall,
+			'aiowps_max_file_upload_size' => $aiowps_max_file_upload_size,
+			'aiowps_block_debug_log_file_access' => $aiowps_block_debug_log_file_access,
+			'aiowps_disable_index_views' => $aiowps_disable_index_views,
+		);
+	}
+
+	/**
+	 * Return data for the PHP firewall.
+	 *
+	 * @return array
+	 */
+	public function get_php_firewall_data() {
+		global $aio_wp_security, $aiowps_firewall_config, $aiowps_feature_mgr;
+
+		$is_udc_request = AIOS_Helper::is_updraft_central_request();
+
+		$block_request_methods = array_map('strtolower', AIOS_Abstracted_Ids::get_firewall_block_request_methods());
+
+		$no_firewall_notice = '';
+		$user_roles = array();
+
+		// Load required data from config
+		if (!empty($aiowps_firewall_config)) {
+			// firewall config is available
+			$methods = $aiowps_firewall_config->get_value('aiowps_6g_block_request_methods');
+			if (empty($methods)) {
+				$methods = array();
+			}
+
+			$blocked_query     = (bool) $aiowps_firewall_config->get_value('aiowps_6g_block_query');
+			$blocked_request   = (bool) $aiowps_firewall_config->get_value('aiowps_6g_block_request');
+			$blocked_referrers = (bool) $aiowps_firewall_config->get_value('aiowps_6g_block_referrers');
+			$blocked_agents    = (bool) $aiowps_firewall_config->get_value('aiowps_6g_block_agents');
+
+			if (empty($methods) && (!$blocked_query && !$blocked_request && !$blocked_referrers && !$blocked_agents) && '1' == $aio_wp_security->configs->get_value('aiowps_enable_6g_firewall')) {
+				$aio_wp_security->configs->set_value('aiowps_enable_6g_firewall', '');
+				$aio_wp_security->configs->save_config();
+				$aiowps_feature_mgr->check_feature_status_and_recalculate_points();
+			}
+
+		} else {
+			if ($is_udc_request) {
+				ob_start();
+			}
+
+			?>
+			<div class="notice notice-error">
+				<p><strong><?php esc_html_e('All-In-One Security', 'all-in-one-wp-security-and-firewall'); ?></strong></p>
+				<p><?php esc_html_e('We were unable to access the firewall\'s configuration file:', 'all-in-one-wp-security-and-firewall');?></p>
+				<pre style="max-width: 100%;background-color: #f0f0f0;border: #ccc solid 1px;padding: 10px;white-space: pre-wrap;"><?php echo esc_html(AIOWPSecurity_Utility_Firewall::get_firewall_rules_path() . 'settings.php'); ?></pre>
+				<p><?php esc_html_e('As a result, the firewall will be unavailable.', 'all-in-one-wp-security-and-firewall');?></p>
+				<p><?php esc_html_e('Please check your PHP error log for further information.', 'all-in-one-wp-security-and-firewall');?></p>
+				<p><?php esc_html_e('If you\'re unable to locate your PHP log file, please contact your web hosting company to ask them where it can be found on their setup.', 'all-in-one-wp-security-and-firewall');?></p>
+			</div>
+			<?php
+
+			if ($is_udc_request) {
+				$no_firewall_notice .= ob_get_clean();
+			}
+
+			//set default variables
+			$methods           = array();
+			$blocked_query     = false;
+			$blocked_request   = false;
+			$blocked_referrers = false;
+			$blocked_agents    = false;
+		}
+
+		$aiowps_enable_6g_firewall = $aio_wp_security->configs->get_value('aiowps_enable_6g_firewall');
+		$advanced_options_disabled = '1' != $aiowps_enable_6g_firewall;
+
+		$settings = array_merge(array('methods' => $methods), compact('aiowps_enable_6g_firewall', 'blocked_query', 'blocked_request', 'blocked_referrers', 'blocked_agents', 'block_request_methods', 'aiowps_firewall_config', 'advanced_options_disabled'));
+
+		$aiowps_enable_pingback_firewall = $aiowps_firewall_config->get_value('aiowps_enable_pingback_firewall');
+		$aiowps_disable_xmlrpc_pingback_methods = $aio_wp_security->configs->get_value('aiowps_disable_xmlrpc_pingback_methods');
+		$aiowps_disable_rss_and_atom_feeds = $aio_wp_security->configs->get_value('aiowps_disable_rss_and_atom_feeds');
+		$aiowps_forbid_proxy_comments = $aiowps_firewall_config->get_value('aiowps_forbid_proxy_comments');
+		$aiowps_deny_bad_query_strings = $aiowps_firewall_config->get_value('aiowps_deny_bad_query_strings');
+		$aiowps_advanced_char_string_filter = $aiowps_firewall_config->get_value('aiowps_advanced_char_string_filter');
+
+		$aiowps_disallow_unauthorized_rest_requests = $aio_wp_security->configs->get_value('aiowps_disallow_unauthorized_rest_requests');
+		$aios_roles_disallowed_rest_requests = $aio_wp_security->configs->get_value('aios_roles_disallowed_rest_requests');
+		$aios_whitelisted_rest_routes = $aio_wp_security->configs->get_value('aios_whitelisted_rest_routes');
+		$aiowps_block_fake_googlebots = $aiowps_firewall_config->get_value('aiowps_block_fake_googlebots');
+		$aiowps_ban_post_blank_headers = $aiowps_firewall_config->get_value('aiowps_ban_post_blank_headers');
+
+		$wp_user_roles = AIOWPSecurity_Utility_Permissions::get_user_roles();
+		foreach ($wp_user_roles as $role => $role_name) {
+			$user_roles[] = $role;
+		}
+
+
+		return array(
+			'aiowps_enable_pingback_firewall' => $aiowps_enable_pingback_firewall,
+			'aiowps_disable_xmlrpc_pingback_methods' => $aiowps_disable_xmlrpc_pingback_methods,
+			'aiowps_disable_rss_and_atom_feeds' => $aiowps_disable_rss_and_atom_feeds,
+			'aiowps_forbid_proxy_comments' => $aiowps_forbid_proxy_comments,
+			'aiowps_deny_bad_query_strings' => $aiowps_deny_bad_query_strings,
+			'aiowps_advanced_char_string_filter' => $aiowps_advanced_char_string_filter,
+			'aiowps_disallow_unauthorized_rest_requests' => $aiowps_disallow_unauthorized_rest_requests,
+			'aios_roles_disallowed_rest_requests' => $aios_roles_disallowed_rest_requests,
+			'aios_whitelisted_rest_routes' => $aios_whitelisted_rest_routes,
+			'user_roles' => $user_roles,
+			'aiowps_block_fake_googlebots' => $aiowps_block_fake_googlebots,
+			'aiowps_ban_post_blank_headers' => $aiowps_ban_post_blank_headers,
+			'ng_settings' => $settings,
+			'no_firewall' => $no_firewall_notice,
+		);
 	}
 }
