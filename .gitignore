@@ -56,3 +56,5 @@ build/
 # Ignore sensitive local config variants (if present)
 wp-config-local.php
 wp-config.*.local
+
+wp-config.php
