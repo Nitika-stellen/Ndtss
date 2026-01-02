@@ -39,12 +39,12 @@ function ul_generate_membership_number($user_id, $entry_id, $membership_type = '
         $membership_type = get_user_meta($user_id, 'member_type', true) ?: 'Corporate';
     }
 
-    $prefix = 'M'; // Default
+    $prefix = 'Me'; // Default
     $membership_type_lower = strtolower($membership_type);
 
     if (strpos($membership_type_lower, 'corporate') !== false) {
         $prefix = 'C';
-    } elseif (strpos($membership_type_lower, 'ordinarys') !== false) {
+    } elseif (strpos($membership_type_lower, 'ordinary') !== false) {
         $prefix = 'O';
     } elseif (strpos($membership_type_lower, 'associate') !== false) {
         $prefix = 'A';
