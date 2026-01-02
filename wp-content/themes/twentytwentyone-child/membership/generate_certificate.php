@@ -44,7 +44,7 @@ function ul_generate_membership_number($user_id, $entry_id, $membership_type = '
 
     if (strpos($membership_type_lower, 'corporate') !== false) {
         $prefix = 'C';
-    } elseif (strpos($membership_type_lower, 'ordinary') !== false) {
+    } elseif (strpos($membership_type_lower, 'ordinarys') !== false) {
         $prefix = 'O';
     } elseif (strpos($membership_type_lower, 'associate') !== false) {
         $prefix = 'A';
